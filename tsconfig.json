@@ -1,0 +1,26 @@
+{
+	"compilerOptions": {
+		"allowImportingTsExtensions": true,
+		"allowJs": true,
+		"allowSyntheticDefaultImports": true,
+		"composite": false,
+		"declaration": true,
+		"declarationDir": "./types",
+		"downlevelIteration": true,
+		"emitDeclarationOnly": true,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"jsx": "react-jsx",
+		"isolatedModules": true,
+		"lib": ["DOM", "DOM.Iterable", "ESNext"],
+		"module": "esnext",
+		"moduleDetection": "force",
+		"moduleResolution": "bundler",
+		"skipLibCheck": true,
+		"strict": true,
+		"target": "esnext",
+		"useDefineForClassFields": true
+	},
+	"exclude": ["dist", "node_modules", "test", "types", "www"],
+	"include": ["src/**/*.ts"]
+}

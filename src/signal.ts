@@ -1,7 +1,8 @@
+import {Computed} from './computed';
 import {type Effect, activeEffect, runEffect} from './effect';
 
 type SignalState<Value> = {
-	effects: Set<Effect>;
+	observers: Set<Computed<never> | Effect>;
 	value: Value;
 };
 
@@ -15,14 +16,14 @@ export class Signal<Value> {
 	constructor(value: Value) {
 		this.state = {
 			value,
-			effects: new Set(),
+			observers: new Set(),
 		};
 	}
 
 	get(): Value {
 		if (activeEffect != null) {
-			this.state.effects.add(activeEffect);
-			activeEffect.state.signals.add(this as never);
+			this.state.observers.add(activeEffect);
+			activeEffect.signals.add(this as never);
 		}
 
 		return this.state.value;
@@ -40,8 +41,18 @@ export class Signal<Value> {
 		batchDepth += 1;
 
 		try {
-			for (const effect of this.state.effects) {
-				dirtyEffects.add(effect);
+			for (const observer of this.state.observers) {
+				if (observer instanceof Computed) {
+					observer.dirty = true;
+
+					dirtyEffects.add(observer);
+
+					for (const effect of observer.effects) {
+						dirtyEffects.add(effect);
+					}
+				} else {
+					dirtyEffects.add(observer);
+				}
 			}
 
 			if (isOutermostBatch) {

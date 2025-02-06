@@ -1,45 +1,38 @@
 import type {GenericCallback} from '@oscarpalmer/atoms/models';
 import type {Signal} from './signal';
 
-type EffectState = {
-	callback: GenericCallback;
-	signals: Set<Signal<never>>;
-};
-
 export let activeEffect: Effect | undefined;
 
 export class Effect {
-	readonly state: EffectState;
-
-	constructor(callback: GenericCallback) {
-		this.state = {
-			callback,
-			signals: new Set(),
-		};
-
-		runEffect(this);
+		callback!: GenericCallback;
+		signals = new Set<Signal<unknown>>();
 	}
-}
 
 export function runEffect(effect: Effect): void {
-	for (const signal of effect.state.signals) {
-		signal.state.effects.delete(effect);
+	for (const signal of effect.signals) {
+		signal.state.observers.delete(effect);
 	}
 
-	effect.state.signals.clear();
+	effect.signals.clear();
 
 	const previousEffect = activeEffect;
 
 	activeEffect = effect;
 
 	try {
-		effect.state.callback();
+		effect.callback();
 	} finally {
 		activeEffect = previousEffect;
 	}
 }
 
 export function effect(callback: GenericCallback): Effect {
-	return new Effect(callback);
+	const instance = new Effect();
+
+	instance.callback = callback;
+
+	runEffect(instance);
+
+	return instance;
 }
 

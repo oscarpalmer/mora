@@ -1,33 +1,71 @@
-import {Effect, activeEffect, runEffect} from './effect';
+import {type Effect, activeEffect, effect, runEffect} from './effect';
+import {dirtyEffects} from './signal';
 
-export class Computed<Value> extends Effect {
-	dirty = true;
-	effects = new Set<Effect>();
-	value!: Value;
+type ComputedState<Value> = {
+	dirty: boolean;
+	computeds: Set<Computed<unknown>>;
+	effect: Effect;
+	effects: Set<Effect>;
+	value: Value;
+};
+
+export let activeComputed: Computed<unknown> | undefined;
+
+export class Computed<Value> {
+	readonly state: ComputedState<Value>;
 
 	constructor(callback: () => Value) {
-		super();
-
-		this.callback = () => {
-			if (this.dirty) {
-				this.value = callback();
-				this.dirty = false;
-			}
+		this.state = {
+			dirty: true,
+			computeds: new Set(),
+			effect: undefined as never,
+			effects: new Set(),
+			value: undefined as never,
 		};
 
-		runEffect(this);
+		this.state.effect = effect(() => {
+			if (this.state.dirty) {
+				const previousComputed = activeComputed;
+
+				activeComputed = this;
+
+				const value = callback();
+
+				activeComputed = previousComputed;
+
+				if (!Object.is(this.state.value, value)) {
+					this.state.value = value;
+
+					for (const comp of this.state.computeds) {
+						comp.state.dirty = true;
+
+						dirtyEffects.add(comp.state.effect);
+					}
+
+					for (const effect of this.state.effects) {
+						dirtyEffects.add(effect);
+					}
+				}
+
+				this.state.dirty = false;
+			}
+		});
 	}
 
 	get(): Value {
-		if (activeEffect != null && activeEffect !== this) {
-			this.effects.add(activeEffect);
+		if (activeComputed != null && activeComputed !== this) {
+			this.state.computeds.add(activeComputed);
 		}
 
-		if (this.dirty) {
-			runEffect(this);
+		if (activeEffect != null && activeEffect !== this.state.effect) {
+			this.state.effects.add(activeEffect);
 		}
 
-		return this.value;
+		if (this.state.dirty) {
+			runEffect(this.state.effect);
+		}
+
+		return this.state.value;
 	}
 }
 

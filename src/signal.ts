@@ -1,14 +1,13 @@
-import {Computed} from './computed';
+import {type Computed, activeComputed} from './computed';
 import {type Effect, activeEffect, runEffect} from './effect';
 
 type SignalState<Value> = {
-	observers: Set<Computed<never> | Effect>;
+	computeds: Set<Computed<unknown>>;
+	effects: Set<Effect>;
 	value: Value;
 };
 
-const dirtyEffects = new Set<Effect>();
-
-let batchDepth = 0;
+export const dirtyEffects = new Set<Effect>();
 
 export class Signal<Value> {
 	readonly state: SignalState<Value>;
@@ -16,14 +15,18 @@ export class Signal<Value> {
 	constructor(value: Value) {
 		this.state = {
 			value,
-			observers: new Set(),
+			computeds: new Set(),
+			effects: new Set(),
 		};
 	}
 
 	get(): Value {
+		if (activeComputed != null) {
+			this.state.computeds.add(activeComputed);
+		}
+
 		if (activeEffect != null) {
-			this.state.observers.add(activeEffect);
-			activeEffect.signals.add(this as never);
+			this.state.effects.add(activeEffect);
 		}
 
 		return this.state.value;
@@ -36,41 +39,23 @@ export class Signal<Value> {
 
 		this.state.value = value;
 
-		const isOutermostBatch = batchDepth === 0;
+		for (const computed of this.state.computeds) {
+			computed.state.dirty = true;
 
-		batchDepth += 1;
+			dirtyEffects.add(computed.state.effect);
+		}
 
-		try {
-			for (const observer of this.state.observers) {
-				if (observer instanceof Computed) {
-					observer.dirty = true;
+		for (const effect of this.state.effects) {
+			dirtyEffects.add(effect);
+		}
 
-					dirtyEffects.add(observer);
+		while (dirtyEffects.size > 0) {
+			const effects = [...dirtyEffects];
 
-					for (const effect of observer.effects) {
-						dirtyEffects.add(effect);
-					}
-				} else {
-					dirtyEffects.add(observer);
-				}
-			}
+			dirtyEffects.clear();
 
-			if (isOutermostBatch) {
-				queueMicrotask(() => {
-					try {
-						for (const effect of dirtyEffects) {
-							runEffect(effect);
-						}
-					} finally {
-						dirtyEffects.clear();
-
-						batchDepth = 0;
-					}
-				});
-			}
-		} finally {
-			if (isOutermostBatch) {
-				batchDepth -= 1;
+			for (const effect of effects) {
+				runEffect(effect);
 			}
 		}
 	}

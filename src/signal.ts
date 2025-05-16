@@ -1,13 +1,12 @@
+import {batchDepth, flushEffects} from './batch';
 import {type Computed, activeComputed} from './computed';
-import {type Effect, activeEffect, runEffect} from './effect';
+import {type Effect, activeEffect, dirtyEffects} from './effect';
 
 type SignalState<Value> = {
 	computeds: Set<Computed<unknown>>;
 	effects: Set<Effect>;
 	value: Value;
 };
-
-export const dirtyEffects = new Set<Effect>();
 
 export class Signal<Value> {
 	readonly state: SignalState<Value>;
@@ -20,6 +19,9 @@ export class Signal<Value> {
 		};
 	}
 
+	/**
+	 * Get the value
+	 */
 	get(): Value {
 		if (activeComputed != null) {
 			this.state.computeds.add(activeComputed);
@@ -32,6 +34,9 @@ export class Signal<Value> {
 		return this.state.value;
 	}
 
+	/**
+	 * Set the value
+	 */
 	set(value: Value): void {
 		if (Object.is(this.state.value, value)) {
 			return;
@@ -49,17 +54,14 @@ export class Signal<Value> {
 			dirtyEffects.add(effect);
 		}
 
-		while (dirtyEffects.size > 0) {
-			const effects = [...dirtyEffects];
-
-			dirtyEffects.clear();
-
-			for (const effect of effects) {
-				runEffect(effect);
-			}
+		if (batchDepth === 0) {
+			flushEffects();
 		}
 	}
 
+	/**
+	 * Update the value
+	 */
 	update(callback: (value: Value) => Value): void {
 		this.set(callback(this.state.value));
 	}

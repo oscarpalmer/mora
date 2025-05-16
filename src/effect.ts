@@ -4,8 +4,6 @@ type EffectState = {
 	callback: GenericCallback;
 };
 
-export let activeEffect: Effect | undefined;
-
 export class Effect {
 	readonly state: EffectState;
 
@@ -30,6 +28,13 @@ export function runEffect(effect: Effect): void {
 	}
 }
 
+/**
+ * Create an effect
+ */
 export function effect(callback: GenericCallback): Effect {
 	return new Effect(callback);
 }
+
+export let activeEffect: Effect | undefined;
+
+export const dirtyEffects = new Set<Effect>();

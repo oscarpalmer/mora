@@ -27,6 +27,7 @@ export default defineConfig({
 			},
 		},
 	},
+	logLevel: 'silent',
 	test: {
 		coverage: {
 			include: ['src/**/*.ts'],

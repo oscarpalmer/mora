@@ -16,9 +16,8 @@ tsConfig.compilerOptions = {
 export default {
 	input: './src/index.ts',
 	output: {
-		file: './dist/mora.iife.js',
-		format: 'iife',
-		name: 'Mora',
+		file: './dist/mora.full.js',
+		format: 'es',
 	},
 	plugins: [pluginNodeResolve(), pluginTypescript(tsConfig)],
 };

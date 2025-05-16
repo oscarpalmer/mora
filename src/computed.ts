@@ -1,9 +1,14 @@
-import {type Effect, activeEffect, effect, runEffect} from './effect';
-import {dirtyEffects} from './signal';
+import {
+	type Effect,
+	activeEffect,
+	dirtyEffects,
+	effect,
+	runEffect,
+} from './effect';
 
 type ComputedState<Value> = {
-	dirty: boolean;
 	computeds: Set<Computed<unknown>>;
+	dirty: boolean;
 	effect: Effect;
 	effects: Set<Effect>;
 	value: Value;
@@ -16,8 +21,8 @@ export class Computed<Value> {
 
 	constructor(callback: () => Value) {
 		this.state = {
-			dirty: true,
 			computeds: new Set(),
+			dirty: true,
 			effect: undefined as never,
 			effects: new Set(),
 			value: undefined as never,
@@ -52,6 +57,9 @@ export class Computed<Value> {
 		});
 	}
 
+	/**
+	 * Get the value
+	 */
 	get(): Value {
 		if (activeComputed != null && activeComputed !== this) {
 			this.state.computeds.add(activeComputed);
@@ -69,6 +77,9 @@ export class Computed<Value> {
 	}
 }
 
+/**
+ * Create a computed value
+ */
 export function computed<Value>(callback: () => Value): Computed<Value> {
 	return new Computed(callback);
 }

@@ -1,5 +1,5 @@
 import {batchDepth, flushEffects} from './batch';
-import {type Computed, activeComputed} from './computed';
+import {type Computed, type InternalComputed, activeComputed} from './computed';
 import {type Effect, activeEffect, dirtyEffects} from './effect';
 
 type SignalState<Value> = {
@@ -9,7 +9,7 @@ type SignalState<Value> = {
 };
 
 export class Signal<Value> {
-	readonly state: SignalState<Value>;
+	private readonly state: SignalState<Value>;
 
 	constructor(value: Value) {
 		this.state = {
@@ -44,10 +44,10 @@ export class Signal<Value> {
 
 		this.state.value = value;
 
-		for (const computed of this.state.computeds) {
-			computed.state.dirty = true;
+		for (const comp of this.state.computeds) {
+			(comp as unknown as InternalComputed).state.dirty = true;
 
-			dirtyEffects.add(computed.state.effect);
+			dirtyEffects.add((comp as unknown as InternalComputed).state.effect);
 		}
 
 		for (const effect of this.state.effects) {

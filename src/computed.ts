@@ -1,3 +1,4 @@
+import {batchDepth} from './batch';
 import {
 	type Effect,
 	activeEffect,
@@ -14,10 +15,14 @@ type ComputedState<Value> = {
 	value: Value;
 };
 
+export type InternalComputed = {
+	readonly state: ComputedState<unknown>;
+};
+
 export let activeComputed: Computed<unknown> | undefined;
 
 export class Computed<Value> {
-	readonly state: ComputedState<Value>;
+	private readonly state: ComputedState<Value>;
 
 	constructor(callback: () => Value) {
 		this.state = {
@@ -70,7 +75,11 @@ export class Computed<Value> {
 		}
 
 		if (this.state.dirty) {
-			runEffect(this.state.effect);
+			if (batchDepth === 0) {
+				runEffect(this.state.effect);
+			} else {
+				dirtyEffects.add(this.state.effect);
+			}
 		}
 
 		return this.state.value;

@@ -4,8 +4,12 @@ type EffectState = {
 	callback: GenericCallback;
 };
 
+type InternalEffect = {
+	state: EffectState;
+};
+
 export class Effect {
-	readonly state: EffectState;
+	private readonly state: EffectState;
 
 	constructor(callback: GenericCallback) {
 		this.state = {
@@ -22,7 +26,7 @@ export function runEffect(effect: Effect): void {
 	activeEffect = effect;
 
 	try {
-		effect.state.callback();
+		(effect as unknown as InternalEffect).state.callback();
 	} finally {
 		activeEffect = previousEffect;
 	}

@@ -1,7 +1,7 @@
 import {dirtyEffects, runEffect} from './effect';
 
 export function flushEffects(): void {
-	while (dirtyEffects.size > 0) {
+	while (batchDepth === 0 && dirtyEffects.size > 0) {
 		const effects = [...dirtyEffects];
 
 		dirtyEffects.clear();
@@ -27,9 +27,7 @@ export function stopBatch(): void {
 		batchDepth -= 1;
 	}
 
-	if (batchDepth === 0) {
-		flushEffects();
-	}
+	flushEffects();
 }
 
 export let batchDepth = 0;

@@ -10,6 +10,7 @@ test('batch: simple', () => {
 
 	effect(() => {
 		a.get();
+
 		counter += 1;
 	});
 
@@ -23,14 +24,14 @@ test('batch: simple', () => {
 		a.update(current => current + 1);
 	}
 
-	expect(b.get()).toBe(1123);
+	expect(b.peek()).toBe(1123);
 
 	stopBatch();
 
 	expect(batchDepth).toBe(0);
 	expect(counter).toBe(2);
-	expect(a.get()).toBe(223);
-	expect(b.get()).toBe(1223);
+	expect(a.peek()).toBe(223);
+	expect(b.peek()).toBe(1223);
 });
 
 test('batch: nested', () =>
@@ -73,8 +74,8 @@ test('batch: nested', () =>
 
 		setTimeout(() => {
 			expect(count).toBe(2);
-			expect(signal1.get()).toBe(100);
-			expect(signal2.get()).toBe(20);
+			expect(signal1.peek()).toBe(100);
+			expect(signal2.peek()).toBe(20);
 		}, 10);
 
 		setTimeout(done, 125);

@@ -18,4 +18,5 @@ test('effect', () => {
 
 	expect(count).toBe(100);
 	expect(total).toBe(4950);
+	expect(value.get()).toBe(4950);
 });

@@ -35,6 +35,13 @@ export class Signal<Value> {
 	}
 
 	/**
+	 * Get the value _(without reactivity)_
+	 */
+	peek(): Value {
+		return this.state.value;
+	}
+
+	/**
 	 * Set the value
 	 */
 	set(value: Value): void {
@@ -44,10 +51,10 @@ export class Signal<Value> {
 
 		this.state.value = value;
 
-		for (const comp of this.state.computeds) {
-			(comp as unknown as InternalComputed).state.dirty = true;
+		for (const computed of this.state.computeds) {
+			(computed as unknown as InternalComputed).state.dirty = true;
 
-			dirtyEffects.add((comp as unknown as InternalComputed).state.effect);
+			dirtyEffects.add((computed as unknown as InternalComputed).state.effect);
 		}
 
 		for (const effect of this.state.effects) {

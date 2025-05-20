@@ -46,10 +46,10 @@ export class Computed<Value> {
 				if (!Object.is(this.state.value, value)) {
 					this.state.value = value;
 
-					for (const comp of this.state.computeds) {
-						comp.state.dirty = true;
+					for (const computed of this.state.computeds) {
+						computed.state.dirty = true;
 
-						dirtyEffects.add(comp.state.effect);
+						dirtyEffects.add(computed.state.effect);
 					}
 
 					for (const effect of this.state.effects) {
@@ -82,6 +82,13 @@ export class Computed<Value> {
 			}
 		}
 
+		return this.state.value;
+	}
+
+	/**
+	 * Get the value _(without reactivity)_
+	 */
+	peek(): Value {
 		return this.state.value;
 	}
 }

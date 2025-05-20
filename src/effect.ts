@@ -9,7 +9,7 @@ type InternalEffect = {
 };
 
 export class Effect {
-	private readonly state: EffectState;
+	private declare readonly state: EffectState;
 
 	constructor(callback: GenericCallback) {
 		this.state = {

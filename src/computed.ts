@@ -55,7 +55,7 @@ export class Computed<Value> extends Reactive<Value> {
 	}
 
 	/**
-	 * Get the value
+	 * @inheritdoc
 	 */
 	get(): Value {
 		if (activeComputed != null && activeComputed !== this) {

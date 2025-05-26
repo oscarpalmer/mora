@@ -24,6 +24,11 @@ export abstract class Reactive<Value> {
 	}
 
 	/**
+	 * Get the value
+	 */
+	abstract get(): Value;
+
+	/**
 	 * Get the value _(without reactivity)_
 	 */
 	peek(): Value {

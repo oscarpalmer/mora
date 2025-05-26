@@ -9,7 +9,7 @@ export class Signal<Value> extends Reactive<Value> {
 	}
 
 	/**
-	 * Get the value
+	 * @inheritdoc
 	 */
 	get(): Value {
 		if (activeComputed != null) {

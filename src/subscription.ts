@@ -1,23 +1,25 @@
 import type {GenericCallback} from '@oscarpalmer/atoms/models';
-import type {ComputedState} from './computed';
-import type {SignalState} from './signal';
+import type {ReactiveState} from './reactive';
 
-export class Subscription {
+export class Subscription<Value> {
 	constructor(
-		public state: ComputedState<unknown> | SignalState<unknown>,
+		public state: ReactiveState<Value>,
 		public callback: GenericCallback,
 	) {
 		callback(state.value);
 	}
 }
 
+/**
+ * Unsubscribe from changes
+ */
 export type Unsubscribe = () => void;
 
 export function noop(): void {}
 
-export function subscribe(
-	state: ComputedState<unknown> | SignalState<unknown>,
-	callback: GenericCallback,
+export function subscribe<Value>(
+	state: ReactiveState<Value>,
+	callback: (value: Value) => void,
 ): Unsubscribe {
 	if (typeof callback !== 'function' || state.subscriptions.has(callback)) {
 		return noop;
@@ -30,9 +32,9 @@ export function subscribe(
 	};
 }
 
-export function unsubscribe(
-	state: ComputedState<unknown> | SignalState<unknown>,
-	callback: GenericCallback,
+export function unsubscribe<Value>(
+	state: ReactiveState<Value>,
+	callback: (value: Value) => void,
 ): void {
 	const subscription = state.subscriptions.get(callback);
 

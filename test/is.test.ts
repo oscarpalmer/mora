@@ -1,5 +1,6 @@
 import {expect, test} from 'vitest';
 import {computed, effect, isComputed, isEffect, isSignal, signal} from '../src';
+import {isReactive} from '../src/is';
 
 const a = signal('a');
 const b = computed(() => `${a.get()}b`);
@@ -35,6 +36,16 @@ test('isEffect', () => {
 	expect(isEffect(a)).toBe(false);
 	expect(isEffect(b)).toBe(false);
 	expect(isEffect(c)).toBe(true);
+});
+
+test('isReactive', () => {
+	for (const value of values) {
+		expect(isReactive(value)).toBe(false);
+	}
+
+	expect(isReactive(a)).toBe(true);
+	expect(isReactive(b)).toBe(true);
+	expect(isReactive(c)).toBe(false);
 });
 
 test('isSignal', () => {

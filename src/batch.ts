@@ -36,6 +36,6 @@ export function stopBatch(): void {
 	flushEffects();
 }
 
-export const batchedHandlers = new Set<Effect | Subscription>();
+export const batchedHandlers = new Set<Effect | Subscription<unknown>>();
 
 export let batchDepth = 0;

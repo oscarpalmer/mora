@@ -1,52 +1,33 @@
-import type {GenericCallback} from '@oscarpalmer/atoms/models';
 import {batchDepth, batchedHandlers} from './batch';
 import {type Effect, activeEffect, effect, runEffect} from './effect';
-import {
-	type Subscription,
-	type Unsubscribe,
-	subscribe,
-	unsubscribe,
-} from './subscription';
+import {Reactive, type ReactiveState} from './reactive';
 
-export type ComputedState<Value> = {
-	computeds: Set<Computed<unknown>>;
+type ComputedEffect = {
 	dirty: boolean;
-	effect: Effect;
-	effects: Set<Effect>;
-	subscriptions: Map<GenericCallback, Subscription>;
-	value: Value;
+	instance: Effect;
 };
 
 export type InternalComputed = {
-	readonly state: ComputedState<unknown>;
+	readonly effect: ComputedEffect;
+	readonly state: ReactiveState<unknown>;
 };
 
 export let activeComputed: Computed<unknown> | undefined;
 
-export class Computed<Value> {
-	private declare readonly $mora: string;
-
-	private readonly state: ComputedState<Value>;
+export class Computed<Value> extends Reactive<Value> {
+	private readonly effect: ComputedEffect = {
+		dirty: true,
+		instance: undefined as never,
+	};
 
 	constructor(callback: () => Value) {
-		Object.defineProperty(this, '$mora', {
-			value: 'computed',
-		});
+		super('computed', undefined as never);
 
-		this.state = {
-			computeds: new Set(),
-			dirty: true,
-			effect: undefined as never,
-			effects: new Set(),
-			subscriptions: new Map(),
-			value: undefined as never,
-		};
-
-		this.state.effect = effect(() => {
-			if (this.state.dirty) {
+		this.effect.instance = effect(() => {
+			if (this.effect.dirty) {
 				const previousComputed = activeComputed;
 
-				activeComputed = this;
+				activeComputed = this as never;
 
 				const value = callback();
 
@@ -56,7 +37,7 @@ export class Computed<Value> {
 					this.state.value = value;
 
 					for (const computed of this.state.computeds) {
-						computed.state.dirty = true;
+						computed.effect.dirty = true;
 					}
 
 					for (const effect of this.state.effects) {
@@ -68,7 +49,7 @@ export class Computed<Value> {
 					}
 				}
 
-				this.state.dirty = false;
+				this.effect.dirty = false;
 			}
 		});
 	}
@@ -81,36 +62,15 @@ export class Computed<Value> {
 			this.state.computeds.add(activeComputed);
 		}
 
-		if (activeEffect != null && activeEffect !== this.state.effect) {
+		if (activeEffect != null && activeEffect !== this.effect.instance) {
 			this.state.effects.add(activeEffect);
 		}
 
-		if (this.state.dirty && batchDepth === 0) {
-			runEffect(this.state.effect);
+		if (this.effect.dirty && batchDepth === 0) {
+			runEffect(this.effect.instance);
 		}
 
 		return this.state.value;
-	}
-
-	/**
-	 * Get the value _(without reactivity)_
-	 */
-	peek(): Value {
-		return this.state.value;
-	}
-
-	/**
-	 * Subscribe to changes
-	 */
-	subscribe(callback: (value: Value) => void): Unsubscribe {
-		return subscribe(this.state, callback);
-	}
-
-	/**
-	 * Unsubscribe from changes
-	 */
-	unsubscribe(callback: (value: Value) => void): void {
-		unsubscribe(this.state, callback);
 	}
 }
 

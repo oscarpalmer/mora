@@ -1,6 +1,7 @@
 import type {PlainObject} from '@oscarpalmer/atoms/models';
 import type {Computed} from './computed';
 import type {Effect} from './effect';
+import type {Reactive} from './reactive';
 import type {Signal} from './signal';
 
 /**
@@ -24,6 +25,10 @@ function isMora<T>(value: unknown, name: string): value is T {
 		'$mora' in value &&
 		(value as PlainObject).$mora === name
 	);
+}
+
+export function isReactive(value: unknown): value is Reactive<unknown> {
+	return isComputed(value) || isSignal(value);
 }
 
 /**

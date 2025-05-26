@@ -1,37 +1,11 @@
-import type {GenericCallback} from '@oscarpalmer/atoms/models';
 import {batchDepth, batchedHandlers, flushEffects} from './batch';
-import {type Computed, type InternalComputed, activeComputed} from './computed';
-import {type Effect, activeEffect} from './effect';
-import {
-	type Subscription,
-	type Unsubscribe,
-	subscribe,
-	unsubscribe,
-} from './subscription';
+import {type InternalComputed, activeComputed} from './computed';
+import {activeEffect} from './effect';
+import {Reactive} from './reactive';
 
-export type SignalState<Value> = {
-	computeds: Set<Computed<unknown>>;
-	effects: Set<Effect>;
-	subscriptions: Map<GenericCallback, Subscription>;
-	value: Value;
-};
-
-export class Signal<Value> {
-	private declare readonly $mora: string;
-
-	private readonly state: SignalState<Value>;
-
+export class Signal<Value> extends Reactive<Value> {
 	constructor(value: Value) {
-		Object.defineProperty(this, '$mora', {
-			value: 'signal',
-		});
-
-		this.state = {
-			value,
-			computeds: new Set(),
-			effects: new Set(),
-			subscriptions: new Map(),
-		};
+		super('signal', value);
 	}
 
 	/**
@@ -50,13 +24,6 @@ export class Signal<Value> {
 	}
 
 	/**
-	 * Get the value _(without reactivity)_
-	 */
-	peek(): Value {
-		return this.state.value;
-	}
-
-	/**
 	 * Set the value
 	 */
 	set(value: Value): void {
@@ -67,7 +34,7 @@ export class Signal<Value> {
 		this.state.value = value;
 
 		for (const computed of this.state.computeds) {
-			(computed as unknown as InternalComputed).state.dirty = true;
+			(computed as unknown as InternalComputed).effect.dirty = true;
 		}
 
 		for (const effect of this.state.effects) {
@@ -75,26 +42,12 @@ export class Signal<Value> {
 		}
 
 		for (const [, subscription] of this.state.subscriptions) {
-			batchedHandlers.add(subscription);
+			batchedHandlers.add(subscription as never);
 		}
 
 		if (batchDepth === 0) {
 			flushEffects();
 		}
-	}
-
-	/**
-	 * Subscribe to changes
-	 */
-	subscribe(callback: (value: Value) => void): Unsubscribe {
-		return subscribe(this.state, callback);
-	}
-
-	/**
-	 * Unsubscribe from changes
-	 */
-	unsubscribe(callback: (value: Value) => void): void {
-		unsubscribe(this.state, callback);
 	}
 
 	/**

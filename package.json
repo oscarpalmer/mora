@@ -3,10 +3,12 @@
 		"name": "Oscar Palmér",
 		"url": "https://oscarpalmer.se"
 	},
+	"dependencies": {
+		"@oscarpalmer/atoms": "^0.100"
+	},
 	"description": "Signals and stuff…",
 	"devDependencies": {
 		"@biomejs/biome": "^1.9",
-		"@oscarpalmer/atoms": "^0.100",
 		"@rollup/plugin-node-resolve": "^16",
 		"@rollup/plugin-typescript": "^12.1",
 		"@types/node": "^22.15",
@@ -52,5 +54,5 @@
 	},
 	"type": "module",
 	"types": "./types/index.d.ts",
-	"version": "0.8.0"
+	"version": "0.9.0"
 }

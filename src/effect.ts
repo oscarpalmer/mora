@@ -9,16 +9,22 @@ type InternalEffect = {
 };
 
 export class Effect {
-	private declare readonly state: EffectState;
+		private declare readonly $mora: string;
 
-	constructor(callback: GenericCallback) {
-		this.state = {
-			callback,
-		};
+		private declare readonly state: EffectState;
 
-		runEffect(this);
+		constructor(callback: GenericCallback) {
+			Object.defineProperty(this, '$mora', {
+				value: 'effect',
+			});
+
+			this.state = {
+				callback,
+			};
+
+			runEffect(this);
+		}
 	}
-}
 
 export function runEffect(effect: Effect): void {
 	const previousEffect = activeEffect;

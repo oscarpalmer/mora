@@ -22,70 +22,76 @@ export type InternalComputed = {
 export let activeComputed: Computed<unknown> | undefined;
 
 export class Computed<Value> {
-	private readonly state: ComputedState<Value>;
+		private declare readonly $mora: string;
 
-	constructor(callback: () => Value) {
-		this.state = {
-			computeds: new Set(),
-			dirty: true,
-			effect: undefined as never,
-			effects: new Set(),
-			value: undefined as never,
-		};
+		private readonly state: ComputedState<Value>;
 
-		this.state.effect = effect(() => {
-			if (this.state.dirty) {
-				const previousComputed = activeComputed;
+		constructor(callback: () => Value) {
+			Object.defineProperty(this, '$mora', {
+				value: 'computed',
+			});
 
-				activeComputed = this;
+			this.state = {
+				computeds: new Set(),
+				dirty: true,
+				effect: undefined as never,
+				effects: new Set(),
+				value: undefined as never,
+			};
 
-				const value = callback();
+			this.state.effect = effect(() => {
+				if (this.state.dirty) {
+					const previousComputed = activeComputed;
 
-				activeComputed = previousComputed;
+					activeComputed = this;
 
-				if (!Object.is(this.state.value, value)) {
-					this.state.value = value;
+					const value = callback();
 
-					for (const computed of this.state.computeds) {
-						computed.state.dirty = true;
+					activeComputed = previousComputed;
+
+					if (!Object.is(this.state.value, value)) {
+						this.state.value = value;
+
+						for (const computed of this.state.computeds) {
+							computed.state.dirty = true;
+						}
+
+						for (const effect of this.state.effects) {
+							dirtyEffects.add(effect);
+						}
 					}
 
-					for (const effect of this.state.effects) {
-						dirtyEffects.add(effect);
-					}
+					this.state.dirty = false;
 				}
+			});
+		}
 
-				this.state.dirty = false;
+		/**
+		 * Get the value
+		 */
+		get(): Value {
+			if (activeComputed != null && activeComputed !== this) {
+				this.state.computeds.add(activeComputed);
 			}
-		});
-	}
 
-	/**
-	 * Get the value
-	 */
-	get(): Value {
-		if (activeComputed != null && activeComputed !== this) {
-			this.state.computeds.add(activeComputed);
+			if (activeEffect != null && activeEffect !== this.state.effect) {
+				this.state.effects.add(activeEffect);
+			}
+
+			if (this.state.dirty && batchDepth === 0) {
+				runEffect(this.state.effect);
+			}
+
+			return this.state.value;
 		}
 
-		if (activeEffect != null && activeEffect !== this.state.effect) {
-			this.state.effects.add(activeEffect);
+		/**
+		 * Get the value _(without reactivity)_
+		 */
+		peek(): Value {
+			return this.state.value;
 		}
-
-		if (this.state.dirty && batchDepth === 0) {
-			runEffect(this.state.effect);
-		}
-
-		return this.state.value;
 	}
-
-	/**
-	 * Get the value _(without reactivity)_
-	 */
-	peek(): Value {
-		return this.state.value;
-	}
-}
 
 /**
  * Create a computed value

@@ -1,13 +1,19 @@
-import {dirtyEffects, runEffect} from './effect';
+import {type Effect, runEffect} from './effect';
+import {isEffect} from './is';
+import type {Subscription} from './subscription';
 
 export function flushEffects(): void {
-	while (batchDepth === 0 && dirtyEffects.size > 0) {
-		const effects = [...dirtyEffects];
+	while (batchDepth === 0 && batchedHandlers.size > 0) {
+		const handlers = [...batchedHandlers];
 
-		dirtyEffects.clear();
+		batchedHandlers.clear();
 
-		for (const effect of effects) {
-			runEffect(effect);
+		for (const handler of handlers) {
+			if (isEffect(handler)) {
+				runEffect(handler);
+			} else {
+				handler.callback(handler.state.value);
+			}
 		}
 	}
 }
@@ -29,5 +35,7 @@ export function stopBatch(): void {
 
 	flushEffects();
 }
+
+export const batchedHandlers = new Set<Effect | Subscription>();
 
 export let batchDepth = 0;

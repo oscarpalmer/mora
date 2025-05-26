@@ -46,5 +46,3 @@ export function effect(callback: GenericCallback): Effect {
 }
 
 export let activeEffect: Effect | undefined;
-
-export const dirtyEffects = new Set<Effect>();

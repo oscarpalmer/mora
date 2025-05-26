@@ -53,8 +53,6 @@ export class Signal<Value> {
 
 		for (const computed of this.state.computeds) {
 			(computed as unknown as InternalComputed).state.dirty = true;
-
-			dirtyEffects.add((computed as unknown as InternalComputed).state.effect);
 		}
 
 		for (const effect of this.state.effects) {

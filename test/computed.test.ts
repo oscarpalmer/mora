@@ -1,7 +1,7 @@
 import {expect, test} from 'vitest';
 import {computed, effect, signal, startBatch, stopBatch} from '../src';
 
-test('computed: basic', () => {
+test(' basic', () => {
 	const a = signal(1);
 	const b = signal(2);
 
@@ -22,7 +22,7 @@ test('computed: basic', () => {
 	expect(d.peek()).toBe(8);
 });
 
-test('computed: get & peek', () => {
+test('get & peek', () => {
 	const a = signal(1);
 	const b = computed(() => a.get() ** 2);
 	const c = computed(() => b.get() + 1);

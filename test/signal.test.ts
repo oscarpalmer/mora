@@ -1,7 +1,7 @@
 import {expect, test} from 'vitest';
 import {effect, signal} from '../src';
 
-test('signal: basic', () => {
+test('basic', () => {
 	const value = signal(1);
 
 	expect(value.peek()).toBe(1);
@@ -19,7 +19,7 @@ test('signal: basic', () => {
 	expect(value.peek()).toBe(3);
 });
 
-test('signal: peek', () => {
+test('peek', () => {
 	const a = signal(1);
 
 	let count = 0;

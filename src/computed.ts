@@ -48,8 +48,6 @@ export class Computed<Value> {
 
 					for (const computed of this.state.computeds) {
 						computed.state.dirty = true;
-
-						dirtyEffects.add(computed.state.effect);
 					}
 
 					for (const effect of this.state.effects) {
@@ -74,12 +72,8 @@ export class Computed<Value> {
 			this.state.effects.add(activeEffect);
 		}
 
-		if (this.state.dirty) {
-			if (batchDepth === 0) {
-				runEffect(this.state.effect);
-			} else {
-				dirtyEffects.add(this.state.effect);
-			}
+		if (this.state.dirty && batchDepth === 0) {
+			runEffect(this.state.effect);
 		}
 
 		return this.state.value;

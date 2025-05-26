@@ -1,7 +1,7 @@
 import {expect, test} from 'vitest';
 import {effect, signal} from '../src';
 
-test('effect', () => {
+test('basic', () => {
 	const value = signal(0);
 
 	let count = 0;

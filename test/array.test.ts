@@ -64,6 +64,21 @@ test('emit', () => {
 	expect(counts.b).toBe(2);
 });
 
+test('filter', () => {
+	const a = array([1, 2, 3, 4, 5]);
+	const b = a.filter(item => item % 2 === 0);
+
+	expect(b.peek()).toEqual([2, 4]);
+
+	a.push(6, 7, 8);
+
+	expect(b.peek()).toEqual([2, 4, 6, 8]);
+
+	a.set([]);
+
+	expect(b.peek()).toEqual([]);
+});
+
 test('length', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
@@ -80,6 +95,21 @@ test('length', () => {
 	a.length = 'blah' as never;
 
 	expect(a.length).toBe(10);
+});
+
+test('map', () => {
+	const a = array([1, 2, 3, 4, 5]);
+	const b = a.map(item => item * 2);
+
+	expect(b.peek()).toEqual([2, 4, 6, 8, 10]);
+
+	a.push(6, 7, 8);
+
+	expect(b.peek()).toEqual([2, 4, 6, 8, 10, 12, 14, 16]);
+
+	a.set([]);
+
+	expect(b.peek()).toEqual([]);
 });
 
 test('peek', () => {
@@ -175,15 +205,14 @@ test('update: fill', () => {
 test('update: pop', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
-	expect(a.get().pop()).toBe(5);
+	expect(a.pop()).toBe(5);
 	expect(a.peek()).toEqual([1, 2, 3, 4]);
 });
 
 test('update: push', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
-	a.get().push(6);
-
+	expect(a.push(6)).toBe(6);
 	expect(a.peek()).toEqual([1, 2, 3, 4, 5, 6]);
 	expect(a.length).toBe(6);
 });
@@ -199,8 +228,9 @@ test('update: reverse', () => {
 test('update: shift', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
-	expect(a.get().shift()).toBe(1);
+	expect(a.shift()).toBe(1);
 	expect(a.peek()).toEqual([2, 3, 4, 5]);
+	expect(a.length).toBe(4);
 });
 
 test('update: sort', () => {
@@ -211,26 +241,42 @@ test('update: sort', () => {
 	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
 });
 
-test('update: splice', () => {
+test('update: splice (+ at)', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
-	expect(a.get().splice(0, 2)).toEqual([1, 2]);
+	let first: unknown;
+	let last: unknown;
+
+	effect(() => {
+		first = a.at(0);
+		last = a.at(-1);
+	});
+
+	expect(a.splice(0, 2)).toEqual([1, 2]);
 	expect(a.peek()).toEqual([3, 4, 5]);
 
-	a.get().splice(1, 0, 6);
+	expect(first).toBe(3);
+	expect(last).toBe(5);
+
+	a.splice(1, 0, 6);
 
 	expect(a.peek()).toEqual([3, 6, 4, 5]);
 
-	a.get().splice(0);
+	expect(first).toBe(3);
+	expect(last).toBe(5);
+
+	a.splice(0);
 
 	expect(a.peek()).toEqual([]);
+
+	expect(first).toBe(undefined);
+	expect(last).toBe(undefined);
 });
 
 test('update: unshift', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
-	a.get().unshift(0);
-
+	expect(a.unshift(0)).toBe(6);
 	expect(a.peek()).toEqual([0, 1, 2, 3, 4, 5]);
 	expect(a.length).toBe(6);
 });

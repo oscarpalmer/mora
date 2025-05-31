@@ -1,6 +1,7 @@
 import {emitArrayChanges, emitValue} from '../helpers/emit';
 import {arrayName} from '../helpers/is';
 import {getValue} from '../helpers/value';
+import {type Computed, computed} from './computed';
 import {Reactive, type ReactiveState} from './reactive';
 import {type Signal, signal} from './signal';
 
@@ -44,10 +45,35 @@ export class ReactiveArray<Item> extends Reactive<Item[]> {
 	}
 
 	/**
+	 * Get an indexed item
+	 */
+	at(index: number): Item | undefined {
+		return this.get().at(index);
+	}
+
+	/**
 	 * @inheritdoc
 	 */
 	get(): Item[] {
 		return getValue(this.state);
+	}
+
+	/**
+	 * Create a computed, filtered array
+	 */
+	filter(
+		callback: (item: Item, index: number, array: Item[]) => boolean,
+	): Computed<Item[]> {
+		return computed(() => this.get().filter(callback));
+	}
+
+	/**
+	 * Create a computed, mapped array
+	 */
+	map<Mapped>(
+		callback: (item: Item, index: number, array: Item[]) => Mapped,
+	): Computed<Mapped[]> {
+		return computed(() => this.get().map(callback));
 	}
 
 	/**
@@ -62,6 +88,20 @@ export class ReactiveArray<Item> extends Reactive<Item[]> {
 
 	peek(length?: unknown): Item[] | number {
 		return length === true ? this.#size.peek() : [...this.state.value];
+	}
+
+	/**
+	 * Remove and return the last item of the array
+	 */
+	pop(): Item | undefined {
+		return this.state.value.pop();
+	}
+
+	/**
+	 * Add items to the end of the array
+	 */
+	push(...items: Item[]): number {
+		return this.state.value.push(...items);
 	}
 
 	/**
@@ -87,6 +127,31 @@ export class ReactiveArray<Item> extends Reactive<Item[]> {
 		} else if (typeof first === 'number') {
 			this.state.value[first] = second as Item;
 		}
+	}
+
+	/**
+	 * Remove and return the first item of the array
+	 */
+	shift(): Item | undefined {
+		return this.state.value.shift();
+	}
+
+	/**
+	 * Remove and return items from the array _(and optionally add new items)_
+	 */
+	splice(from: number, to?: number, ...items: Item[]): Item[] {
+		return this.state.value.splice(
+			from,
+			to ?? this.state.value.length,
+			...items,
+		);
+	}
+
+	/**
+	 * Add items to the beginning of the array
+	 */
+	unshift(...items: Item[]): number {
+		return this.state.value.unshift(...items);
 	}
 }
 

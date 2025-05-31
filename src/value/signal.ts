@@ -1,9 +1,10 @@
+import {signalName} from '../helpers/is';
+import {getValue, setValue} from '../helpers/value';
 import {Reactive} from './reactive';
-import {getValue, setValue} from './value';
 
 export class Signal<Value> extends Reactive<Value> {
 	constructor(value: Value) {
-		super('signal', value);
+		super(signalName, value);
 	}
 
 	/**

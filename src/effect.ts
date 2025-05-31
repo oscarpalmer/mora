@@ -1,4 +1,5 @@
 import type {GenericCallback} from '@oscarpalmer/atoms/models';
+import {effectName} from './helpers/is';
 
 type EffectState = {
 	callback: GenericCallback;
@@ -9,22 +10,22 @@ type InternalEffect = {
 };
 
 export class Effect {
-		private declare readonly $mora: string;
+	private declare readonly $mora: string;
 
-		private declare readonly state: EffectState;
+	private declare readonly state: EffectState;
 
-		constructor(callback: GenericCallback) {
-			Object.defineProperty(this, '$mora', {
-				value: 'effect',
-			});
+	constructor(callback: GenericCallback) {
+		Object.defineProperty(this, '$mora', {
+			value: effectName,
+		});
 
-			this.state = {
-				callback,
-			};
+		this.state = {
+			callback,
+		};
 
-			runEffect(this);
-		}
+		runEffect(this);
 	}
+}
 
 export function runEffect(effect: Effect): void {
 	const previousEffect = activeEffect;

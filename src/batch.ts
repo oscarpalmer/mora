@@ -1,5 +1,5 @@
 import {type Effect, runEffect} from './effect';
-import {isEffect} from './is';
+import {isEffect} from './helpers/is';
 import type {Subscription} from './subscription';
 
 export function flushEffects(): void {

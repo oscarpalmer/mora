@@ -1,6 +1,8 @@
+import {emitArrayChanges, emitValue} from '../helpers/emit';
+import {arrayName} from '../helpers/is';
+import {getValue} from '../helpers/value';
 import {Reactive, type ReactiveState} from './reactive';
 import {type Signal, signal} from './signal';
-import {emitValue, getValue} from './value';
 
 export class ReactiveArray<Item> extends Reactive<Item[]> {
 	#size = signal(0);
@@ -27,7 +29,7 @@ export class ReactiveArray<Item> extends Reactive<Item[]> {
 
 	constructor(value: Item[]) {
 		super(
-			'array',
+			arrayName,
 			new Proxy(value, {
 				get: (target, property) =>
 					updateMethods.has(property as string)
@@ -95,37 +97,6 @@ export function array<Item>(value: Item[]): ReactiveArray<Item> {
 	return new ReactiveArray(Array.isArray(value) ? value : []);
 }
 
-function emit(first: unknown[], second: unknown[]): boolean {
-	let {length} = first;
-
-	if (length !== second.length) {
-		return true;
-	}
-
-	let offset = 0;
-
-	if (length >= 100) {
-		offset = Math.round(length / 10);
-		offset = offset > 25 ? 25 : offset;
-
-		for (let index = 0; index < offset; index += 1) {
-			if (!Object.is(first[index], second[index])) {
-				return true;
-			}
-		}
-	}
-
-	length -= offset;
-
-	for (let index = offset; index < length; index += 1) {
-		if (!Object.is(first[index], second[index])) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
 function setValue<Item>(
 	target: Item[],
 	property: PropertyKey,
@@ -142,15 +113,13 @@ function setValue<Item>(
 
 	const previous = Reflect.get(target, property);
 
-	if (Object.is(previous, value)) {
-		return true;
+	if (!Object.is(previous, value)) {
+		Reflect.set(target, property, value);
+
+		emitValue(state);
+
+		length.set(target.length);
 	}
-
-	Reflect.set(target, property, value);
-
-	emitValue(state);
-
-	length.set(target.length);
 
 	return true;
 }
@@ -173,7 +142,7 @@ function updateArray<Item>(
 		if (
 			affectsLength
 				? array.length !== previousLength
-				: emit(previousArray, array)
+				: emitArrayChanges(previousArray, array)
 		) {
 			emitValue(state);
 

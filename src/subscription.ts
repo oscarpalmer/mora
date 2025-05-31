@@ -1,5 +1,5 @@
 import type {GenericCallback} from '@oscarpalmer/atoms/models';
-import type {ReactiveState} from './reactive';
+import type {ReactiveState} from './value/reactive';
 
 export class Subscription<Value> {
 	constructor(

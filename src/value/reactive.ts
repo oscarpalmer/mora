@@ -1,11 +1,11 @@
-import type {Computed} from './computed';
-import type {Effect} from './effect';
+import type {Effect} from '../effect';
 import {
 	type Subscription,
 	type Unsubscribe,
 	subscribe,
 	unsubscribe,
-} from './subscription';
+} from '../subscription';
+import type {Computed} from './computed';
 
 export abstract class Reactive<Value> {
 	protected readonly state: ReactiveState<Value> = {

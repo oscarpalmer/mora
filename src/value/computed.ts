@@ -1,5 +1,6 @@
-import {batchDepth, batchedHandlers} from './batch';
-import {type Effect, activeEffect, effect, runEffect} from './effect';
+import {batchDepth, batchedHandlers} from '../batch';
+import {type Effect, activeEffect, effect, runEffect} from '../effect';
+import {computedName} from '../helpers/is';
 import {Reactive, type ReactiveState} from './reactive';
 
 type ComputedEffect = {
@@ -21,7 +22,7 @@ export class Computed<Value> extends Reactive<Value> {
 	};
 
 	constructor(callback: () => Value) {
-		super('computed', undefined as never);
+		super(computedName, undefined as never);
 
 		this.effect.instance = effect(() => {
 			if (this.effect.dirty) {

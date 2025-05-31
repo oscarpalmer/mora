@@ -20,6 +20,12 @@ test(' basic', () => {
 
 	expect(c.peek()).toBe(7);
 	expect(d.peek()).toBe(8);
+
+	expect(c.toJSON()).toEqual(7);
+	expect(d.toJSON()).toEqual(8);
+
+	expect(c.toString()).toBe('7');
+	expect(d.toString()).toBe('8');
 });
 
 test('get & peek', () => {

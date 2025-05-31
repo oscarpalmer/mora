@@ -43,6 +43,20 @@ export abstract class Reactive<Value> {
 	}
 
 	/**
+	 * JSON representation of the value
+	 */
+	toJSON(): Value {
+		return this.get();
+	}
+
+	/**
+	 * String representation of the value
+	 */
+	toString(): string {
+		return String(this.get());
+	}
+
+	/**
 	 * Unsubscribe from changes
 	 */
 	unsubscribe(callback: (value: Value) => void): void {

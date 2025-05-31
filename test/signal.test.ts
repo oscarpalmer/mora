@@ -17,6 +17,9 @@ test('basic', () => {
 	value.set(3);
 
 	expect(value.peek()).toBe(3);
+
+	expect(value.toJSON()).toEqual(3);
+	expect(value.toString()).toBe('3');
 });
 
 test('peek', () => {

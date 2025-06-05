@@ -3,7 +3,7 @@ import type {Effect} from '../effect';
 import type {ReactiveArray} from '../value/array';
 import type {Computed} from '../value/computed';
 import type {Reactive} from '../value/reactive';
-import {signal, type Signal} from '../value/signal';
+import type {Signal} from '../value/signal';
 
 /**
  * Is the value a reactive array?

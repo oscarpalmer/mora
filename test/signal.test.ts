@@ -40,3 +40,23 @@ test('peek', () => {
 	expect(count).toBe(1);
 	expect(a.peek()).toBe(101);
 });
+
+test('value', () => {
+	const a = signal([1, 2, 3]);
+
+	let count = 0;
+
+	a.subscribe(() => {
+		count += 1;
+	});
+
+	expect(count).toBe(1);
+
+	a.set([3, 2, 1]);
+
+	expect(count).toBe(2);
+
+	a.set([3, 2, 1]);
+
+	expect(count).toBe(2);
+});

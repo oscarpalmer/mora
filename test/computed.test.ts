@@ -59,3 +59,30 @@ test('get & peek', () => {
 	expect(b.peek()).toBe(10201);
 	expect(c.peek()).toBe(10202);
 });
+
+test('batch', () => {
+	const a = signal(1);
+	const b = computed(() => a.get() + 1);
+
+	let count = 0;
+
+	effect(() => {
+		b.get();
+
+		count += 1;
+	});
+
+	expect(count).toBe(1);
+
+	startBatch();
+
+	for (let index = 0; index < 100; index += 1) {
+		a.update(current => current + 1);
+	}
+
+	expect(count).toBe(1);
+
+	stopBatch();
+
+	expect(count).toBe(2);
+});

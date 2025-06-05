@@ -3,7 +3,7 @@ import {type Effect, activeEffect, effect, runEffect} from '../effect';
 import {computedName} from '../helpers/is';
 import {Reactive, type ReactiveState} from './reactive';
 
-type ComputedEffect = {
+export type ComputedEffect = {
 	dirty: boolean;
 	instance: Effect;
 };
@@ -59,7 +59,7 @@ export class Computed<Value> extends Reactive<Value> {
 	 * @inheritdoc
 	 */
 	get(): Value {
-		if (activeComputed != null && activeComputed !== this) {
+		if (activeComputed != null && this !== activeComputed) {
 			this.state.computeds.add(activeComputed);
 		}
 

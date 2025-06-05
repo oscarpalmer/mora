@@ -17,6 +17,21 @@ test('basic', () => {
 	expect(a.length).toBe(5);
 
 	expect(b.peek()).toEqual([]);
+
+	expect(a.toString()).toBe('1,2,3,4,5');
+	expect(a.toJSON()).toEqual([1, 2, 3, 4, 5]);
+});
+
+test('clear', () => {
+	const a = array([1, 2, 3, 4, 5]);
+	const b = a.map(item => item * 2);
+
+	expect(b.peek()).toEqual([2, 4, 6, 8, 10]);
+
+	a.clear();
+
+	expect(a.peek()).toEqual([]);
+	expect(b.peek()).toEqual([]);
 });
 
 test('emit', () => {

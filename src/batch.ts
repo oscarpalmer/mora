@@ -2,7 +2,7 @@ import {type Effect, runEffect} from './effect';
 import {isEffect} from './helpers/is';
 import type {Subscription} from './subscription';
 
-export function flushEffects(): void {
+export function flushHandlers(): void {
 	while (batchDepth === 0 && batchedHandlers.size > 0) {
 		const handlers = [...batchedHandlers];
 
@@ -33,7 +33,7 @@ export function stopBatch(): void {
 		batchDepth -= 1;
 	}
 
-	flushEffects();
+	flushHandlers();
 }
 
 export const batchedHandlers = new Set<Effect | Subscription<unknown>>();

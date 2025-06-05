@@ -1,6 +1,5 @@
-import {emitArrayChanges, emitValue} from '../helpers/emit';
 import {arrayName} from '../helpers/is';
-import {getValue} from '../helpers/value';
+import {differentArrays, emitValue, getValue} from '../helpers/value';
 import {type Computed, computed} from './computed';
 import {Reactive, type ReactiveState} from './reactive';
 import {type Signal, signal} from './signal';
@@ -49,6 +48,13 @@ export class ReactiveArray<Item> extends Reactive<Item[]> {
 	 */
 	at(index: number): Item | undefined {
 		return this.get().at(index);
+	}
+
+	/**
+	 * Clear the array
+	 */
+	clear(): void {
+		this.length = 0;
 	}
 
 	/**
@@ -207,7 +213,7 @@ function updateArray<Item>(
 		if (
 			affectsLength
 				? array.length !== previousLength
-				: emitArrayChanges(previousArray, array)
+				: differentArrays(previousArray, array)
 		) {
 			emitValue(state);
 

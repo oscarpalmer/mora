@@ -7,16 +7,21 @@ import {
 } from '../subscription';
 import type {Computed} from './computed';
 
-export abstract class Reactive<Value> {
-	protected readonly state: ReactiveState<Value> = {
+export abstract class Reactive<Value, Equal = Value> {
+	protected readonly state: ReactiveState<Value, Equal> = {
 		computeds: new Set(),
 		effects: new Set(),
+		equal: Object.is,
 		subscriptions: new Map(),
 		value: undefined as never,
 	};
 
-	constructor(name: string, value: Value) {
+	constructor(name: string, value: Value, options?: ReactiveOptions<Equal>) {
 		this.state.value = value;
+
+		if (typeof options === 'object' && typeof options.equal === 'function') {
+			this.state.equal = options.equal;
+		}
 
 		Object.defineProperty(this, '$mora', {
 			value: name,
@@ -64,9 +69,17 @@ export abstract class Reactive<Value> {
 	}
 }
 
-export type ReactiveState<Value> = {
+export type ReactiveOptions<Value> = {
+	/**
+	 * Method to compare values for equality
+	 */
+	equal?: (first: Value, second: Value) => boolean;
+};
+
+export type ReactiveState<Value, Equal> = {
 	computeds: Set<Computed<unknown>>;
 	effects: Set<Effect>;
+	equal: (first: Equal, second: Equal) => boolean;
 	subscriptions: Map<(value: Value) => void, Subscription<Value>>;
 	value: Value;
 };

@@ -1,10 +1,10 @@
 import {arrayName} from '../helpers/is';
 import {differentArrays, emitValue, getValue} from '../helpers/value';
 import {type Computed, computed} from './computed';
-import {Reactive, type ReactiveState} from './reactive';
+import {Reactive, type ReactiveOptions, type ReactiveState} from './reactive';
 import {type Signal, signal} from './signal';
 
-export class ReactiveArray<Item> extends Reactive<Item[]> {
+export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	#size = signal(0);
 
 	/**
@@ -27,7 +27,7 @@ export class ReactiveArray<Item> extends Reactive<Item[]> {
 		}
 	}
 
-	constructor(value: Item[]) {
+	constructor(value: Item[], options?: ReactiveOptions<Item>) {
 		super(
 			arrayName,
 			new Proxy(value, {
@@ -38,6 +38,7 @@ export class ReactiveArray<Item> extends Reactive<Item[]> {
 				set: (target, property, value) =>
 					setValue(target, property, value, this.state, this.#size),
 			}),
+			options,
 		);
 
 		this.#size.set(value.length);
@@ -164,15 +165,18 @@ export class ReactiveArray<Item> extends Reactive<Item[]> {
 /**
  * Create a reactive array
  */
-export function array<Item>(value: Item[]): ReactiveArray<Item> {
-	return new ReactiveArray(Array.isArray(value) ? value : []);
+export function array<Item>(
+	value: Item[],
+	options?: ReactiveOptions<Item>,
+): ReactiveArray<Item> {
+	return new ReactiveArray(Array.isArray(value) ? value : [], options);
 }
 
 function setValue<Item>(
 	target: Item[],
 	property: PropertyKey,
-	value: unknown,
-	state: ReactiveState<Item[]>,
+	value: Item,
+	state: ReactiveState<Item[], Item>,
 	length: Signal<number>,
 ): boolean {
 	const isIndex = !Number.isNaN(Number(property));
@@ -184,7 +188,7 @@ function setValue<Item>(
 
 	const previous = Reflect.get(target, property);
 
-	if (!Object.is(previous, value)) {
+	if (!state.equal(previous, value)) {
 		Reflect.set(target, property, value);
 
 		emitValue(state);
@@ -198,7 +202,7 @@ function setValue<Item>(
 function updateArray<Item>(
 	type: string,
 	array: Item[],
-	state: ReactiveState<Item[]>,
+	state: ReactiveState<Item[], Item>,
 	length: Signal<number>,
 ): unknown {
 	const affectsLength = lengthAffectingMethods.has(type);
@@ -213,7 +217,7 @@ function updateArray<Item>(
 		if (
 			affectsLength
 				? array.length !== previousLength
-				: differentArrays(previousArray, array)
+				: differentArrays(state, previousArray, array)
 		) {
 			emitValue(state);
 

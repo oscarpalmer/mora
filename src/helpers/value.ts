@@ -3,7 +3,11 @@ import {activeEffect} from '../effect';
 import {type InternalComputed, activeComputed} from '../value/computed';
 import type {ReactiveState} from '../value/reactive';
 
-export function differentArrays(first: unknown[], second: unknown[]): boolean {
+export function differentArrays<Value>(
+	state: ReactiveState<Value[], Value>,
+	first: Value[],
+	second: Value[],
+): boolean {
 	let {length} = first;
 
 	if (length !== second.length) {
@@ -17,7 +21,7 @@ export function differentArrays(first: unknown[], second: unknown[]): boolean {
 		offset = offset > 25 ? 25 : offset;
 
 		for (let index = 0; index < offset; index += 1) {
-			if (!Object.is(first[index], second[index])) {
+			if (!state.equal(first[index], second[index])) {
 				return true;
 			}
 		}
@@ -26,7 +30,7 @@ export function differentArrays(first: unknown[], second: unknown[]): boolean {
 	length -= offset;
 
 	for (let index = offset; index < length; index += 1) {
-		if (!Object.is(first[index], second[index])) {
+		if (!state.equal(first[index], second[index])) {
 			return true;
 		}
 	}
@@ -34,13 +38,17 @@ export function differentArrays(first: unknown[], second: unknown[]): boolean {
 	return false;
 }
 
-export function differentValues(first: unknown, second: unknown): boolean {
+export function differentValues<Value>(
+	state: ReactiveState<Value, Value>,
+	first: Value,
+	second: Value,
+): boolean {
 	return Array.isArray(first) && Array.isArray(second)
-		? differentArrays(first, second)
-		: !Object.is(first, second);
+		? differentArrays(state as never, first, second)
+		: !state.equal(first, second);
 }
 
-export function emitValue<Value>(state: ReactiveState<Value>): void {
+export function emitValue<Value>(state: ReactiveState<Value, never>): void {
 	for (const computed of state.computeds) {
 		(computed as unknown as InternalComputed).effect.dirty = true;
 	}
@@ -58,7 +66,7 @@ export function emitValue<Value>(state: ReactiveState<Value>): void {
 	}
 }
 
-export function getValue<Value>(state: ReactiveState<Value>): Value {
+export function getValue<Value>(state: ReactiveState<Value, never>): Value {
 	if (activeComputed != null) {
 		state.computeds.add(activeComputed);
 	}

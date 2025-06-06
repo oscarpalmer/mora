@@ -1,10 +1,10 @@
 import {signalName} from '../helpers/is';
 import {differentValues, emitValue, getValue} from '../helpers/value';
-import {Reactive} from './reactive';
+import {Reactive, type ReactiveOptions} from './reactive';
 
 export class Signal<Value> extends Reactive<Value> {
-	constructor(value: Value) {
-		super(signalName, value);
+	constructor(value: Value, options?: ReactiveOptions<Value>) {
+		super(signalName, value, options);
 	}
 
 	/**
@@ -18,7 +18,7 @@ export class Signal<Value> extends Reactive<Value> {
 	 * Set the value
 	 */
 	set(value: Value): void {
-		if (differentValues(this.state.value, value)) {
+		if (differentValues(this.state, this.state.value, value)) {
 			this.state.value = value;
 
 			emitValue(this.state);
@@ -36,6 +36,9 @@ export class Signal<Value> extends Reactive<Value> {
 /**
  * Create a reactive value
  */
-export function signal<Value>(value: Value): Signal<Value> {
-	return new Signal(value);
+export function signal<Value>(
+	value: Value,
+	options?: ReactiveOptions<Value>,
+): Signal<Value> {
+	return new Signal<Value>(value, options);
 }

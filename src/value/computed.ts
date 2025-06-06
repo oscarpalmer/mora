@@ -1,7 +1,7 @@
 import {batchDepth, batchedHandlers} from '../batch';
 import {type Effect, activeEffect, effect, runEffect} from '../effect';
 import {computedName} from '../helpers/is';
-import {Reactive, type ReactiveState} from './reactive';
+import {Reactive, type ReactiveOptions, type ReactiveState} from './reactive';
 
 export type ComputedEffect = {
 	dirty: boolean;
@@ -10,7 +10,7 @@ export type ComputedEffect = {
 
 export type InternalComputed = {
 	readonly effect: ComputedEffect;
-	readonly state: ReactiveState<unknown>;
+	readonly state: ReactiveState<unknown, unknown>;
 };
 
 export let activeComputed: Computed<unknown> | undefined;
@@ -21,8 +21,8 @@ export class Computed<Value> extends Reactive<Value> {
 		instance: undefined as never,
 	};
 
-	constructor(callback: () => Value) {
-		super(computedName, undefined as never);
+	constructor(callback: () => Value, options?: ReactiveOptions<Value>) {
+		super(computedName, undefined as never, options);
 
 		this.effect.instance = effect(() => {
 			if (this.effect.dirty) {
@@ -34,7 +34,7 @@ export class Computed<Value> extends Reactive<Value> {
 
 				activeComputed = previousComputed;
 
-				if (!Object.is(this.state.value, value)) {
+				if (!this.state.equal(this.state.value, value)) {
 					this.state.value = value;
 
 					for (const computed of this.state.computeds) {
@@ -78,6 +78,9 @@ export class Computed<Value> extends Reactive<Value> {
 /**
  * Create a computed value
  */
-export function computed<Value>(callback: () => Value): Computed<Value> {
-	return new Computed(callback);
+export function computed<Value>(
+	callback: () => Value,
+	options?: ReactiveOptions<Value>,
+): Computed<Value> {
+	return new Computed(callback, options);
 }

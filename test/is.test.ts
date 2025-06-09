@@ -8,13 +8,15 @@ import {
 	isEffect,
 	isSignal,
 	signal,
+	store,
 } from '../src';
-import {isReactive} from '../src/helpers/is';
+import {isReactive, isStore} from '../src/helpers/is';
 
 const a = signal('a');
 const b = computed(() => `${a.get()}b`);
 const c = array([]);
-const d = effect(() => {});
+const d = store({});
+const e = effect(() => {});
 
 const values = [
 	undefined,
@@ -37,6 +39,7 @@ test('isArray', () => {
 	expect(isArray(b)).toBe(false);
 	expect(isArray(c)).toBe(true);
 	expect(isArray(d)).toBe(false);
+	expect(isArray(e)).toBe(false);
 });
 
 test('isComputed', () => {
@@ -48,6 +51,7 @@ test('isComputed', () => {
 	expect(isComputed(b)).toBe(true);
 	expect(isComputed(c)).toBe(false);
 	expect(isComputed(d)).toBe(false);
+	expect(isComputed(e)).toBe(false);
 });
 
 test('isEffect', () => {
@@ -58,7 +62,8 @@ test('isEffect', () => {
 	expect(isEffect(a)).toBe(false);
 	expect(isEffect(b)).toBe(false);
 	expect(isEffect(c)).toBe(false);
-	expect(isEffect(d)).toBe(true);
+	expect(isEffect(d)).toBe(false);
+	expect(isEffect(e)).toBe(true);
 });
 
 test('isReactive', () => {
@@ -69,7 +74,8 @@ test('isReactive', () => {
 	expect(isReactive(a)).toBe(true);
 	expect(isReactive(b)).toBe(true);
 	expect(isReactive(c)).toBe(true);
-	expect(isReactive(d)).toBe(false);
+	expect(isReactive(d)).toBe(true);
+	expect(isReactive(e)).toBe(false);
 });
 
 test('isSignal', () => {
@@ -81,4 +87,17 @@ test('isSignal', () => {
 	expect(isSignal(b)).toBe(false);
 	expect(isSignal(c)).toBe(false);
 	expect(isSignal(d)).toBe(false);
+	expect(isSignal(e)).toBe(false);
+});
+
+test('isStore', () => {
+	for (const value of values) {
+		expect(isStore(value)).toBe(false);
+	}
+
+	expect(isStore(a)).toBe(false);
+	expect(isStore(b)).toBe(false);
+	expect(isStore(c)).toBe(false);
+	expect(isStore(d)).toBe(true);
+	expect(isStore(e)).toBe(false);
 });

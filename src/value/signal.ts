@@ -1,5 +1,5 @@
 import {signalName} from '../helpers/is';
-import {differentValues, emitValue, getValue} from '../helpers/value';
+import {emitValue, getValue} from '../helpers/value';
 import {Reactive, type ReactiveOptions} from './reactive';
 
 export class Signal<Value> extends Reactive<Value> {
@@ -18,7 +18,7 @@ export class Signal<Value> extends Reactive<Value> {
 	 * Set the value
 	 */
 	set(value: Value): void {
-		if (differentValues(this.state, this.state.value, value)) {
+		if (!this.state.equal(this.state.value, value)) {
 			this.state.value = value;
 
 			emitValue(this.state);

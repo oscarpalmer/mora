@@ -1,5 +1,6 @@
 import {arrayName} from '../helpers/is';
-import {differentArrays, emitValue, getValue} from '../helpers/value';
+import {setValueInProxy} from '../helpers/proxy';
+import {emitValue, equalArrays, getValue} from '../helpers/value';
 import {type Computed, computed} from './computed';
 import {Reactive, type ReactiveOptions, type ReactiveState} from './reactive';
 import {type Signal, signal} from './signal';
@@ -36,7 +37,14 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 						? updateArray(property as string, target, this.state, this.#size)
 						: Reflect.get(target, property),
 				set: (target, property, value) =>
-					setValue(target, property, value, this.state, this.#size),
+					setValueInProxy(
+						target,
+						property,
+						value,
+						this.state,
+						true,
+						this.#size,
+					),
 			}),
 			options,
 		);
@@ -172,33 +180,6 @@ export function array<Item>(
 	return new ReactiveArray(Array.isArray(value) ? value : [], options);
 }
 
-function setValue<Item>(
-	target: Item[],
-	property: PropertyKey,
-	value: Item,
-	state: ReactiveState<Item[], Item>,
-	length: Signal<number>,
-): boolean {
-	const isIndex = !Number.isNaN(Number(property));
-	const isLength = property === 'length';
-
-	if (!isIndex && !isLength) {
-		return Reflect.set(target, property, value);
-	}
-
-	const previous = Reflect.get(target, property);
-
-	if (!state.equal(previous, value)) {
-		Reflect.set(target, property, value);
-
-		emitValue(state);
-
-		length.set(target.length);
-	}
-
-	return true;
-}
-
 function updateArray<Item>(
 	type: string,
 	array: Item[],
@@ -217,7 +198,7 @@ function updateArray<Item>(
 		if (
 			affectsLength
 				? array.length !== previousLength
-				: differentArrays(state, previousArray, array)
+				: !equalArrays(state, previousArray, array)
 		) {
 			emitValue(state);
 

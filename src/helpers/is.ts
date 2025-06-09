@@ -4,6 +4,7 @@ import type {ReactiveArray} from '../value/array';
 import type {Computed} from '../value/computed';
 import type {Reactive} from '../value/reactive';
 import type {Signal} from '../value/signal';
+import type {Store} from '../value/store';
 
 /**
  * Is the value a reactive array?
@@ -48,9 +49,14 @@ export function isSignal(value: unknown): value is Signal<unknown> {
 	return isMora<Signal<unknown>>(value, signalName);
 }
 
+export function isStore(value: unknown): value is Store<unknown> {
+	return isMora<Reactive<unknown>>(value, storeName);
+}
+
 export const arrayName = 'array';
 export const computedName = 'computed';
 export const effectName = 'effect';
 export const signalName = 'signal';
+export const storeName = 'store';
 
-const reactiveNames = new Set([arrayName, computedName, signalName]);
+const reactiveNames = new Set([arrayName, computedName, signalName, storeName]);

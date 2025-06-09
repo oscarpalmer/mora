@@ -1,4 +1,3 @@
-import {isArrayOrPlainObject} from '@oscarpalmer/atoms/is';
 import type {ArrayOrPlainObject, PlainObject} from '@oscarpalmer/atoms/models';
 import {startBatch, stopBatch} from '../batch';
 import type {ReactiveState} from '../value/reactive';

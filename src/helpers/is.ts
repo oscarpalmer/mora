@@ -49,7 +49,7 @@ export function isSignal(value: unknown): value is Signal<unknown> {
 	return isMora<Signal<unknown>>(value, signalName);
 }
 
-export function isStore(value: unknown): value is Store<unknown> {
+export function isStore(value: unknown): value is Store<PlainObject> {
 	return isMora<Reactive<unknown>>(value, storeName);
 }
 

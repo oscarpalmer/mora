@@ -1,8 +1,52 @@
-import type {ArrayOrPlainObject, PlainObject} from '@oscarpalmer/atoms/models';
+import type {
+	ArrayOrPlainObject,
+	Key,
+	PlainObject,
+} from '@oscarpalmer/atoms/models';
 import {startBatch, stopBatch} from '../batch';
+import type {ReactiveArray} from '../value/array';
+import {type Computed, computed} from '../value/computed';
 import type {ReactiveState} from '../value/reactive';
 import type {Signal} from '../value/signal';
+import type {Store} from '../value/store';
 import {emitValue} from './value';
+
+export function getReactiveValueInProxy<Value>(
+	array: ReactiveArray<Value>,
+	mapped: Map<Key, Computed<unknown>>,
+	index: number,
+	isArray: true,
+): unknown;
+
+export function getReactiveValueInProxy<Value extends PlainObject>(
+	store: Store<Value>,
+	mapped: Map<Key, Computed<unknown>>,
+	key: Key,
+	isArray: false,
+): unknown;
+
+export function getReactiveValueInProxy(
+	reactive: ReactiveArray<unknown> | Store<PlainObject>,
+	mapped: Map<Key, Computed<unknown>>,
+	key: Key,
+	isArray: boolean,
+): unknown {
+	let item = mapped.get(key);
+
+	if (item == null) {
+		item = computed(() => {
+			const value = reactive.get();
+
+			return isArray
+				? (value as unknown[]).at(key as number)
+				: (value as PlainObject)[key];
+		}) as Computed<unknown>;
+
+		mapped.set(key, item);
+	}
+
+	return item.get();
+}
 
 export function setProxyValue(
 	proxy: ArrayOrPlainObject,

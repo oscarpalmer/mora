@@ -97,19 +97,31 @@ test('filter', () => {
 test('length', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
+	let count = 0;
+
+	effect(() => {
+		a.get('length');
+
+		count += 1;
+	});
+
 	expect(a.length).toBe(5);
+	expect(count).toBe(1);
 
 	a.length = 10;
 
 	expect(a.length).toBe(10);
+	expect(count).toBe(2);
 
 	a.length = -3;
 
 	expect(a.length).toBe(10);
+	expect(count).toBe(2);
 
 	a.length = 'blah' as never;
 
 	expect(a.length).toBe(10);
+	expect(count).toBe(2);
 });
 
 test('map', () => {
@@ -256,15 +268,15 @@ test('update: sort', () => {
 	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
 });
 
-test('update: splice (+ at)', () => {
+test('update: splice + (get)', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
 	let first: unknown;
 	let last: unknown;
 
 	effect(() => {
-		first = a.at(0);
-		last = a.at(-1);
+		first = a.get(0);
+		last = a.get(-1);
 	});
 
 	expect(a.splice(0, 2)).toEqual([1, 2]);

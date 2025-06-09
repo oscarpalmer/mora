@@ -1,11 +1,12 @@
 import {arrayName} from '../helpers/is';
-import {setValueInProxy} from '../helpers/proxy';
+import {getReactiveValueInProxy, setValueInProxy} from '../helpers/proxy';
 import {emitValue, equalArrays, getValue} from '../helpers/value';
 import {type Computed, computed} from './computed';
 import {Reactive, type ReactiveOptions, type ReactiveState} from './reactive';
 import {type Signal, signal} from './signal';
 
 export class ReactiveArray<Item> extends Reactive<Item[], Item> {
+	#indiced = new Map<number, Computed<unknown>>();
 	#size = signal(0);
 
 	/**
@@ -53,13 +54,6 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	}
 
 	/**
-	 * Get an indexed item
-	 */
-	at(index: number): Item | undefined {
-		return this.get().at(index);
-	}
-
-	/**
 	 * Clear the array
 	 */
 	clear(): void {
@@ -69,7 +63,21 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	/**
 	 * @inheritdoc
 	 */
-	get(): Item[] {
+	get(): Item[];
+
+	get(index: number): Item | undefined;
+
+	get(property: 'length'): number;
+
+	get(first?: unknown): unknown {
+		if (typeof first === 'number') {
+			return getReactiveValueInProxy(this, this.#indiced, first, true);
+		}
+
+		if (first === 'length') {
+			return this.length;
+		}
+
 		return getValue(this.state);
 	}
 

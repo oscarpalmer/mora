@@ -43,28 +43,28 @@ test('basic', () => {
 	a.set('a', 123);
 
 	expect(counts.obj).toBe(4);
-	expect(counts.a).toBe(1);
+	expect(counts.a).toBe(2);
 	expect(a.peek()).toEqual({a: 123, b: 2, d: 99});
 	expect(a.peek('a')).toBe(123);
 
 	a.set('a', 123);
 
 	expect(counts.obj).toBe(4);
-	expect(counts.a).toBe(1);
+	expect(counts.a).toBe(2);
 	expect(a.peek()).toEqual({a: 123, b: 2, d: 99});
 	expect(a.peek('a')).toBe(123);
 
 	a.set();
 
 	expect(counts.obj).toBe(5);
-	expect(counts.a).toBe(1);
+	expect(counts.a).toBe(3);
 	expect(a.peek()).toEqual({});
 	expect(a.peek('a')).toBeUndefined();
 
 	a.set([] as never);
 
 	expect(counts.obj).toBe(5);
-	expect(counts.a).toBe(1);
+	expect(counts.a).toBe(3);
 	expect(a.peek()).toEqual({});
 	expect(a.peek('a')).toBeUndefined();
 

@@ -1,11 +1,18 @@
 import {isKey, isPlainObject} from '@oscarpalmer/atoms/is';
 import type {Key, PlainObject} from '@oscarpalmer/atoms/models';
 import {storeName} from '../helpers/is';
-import {setProxyValue, setValueInProxy} from '../helpers/proxy';
+import {
+	getReactiveValueInProxy,
+	setProxyValue,
+	setValueInProxy,
+} from '../helpers/proxy';
 import {getValue} from '../helpers/value';
+import type {Computed} from './computed';
 import {Reactive, type ReactiveOptions} from './reactive';
 
 export class Store<Value extends PlainObject> extends Reactive<Value, Value> {
+	#keyed = new Map<Key, Computed<unknown>>();
+
 	constructor(value: Value, options?: ReactiveOptions<Value>) {
 		super(
 			storeName,
@@ -33,7 +40,9 @@ export class Store<Value extends PlainObject> extends Reactive<Value, Value> {
 	get(key: Key): unknown;
 
 	get(key?: unknown): unknown {
-		return isKey(key) ? this.state.value[key] : getValue(this.state);
+		return isKey(key)
+			? getReactiveValueInProxy(this, this.#keyed, key, false)
+			: getValue(this.state);
 	}
 
 	/**

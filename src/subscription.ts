@@ -1,9 +1,9 @@
 import type {GenericCallback} from '@oscarpalmer/atoms/models';
 import type {ReactiveState} from './value/reactive';
 
-export class Subscription<Value> {
+export class Subscription {
 	constructor(
-		public state: ReactiveState<Value, never>,
+		public state: ReactiveState<unknown, never>,
 		public callback: GenericCallback,
 	) {
 		callback(state.value);

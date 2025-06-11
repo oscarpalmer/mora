@@ -1,6 +1,8 @@
+import type {GenericCallback} from '@oscarpalmer/atoms';
 import {arrayName} from '../helpers/is';
 import {getReactiveValueInProxy, setValueInProxy} from '../helpers/proxy';
 import {emitValue, equalArrays, getValue} from '../helpers/value';
+import {type Unsubscribe, noop, subscribe} from '../subscription';
 import {type Computed, computed} from './computed';
 import {Reactive, type ReactiveOptions, type ReactiveState} from './reactive';
 import {type Signal, signal} from './signal';
@@ -65,13 +67,19 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	 */
 	get(): Item[];
 
+	/**
+	 * Get the value at an index
+	 */
 	get(index: number): Item | undefined;
 
+	/**
+	 * Get the length of the array
+	 */
 	get(property: 'length'): number;
 
 	get(first?: unknown): unknown {
 		if (typeof first === 'number') {
-			return getReactiveValueInProxy(this, this.#indiced, first, true);
+			return getReactiveValueInProxy(this, this.#indiced, first, true).get();
 		}
 
 		if (first === 'length') {
@@ -130,7 +138,7 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	/**
 	 * Set the value
 	 */
-	set(value: Item[]): void;
+	set(value?: Item[]): void;
 
 	/**
 	 * Set the value at an index
@@ -142,9 +150,9 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	 */
 	set(property: 'length', value: number): void;
 
-	set(first: number | 'length' | Item[], second?: number | Item): void {
-		if (Array.isArray(first)) {
-			this.state.value.splice(0, this.state.value.length, ...first);
+	set(first?: number | 'length' | Item[], second?: number | Item): void {
+		if (first == null || Array.isArray(first)) {
+			this.state.value.splice(0, this.state.value.length, ...(first ?? []));
 		} else if (first === 'length') {
 			this.length = second as number;
 		} else if (typeof first === 'number') {
@@ -171,10 +179,50 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	}
 
 	/**
+	 * @inheritdoc
+	 */
+	subscribe(callback: (value: Item[]) => void): Unsubscribe;
+
+	/**
+	 * Subscribe to changes at a specific index
+	 */
+	subscribe(
+		index: number,
+		callback: (value: Item | undefined) => void,
+	): Unsubscribe;
+
+	subscribe(
+		first: number | GenericCallback,
+		second?: GenericCallback,
+	): Unsubscribe {
+		if (typeof first === 'number' && typeof second === 'function') {
+			return getReactiveValueInProxy(
+				this,
+				this.#indiced,
+				first,
+				true,
+			).subscribe(second);
+		}
+
+		return typeof first === 'function' ? subscribe(this.state, first) : noop;
+	}
+
+	/**
 	 * Add items to the beginning of the array
 	 */
 	unshift(...items: Item[]): number {
 		return this.state.value.unshift(...items);
+	}
+
+	/**
+	 * Update the value _(based on the current value)_
+	 */
+	update(callback: (value: Item[]) => Item[]): void {
+		const updated = callback(this.state.value);
+
+		if (updated == null || Array.isArray(updated)) {
+			this.set(updated);
+		}
 	}
 }
 

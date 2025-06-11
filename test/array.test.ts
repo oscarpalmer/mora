@@ -1,5 +1,6 @@
 import {expect, test} from 'vitest';
 import {array, effect} from '../src';
+import {noop} from '../src/subscription';
 
 test('basic', () => {
 	const a = array([1, 2, 3, 4, 5]);
@@ -201,7 +202,67 @@ test('set', () => {
 	expect(a.get()['blah' as never]).toBe('Hello, world!');
 });
 
-test('update: copyWith', () => {
+test('subscribe', () => {
+	const a = array([1, 2, 3, 4, 5]);
+
+	const counts = {
+		array: 0,
+		item: 0,
+	};
+
+	a.subscribe(() => {
+		counts.array += 1;
+	});
+
+	a.subscribe(0, () => {
+		counts.item += 1;
+	});
+
+	expect(counts.array).toBe(1);
+	expect(counts.item).toBe(1);
+
+	a.push(6, 7, 8);
+
+	expect(counts.array).toBe(2);
+	expect(counts.item).toBe(1);
+
+	a.set(0, 999);
+
+	expect(counts.array).toBe(3);
+	expect(counts.item).toBe(2);
+
+	expect(a.subscribe('blah' as never, () => {})).toEqual(noop);
+});
+
+test('update', () => {
+	const a = array([1, 2, 3, 4, 5]);
+
+	let count = 0;
+
+	effect(() => {
+		a.get();
+
+		count += 1;
+	});
+
+	expect(count).toBe(1);
+
+	a.update(value => value.map(item => item * 2));
+
+	expect(a.peek()).toEqual([2, 4, 6, 8, 10]);
+	expect(count).toBe(2);
+
+	a.update(() => 'blah' as never);
+
+	expect(count).toBe(2);
+
+	a.update(() => null as never);
+
+	expect(a.peek()).toEqual([]);
+	expect(count).toBe(3);
+});
+
+test('copyWith', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
 	a.get().copyWithin(0, 2);
@@ -213,7 +274,7 @@ test('update: copyWith', () => {
 	expect(a.peek()).toEqual([3, 4, 5, 4, 5]);
 });
 
-test('update: fill', () => {
+test('fill', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
 	a.get().fill(99);
@@ -229,14 +290,14 @@ test('update: fill', () => {
 	expect(a.peek()).toEqual([99, 101, 101, 100, 100]);
 });
 
-test('update: pop', () => {
+test('pop', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
 	expect(a.pop()).toBe(5);
 	expect(a.peek()).toEqual([1, 2, 3, 4]);
 });
 
-test('update: push', () => {
+test('push', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
 	expect(a.push(6)).toBe(6);
@@ -244,7 +305,7 @@ test('update: push', () => {
 	expect(a.length).toBe(6);
 });
 
-test('update: reverse', () => {
+test('reverse', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
 	a.get().reverse();
@@ -252,7 +313,7 @@ test('update: reverse', () => {
 	expect(a.peek()).toEqual([5, 4, 3, 2, 1]);
 });
 
-test('update: shift', () => {
+test('shift', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
 	expect(a.shift()).toBe(1);
@@ -260,7 +321,7 @@ test('update: shift', () => {
 	expect(a.length).toBe(4);
 });
 
-test('update: sort', () => {
+test('sort', () => {
 	const a = array([5, 4, 3, 2, 1]);
 
 	a.get().sort();
@@ -268,7 +329,7 @@ test('update: sort', () => {
 	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
 });
 
-test('update: splice + (get)', () => {
+test('splice + (get)', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
 	let first: unknown;
@@ -300,7 +361,7 @@ test('update: splice + (get)', () => {
 	expect(last).toBe(undefined);
 });
 
-test('update: unshift', () => {
+test('unshift', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
 	expect(a.unshift(0)).toBe(6);

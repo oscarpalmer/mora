@@ -26,7 +26,7 @@ export class Signal<Value> extends Reactive<Value> {
 	}
 
 	/**
-	 * Update the value
+	 * Update the value _(based on the current value)_
 	 */
 	update(callback: (value: Value) => Value): void {
 		this.set(callback(this.state.value));

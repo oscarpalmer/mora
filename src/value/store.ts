@@ -1,5 +1,9 @@
 import {isKey, isPlainObject} from '@oscarpalmer/atoms/is';
-import type {Key, PlainObject} from '@oscarpalmer/atoms/models';
+import type {
+	GenericCallback,
+	Key,
+	PlainObject,
+} from '@oscarpalmer/atoms/models';
 import {storeName} from '../helpers/is';
 import {
 	getReactiveValueInProxy,
@@ -7,6 +11,7 @@ import {
 	setValueInProxy,
 } from '../helpers/proxy';
 import {getValue} from '../helpers/value';
+import {type Unsubscribe, noop, subscribe} from '../subscription';
 import type {Computed} from './computed';
 import {Reactive, type ReactiveOptions} from './reactive';
 
@@ -41,7 +46,7 @@ export class Store<Value extends PlainObject> extends Reactive<Value, Value> {
 
 	get(key?: unknown): unknown {
 		return isKey(key)
-			? getReactiveValueInProxy(this, this.#keyed, key, false)
+			? getReactiveValueInProxy(this, this.#keyed, key, false).get()
 			: getValue(this.state);
 	}
 
@@ -84,6 +89,48 @@ export class Store<Value extends PlainObject> extends Reactive<Value, Value> {
 			(this.state.value as PlainObject)[first] = second;
 		} else if (first == null || isPlainObject(first)) {
 			setProxyValue(this.state.value, first ?? {});
+		}
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	subscribe(callback: (value: Value) => void): Unsubscribe;
+
+	/**
+	 * Subscribe to changes for a specific key
+	 */
+	subscribe<Key extends keyof Value>(
+		key: Key,
+		callback: (value: Value[Key] | undefined) => void,
+	): Unsubscribe;
+
+	/**
+	 * Subscribe to changes for a specific key
+	 */
+	subscribe(key: Key, callback: (value: unknown) => void): Unsubscribe;
+
+	subscribe(
+		first: Key | GenericCallback,
+		second?: GenericCallback,
+	): Unsubscribe {
+		if (isKey(first) && typeof second === 'function') {
+			return getReactiveValueInProxy(this, this.#keyed, first, false).subscribe(
+				second,
+			);
+		}
+
+		return typeof first === 'function' ? subscribe(this.state, first) : noop;
+	}
+
+	/**
+	 * Update the value _(based on the current value)_
+	 */
+	update(callback: (value: Value) => Value): void {
+		const updated = callback({...this.state.value});
+
+		if (updated == null || isPlainObject(updated)) {
+			setProxyValue(this.state.value, updated ?? {});
 		}
 	}
 }

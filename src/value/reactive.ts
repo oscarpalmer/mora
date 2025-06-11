@@ -1,3 +1,4 @@
+import type {GenericCallback} from '@oscarpalmer/atoms/models';
 import type {Effect} from '../effect';
 import {
 	type Subscription,
@@ -80,6 +81,6 @@ export type ReactiveState<Value, Equal> = {
 	computeds: Set<Computed<unknown>>;
 	effects: Set<Effect>;
 	equal: (first: Equal, second: Equal) => boolean;
-	subscriptions: Map<(value: Value) => void, Subscription<Value>>;
+	subscriptions: Map<GenericCallback, Subscription>;
 	value: Value;
 };

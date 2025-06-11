@@ -12,41 +12,41 @@ import type {Store} from '../value/store';
 import {emitValue} from './value';
 
 export function getReactiveValueInProxy<Value>(
-	array: ReactiveArray<Value>,
-	mapped: Map<Key, Computed<unknown>>,
-	index: number,
-	isArray: true,
-): unknown;
+		array: ReactiveArray<Value>,
+		mapped: Map<Key, Computed<unknown>>,
+		index: number,
+		isArray: true,
+	): Computed<unknown>;
 
 export function getReactiveValueInProxy<Value extends PlainObject>(
-	store: Store<Value>,
-	mapped: Map<Key, Computed<unknown>>,
-	key: Key,
-	isArray: false,
-): unknown;
+		store: Store<Value>,
+		mapped: Map<Key, Computed<unknown>>,
+		key: Key,
+		isArray: false,
+	): Computed<unknown>;
 
 export function getReactiveValueInProxy(
-	reactive: ReactiveArray<unknown> | Store<PlainObject>,
-	mapped: Map<Key, Computed<unknown>>,
-	key: Key,
-	isArray: boolean,
-): unknown {
-	let item = mapped.get(key);
+		reactive: ReactiveArray<unknown> | Store<PlainObject>,
+		mapped: Map<Key, Computed<unknown>>,
+		key: Key,
+		isArray: boolean,
+	): Computed<unknown> {
+		let item = mapped.get(key);
 
-	if (item == null) {
-		item = computed(() => {
-			const value = reactive.get();
+		if (item == null) {
+			item = computed(() => {
+				const value = reactive.get();
 
-			return isArray
-				? (value as unknown[]).at(key as number)
-				: (value as PlainObject)[key];
-		}) as Computed<unknown>;
+				return isArray
+					? (value as unknown[]).at(key as number)
+					: (value as PlainObject)[key];
+			}) as Computed<unknown>;
 
-		mapped.set(key, item);
+			mapped.set(key, item);
+		}
+
+		return item;
 	}
-
-	return item.get();
-}
 
 export function setProxyValue(
 	proxy: ArrayOrPlainObject,

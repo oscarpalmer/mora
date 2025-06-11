@@ -1,5 +1,6 @@
 import {expect, test} from 'vitest';
 import {effect, store} from '../src';
+import {noop} from '../src/subscription';
 
 test('basic', () => {
 	const a = store({a: 1, b: 2, c: 3});
@@ -69,4 +70,51 @@ test('basic', () => {
 	expect(a.peek('a')).toBeUndefined();
 
 	expect(store('blah' as never).peek()).toEqual({});
+});
+
+test('subscribe', () => {
+	const a = store({a: 1, b: 2, c: 3});
+
+	const counts = {
+		obj: 0,
+		a: 0,
+	};
+
+	a.subscribe(() => {
+		counts.obj += 1;
+	});
+
+	a.subscribe('a', () => {
+		counts.a += 1;
+	});
+
+	expect(counts.obj).toBe(1);
+	expect(counts.a).toBe(1);
+
+	a.update(value => ({
+		...value,
+		c: 99,
+		d: 4,
+	}));
+
+	expect(counts.obj).toBe(2);
+	expect(counts.a).toBe(1);
+
+	a.set('a', 123);
+
+	expect(counts.obj).toBe(3);
+	expect(counts.a).toBe(2);
+
+	a.update(() => 'blah' as never);
+
+	expect(counts.obj).toBe(3);
+	expect(counts.a).toBe(2);
+
+	a.update(() => null as never);
+
+	expect(a.peek()).toEqual({});
+	expect(counts.obj).toBe(4);
+	expect(counts.a).toBe(3);
+
+	expect(a.subscribe('blah' as never)).toEqual(noop);
 });

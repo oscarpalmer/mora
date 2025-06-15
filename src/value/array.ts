@@ -112,13 +112,23 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	 */
 	peek(): Item[];
 
+	peek(index: number): Item | undefined;
+
 	/**
 	 * Get the length of the array _(without reactivity)_
 	 */
 	peek(length: true): number;
 
-	peek(length?: unknown): Item[] | number {
-		return length === true ? this.#size.peek() : [...this.state.value];
+	peek(value?: unknown): unknown {
+		if (value === true) {
+			return this.#size.peek();
+		}
+
+		if (typeof value === 'number') {
+			return this.state.value.at(value);
+		}
+
+		return [...this.state.value];
 	}
 
 	/**

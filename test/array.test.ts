@@ -143,9 +143,34 @@ test('map', () => {
 test('peek', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
+	const counts = [0, 0, 0];
+
+	effect(() => {
+		a.peek();
+
+		counts[0] += 1;
+	});
+
+	effect(() => {
+		a.peek(0);
+
+		counts[1] += 1;
+	});
+
+	effect(() => {
+		a.peek(true);
+
+		counts[2] += 1;
+	});
+
+	expect(counts).toEqual([1, 1, 1]);
 	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
 	expect(a.peek(true)).toBe(5);
 	expect(a.peek('blah' as never)).toEqual([1, 2, 3, 4, 5]);
+
+	a.set([11, 22, 33, 44, 55]);
+
+	expect(counts).toEqual([1, 1, 1]);
 });
 
 test('set', () => {

@@ -12,4 +12,3 @@ export {computed, type Computed} from './value/computed';
 export type {Reactive} from './value/reactive';
 export {signal, type Signal} from './value/signal';
 export {store, type Store} from './value/store';
-

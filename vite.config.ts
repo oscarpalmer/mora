@@ -16,16 +16,18 @@ export default defineConfig({
 	build: {
 		lib: {
 			entry: [],
-			formats: ['cjs', 'es'],
+			formats: ['es'],
 		},
 		minify: false,
 		outDir: './dist',
 		rollupOptions: {
+			external: ['@oscarpalmer/atoms/is'],
 			input: Object.fromEntries(files),
 			output: {
 				preserveModules: true,
 			},
 		},
+		target: 'esnext',
 	},
 	logLevel: 'silent',
 	test: {

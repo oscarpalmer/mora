@@ -1,4 +1,4 @@
-import type {GenericCallback} from '@oscarpalmer/atoms';
+import type {GenericCallback} from '@oscarpalmer/atoms/models';
 import {arrayName} from '../helpers/is';
 import {getReactiveValueInProxy, setValueInProxy} from '../helpers/proxy';
 import {emitValue, equalArrays, getValue} from '../helpers/value';

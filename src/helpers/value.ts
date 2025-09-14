@@ -1,6 +1,6 @@
 import {batchDepth, batchedHandlers, flushHandlers} from '../batch';
 import {activeEffect} from '../effect';
-import {type InternalComputed, activeComputed} from '../value/computed';
+import {activeComputed, type InternalComputed} from '../value/computed';
 import type {ReactiveState} from '../value/reactive';
 
 export function emitValue<Value>(state: ReactiveState<Value, never>): void {

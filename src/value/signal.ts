@@ -1,10 +1,11 @@
-import {signalName} from '../helpers/is';
+import {NAME_SIGNAL} from '../constants';
 import {emitValue, getValue} from '../helpers/value';
-import {Reactive, type ReactiveOptions} from './reactive';
+import type {ReactiveOptions} from '../models';
+import {Reactive} from './reactive';
 
 export class Signal<Value> extends Reactive<Value> {
 	constructor(value: Value, options?: ReactiveOptions<Value>) {
-		super(signalName, value, options);
+		super(NAME_SIGNAL, value, options);
 	}
 
 	/**
@@ -16,6 +17,7 @@ export class Signal<Value> extends Reactive<Value> {
 
 	/**
 	 * Set the value
+	 * @param value New value
 	 */
 	set(value: Value): void {
 		if (!this.state.equal(this.state.value, value)) {
@@ -27,6 +29,7 @@ export class Signal<Value> extends Reactive<Value> {
 
 	/**
 	 * Update the value _(based on the current value)_
+	 * @param callback Callback to update the value
 	 */
 	update(callback: (value: Value) => Value): void {
 		this.set(callback(this.state.value));
@@ -35,6 +38,9 @@ export class Signal<Value> extends Reactive<Value> {
 
 /**
  * Create a reactive value
+ * @param value Initial value
+ * @param options Optional reactivity options
+ * @returns Reactive value
  */
 export function signal<Value>(
 	value: Value,

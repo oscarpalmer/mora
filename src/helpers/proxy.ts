@@ -4,49 +4,48 @@ import type {
 	PlainObject,
 } from '@oscarpalmer/atoms/models';
 import {startBatch, stopBatch} from '../batch';
+import type {SetValueInProxyParameters} from '../models';
 import type {ReactiveArray} from '../value/array';
 import {type Computed, computed} from '../value/computed';
-import type {ReactiveState} from '../value/reactive';
-import type {Signal} from '../value/signal';
 import type {Store} from '../value/store';
 import {emitValue} from './value';
 
 export function getReactiveValueInProxy<Value>(
-		array: ReactiveArray<Value>,
-		mapped: Map<Key, Computed<unknown>>,
-		index: number,
-		isArray: true,
-	): Computed<unknown>;
+	array: ReactiveArray<Value>,
+	mapped: Map<Key, Computed<unknown>>,
+	index: number,
+	isArray: true,
+): Computed<unknown>;
 
 export function getReactiveValueInProxy<Value extends PlainObject>(
-		store: Store<Value>,
-		mapped: Map<Key, Computed<unknown>>,
-		key: Key,
-		isArray: false,
-	): Computed<unknown>;
+	store: Store<Value>,
+	mapped: Map<Key, Computed<unknown>>,
+	key: Key,
+	isArray: false,
+): Computed<unknown>;
 
 export function getReactiveValueInProxy(
-		reactive: ReactiveArray<unknown> | Store<PlainObject>,
-		mapped: Map<Key, Computed<unknown>>,
-		key: Key,
-		isArray: boolean,
-	): Computed<unknown> {
-		let item = mapped.get(key);
+	reactive: ReactiveArray<unknown> | Store<PlainObject>,
+	mapped: Map<Key, Computed<unknown>>,
+	key: Key,
+	isArray: boolean,
+): Computed<unknown> {
+	let item = mapped.get(key);
 
-		if (item == null) {
-			item = computed(() => {
-				const value = reactive.get();
+	if (item == null) {
+		item = computed(() => {
+			const value = reactive.get();
 
-				return isArray
-					? (value as unknown[]).at(key as number)
-					: (value as PlainObject)[key];
-			}) as Computed<unknown>;
+			return isArray
+				? (value as unknown[]).at(key as number)
+				: (value as PlainObject)[key];
+		}) as Computed<unknown>;
 
-			mapped.set(key, item);
-		}
-
-		return item;
+		mapped.set(key, item);
 	}
+
+	return item;
+}
 
 export function setProxyValue(
 	proxy: ArrayOrPlainObject,
@@ -83,18 +82,15 @@ export function setProxyValue(
 }
 
 export function setValueInProxy<Value extends ArrayOrPlainObject, Equal>(
-	target: Value,
-	property: PropertyKey,
-	value: unknown,
-	state: ReactiveState<Value, Equal>,
-	isArray: boolean,
-	length?: Signal<number>,
+	parameters: SetValueInProxyParameters<Value, Equal>,
 ): boolean {
+	const {isArray, length, property, state, target, value} = parameters;
+
 	if (isArray) {
 		const isIndex = !Number.isNaN(Number(property));
 		const isLength = property === 'length';
 
-		if (!isIndex && !isLength) {
+		if (!(isIndex || isLength)) {
 			return Reflect.set(target, property, value);
 		}
 	}

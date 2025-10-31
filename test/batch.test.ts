@@ -1,6 +1,6 @@
 import {expect, test} from 'vitest';
 import {computed, effect, signal, startBatch, stopBatch} from '../src';
-import {batchDepth} from '../src/batch';
+import {BATCH} from '../src/constants';
 
 test('simple', () => {
 	let counter = 0;
@@ -14,11 +14,11 @@ test('simple', () => {
 		counter += 1;
 	});
 
-	expect(batchDepth).toBe(0);
+	expect(BATCH.depth).toBe(0);
 
 	startBatch();
 
-	expect(batchDepth).toBe(1);
+	expect(BATCH.depth).toBe(1);
 
 	for (let index = 0; index < 100; index += 1) {
 		a.update(current => current + 1);
@@ -28,7 +28,7 @@ test('simple', () => {
 
 	stopBatch();
 
-	expect(batchDepth).toBe(0);
+	expect(BATCH.depth).toBe(0);
 	expect(counter).toBe(2);
 	expect(a.peek()).toBe(223);
 	expect(b.peek()).toBe(1223);
@@ -47,29 +47,29 @@ test('nested', () => {
 		count += 1;
 	});
 
-	expect(batchDepth).toBe(0);
+	expect(BATCH.depth).toBe(0);
 
 	startBatch();
 
-	expect(batchDepth).toBe(1);
+	expect(BATCH.depth).toBe(1);
 
 	startBatch();
 
-	expect(batchDepth).toBe(2);
+	expect(BATCH.depth).toBe(2);
 
 	signal1.set(10);
 	signal2.set(20);
 
 	stopBatch();
 
-	expect(batchDepth).toBe(1);
+	expect(BATCH.depth).toBe(1);
 	expect(count).toBe(1);
 
 	signal1.set(100);
 
 	stopBatch();
 
-	expect(batchDepth).toBe(0);
+	expect(BATCH.depth).toBe(0);
 
 	expect(count).toBe(2);
 	expect(signal1.peek()).toBe(100);
@@ -77,14 +77,14 @@ test('nested', () => {
 });
 
 test('stops at zero depth', () => {
-	expect(batchDepth).toBe(0);
+	expect(BATCH.depth).toBe(0);
 
 	stopBatch();
 
-	expect(batchDepth).toBe(0);
+	expect(BATCH.depth).toBe(0);
 
 	stopBatch();
 	stopBatch();
 
-	expect(batchDepth).toBe(0);
+	expect(BATCH.depth).toBe(0);
 });

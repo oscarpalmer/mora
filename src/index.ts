@@ -7,6 +7,7 @@ export {
 	isReactive,
 	isSignal,
 } from './helpers/is';
+export type {Unsubscribe} from './models';
 export {array, type ReactiveArray} from './value/array';
 export {computed, type Computed} from './value/computed';
 export type {Reactive} from './value/reactive';

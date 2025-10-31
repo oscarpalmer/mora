@@ -1,12 +1,12 @@
-import {type Effect, runEffect} from './effect';
+import {BATCH} from './constants';
+import {runEffect} from './effect';
 import {isEffect} from './helpers/is';
-import type {Subscription} from './subscription';
 
 export function flushHandlers(): void {
-	while (batchDepth === 0 && batchedHandlers.size > 0) {
-		const handlers = [...batchedHandlers];
+	while (BATCH.depth === 0 && BATCH.handlers.size > 0) {
+		const handlers = [...BATCH.handlers];
 
-		batchedHandlers.clear();
+		BATCH.handlers.clear();
 
 		for (const handler of handlers) {
 			if (isEffect(handler)) {
@@ -19,23 +19,21 @@ export function flushHandlers(): void {
 }
 
 /**
- * Start batching effects _(use `stopBatch` to flush and run batched effects)_
+ * Start batching effects
+ * 
+ * _(Use {@link stopBatch} to flush and run batched effects)_
  */
 export function startBatch(): void {
-	batchDepth += 1;
+	BATCH.depth += 1;
 }
 
 /**
  * Stop batching effects and flush _(run)_ them
  */
 export function stopBatch(): void {
-	if (batchDepth > 0) {
-		batchDepth -= 1;
+	if (BATCH.depth > 0) {
+		BATCH.depth -= 1;
 	}
 
 	flushHandlers();
 }
-
-export const batchedHandlers = new Set<Effect | Subscription>();
-
-export let batchDepth = 0;

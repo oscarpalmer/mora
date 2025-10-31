@@ -1,12 +1,5 @@
-import type {GenericCallback} from '@oscarpalmer/atoms/models';
-import type {Effect} from '../effect';
-import {
-	type Subscription,
-	type Unsubscribe,
-	subscribe,
-	unsubscribe,
-} from '../subscription';
-import type {Computed} from './computed';
+import type {ReactiveOptions, ReactiveState, Unsubscribe} from '../models';
+import {subscribe, unsubscribe} from '../subscription';
 
 export abstract class Reactive<Value, Equal = Value> {
 	protected readonly state: ReactiveState<Value, Equal> = {
@@ -31,11 +24,13 @@ export abstract class Reactive<Value, Equal = Value> {
 
 	/**
 	 * Get the value
+	 * @return Current value
 	 */
 	abstract get(): Value;
 
 	/**
 	 * Get the value _(without reactivity)_
+	 * @return Current value
 	 */
 	peek(): Value {
 		return this.state.value;
@@ -43,6 +38,8 @@ export abstract class Reactive<Value, Equal = Value> {
 
 	/**
 	 * Subscribe to changes
+	 * @param callback Callback for changes
+	 * @return Unsubscribe callback
 	 */
 	subscribe(callback: (value: Value) => void): Unsubscribe {
 		return subscribe(this.state, callback);
@@ -50,6 +47,7 @@ export abstract class Reactive<Value, Equal = Value> {
 
 	/**
 	 * JSON representation of the value
+	 * @return JSON value
 	 */
 	toJSON(): Value {
 		return this.get();
@@ -57,6 +55,7 @@ export abstract class Reactive<Value, Equal = Value> {
 
 	/**
 	 * String representation of the value
+	 * @return Value as string
 	 */
 	toString(): string {
 		return String(this.get());
@@ -64,23 +63,9 @@ export abstract class Reactive<Value, Equal = Value> {
 
 	/**
 	 * Unsubscribe from changes
+	 * @param callback Callback to unsubscribe
 	 */
 	unsubscribe(callback: (value: Value) => void): void {
 		unsubscribe(this.state, callback);
 	}
 }
-
-export type ReactiveOptions<Value> = {
-	/**
-	 * Method to compare values for equality
-	 */
-	equal?: (first: Value, second: Value) => boolean;
-};
-
-export type ReactiveState<Value, Equal> = {
-	computeds: Set<Computed<unknown>>;
-	effects: Set<Effect>;
-	equal: (first: Equal, second: Equal) => boolean;
-	subscriptions: Map<GenericCallback, Subscription>;
-	value: Value;
-};

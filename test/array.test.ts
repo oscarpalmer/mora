@@ -1,6 +1,23 @@
+/** biome-ignore-all lint/style/noMagicNumbers: Testing */
 import {expect, test} from 'vitest';
 import {array, effect} from '../src';
 import {noop} from '../src/subscription';
+
+class Item {
+	id: number;
+	name: string;
+
+	constructor(name: string) {
+		this.id = ++itemIndex;
+		this.name = name;
+	}
+
+	toString(): string {
+		return `#${this.id} ${this.name}`;
+	}
+}
+
+let itemIndex = 0;
 
 test('basic', () => {
 	const a = array([1, 2, 3, 4, 5]);
@@ -33,6 +50,18 @@ test('clear', () => {
 
 	expect(a.peek()).toEqual([]);
 	expect(b.peek()).toEqual([]);
+});
+
+test('copyWith', () => {
+	const a = array([1, 2, 3, 4, 5]);
+
+	a.get().copyWithin(0, 2);
+
+	expect(a.peek()).toEqual([3, 4, 5, 4, 5]);
+
+	a.get().copyWithin(1, 3, 4);
+
+	expect(a.peek()).toEqual([3, 4, 5, 4, 5]);
 });
 
 test('emit', () => {
@@ -78,6 +107,22 @@ test('emit', () => {
 	b.set(Array.from({length: 300}, (_, i) => (i === 150 ? i + 1 : 1)));
 
 	expect(counts.b).toBe(2);
+});
+
+test('fill', () => {
+	const a = array([1, 2, 3, 4, 5]);
+
+	a.get().fill(99);
+
+	expect(a.peek()).toEqual([99, 99, 99, 99, 99]);
+
+	a.get().fill(100, 1);
+
+	expect(a.peek()).toEqual([99, 100, 100, 100, 100]);
+
+	a.get().fill(101, 1, 3);
+
+	expect(a.peek()).toEqual([99, 101, 101, 100, 100]);
 });
 
 test('filter', () => {
@@ -140,6 +185,25 @@ test('map', () => {
 	expect(b.peek()).toEqual([]);
 });
 
+test('notify', () => {
+	const items = array<Item>([]);
+	const strings = items.map(item => item.toString());
+
+	expect(strings.peek().join(', ')).toBe('');
+
+	items.push(new Item('Apple'));
+
+	expect(strings.peek().join(', ')).toBe('#1 Apple');
+
+	items.peek()[0].name = 'Banana';
+
+	expect(strings.peek().join(', ')).toBe('#1 Apple');
+
+	items.notify();
+
+	expect(strings.peek().join(', ')).toBe('#1 Banana');
+});
+
 test('peek', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
@@ -158,19 +222,42 @@ test('peek', () => {
 	});
 
 	effect(() => {
-		a.peek(true);
+		a.peek('length');
 
 		counts[2] += 1;
 	});
 
 	expect(counts).toEqual([1, 1, 1]);
 	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
-	expect(a.peek(true)).toBe(5);
+	expect(a.peek('length')).toBe(5);
 	expect(a.peek('blah' as never)).toEqual([1, 2, 3, 4, 5]);
 
 	a.set([11, 22, 33, 44, 55]);
 
 	expect(counts).toEqual([1, 1, 1]);
+});
+
+test('pop', () => {
+	const a = array([1, 2, 3, 4, 5]);
+
+	expect(a.pop()).toBe(5);
+	expect(a.peek()).toEqual([1, 2, 3, 4]);
+});
+
+test('push', () => {
+	const a = array([1, 2, 3, 4, 5]);
+
+	expect(a.push(6)).toBe(6);
+	expect(a.peek()).toEqual([1, 2, 3, 4, 5, 6]);
+	expect(a.length).toBe(6);
+});
+
+test('reverse', () => {
+	const a = array([1, 2, 3, 4, 5]);
+
+	a.get().reverse();
+
+	expect(a.peek()).toEqual([5, 4, 3, 2, 1]);
 });
 
 test('set', () => {
@@ -201,14 +288,34 @@ test('set', () => {
 	expect(a.peek()).toEqual([6, 999, 8]);
 	expect(count).toBe(3);
 
+	a.set(-1, 666);
+
+	expect(a.peek()).toEqual([6, 999, 666]);
+	expect(count).toBe(4);
+
+	a.set(-1000, 333);
+
+	expect(a.peek()).toEqual([6, 999, 666]);
+	expect(count).toBe(4);
+
+	a.set(3, 333);
+
+	expect(a.peek()).toEqual([6, 999, 666, 333]);
+	expect(count).toBe(5);
+
+	a.set(Number.NaN, 123);
+
+	expect(a.peek()).toEqual([6, 999, 666, 333]);
+	expect(count).toBe(5);
+
 	a.set('length', 10);
 
 	expect(a.length).toBe(10);
 	expect(a.peek()).toEqual([
 		6,
 		999,
-		8,
-		undefined,
+		666,
+		333,
 		undefined,
 		undefined,
 		undefined,
@@ -216,7 +323,7 @@ test('set', () => {
 		undefined,
 		undefined,
 	]);
-	expect(count).toBe(4);
+	expect(count).toBe(6);
 
 	a.set('blah' as never, 'Hello, world!' as never);
 
@@ -225,117 +332,6 @@ test('set', () => {
 	a.get()['blah' as never] = 'Hello, world!' as never;
 
 	expect(a.get()['blah' as never]).toBe('Hello, world!');
-});
-
-test('subscribe', () => {
-	const a = array([1, 2, 3, 4, 5]);
-
-	const counts = {
-		array: 0,
-		item: 0,
-	};
-
-	a.subscribe(() => {
-		counts.array += 1;
-	});
-
-	a.subscribe(0, () => {
-		counts.item += 1;
-	});
-
-	expect(counts.array).toBe(1);
-	expect(counts.item).toBe(1);
-
-	a.push(6, 7, 8);
-
-	expect(counts.array).toBe(2);
-	expect(counts.item).toBe(1);
-
-	a.set(0, 999);
-
-	expect(counts.array).toBe(3);
-	expect(counts.item).toBe(2);
-
-	expect(a.subscribe('blah' as never, () => {})).toEqual(noop);
-});
-
-test('update', () => {
-	const a = array([1, 2, 3, 4, 5]);
-
-	let count = 0;
-
-	effect(() => {
-		a.get();
-
-		count += 1;
-	});
-
-	expect(count).toBe(1);
-
-	a.update(value => value.map(item => item * 2));
-
-	expect(a.peek()).toEqual([2, 4, 6, 8, 10]);
-	expect(count).toBe(2);
-
-	a.update(() => 'blah' as never);
-
-	expect(count).toBe(2);
-
-	a.update(() => null as never);
-
-	expect(a.peek()).toEqual([]);
-	expect(count).toBe(3);
-});
-
-test('copyWith', () => {
-	const a = array([1, 2, 3, 4, 5]);
-
-	a.get().copyWithin(0, 2);
-
-	expect(a.peek()).toEqual([3, 4, 5, 4, 5]);
-
-	a.get().copyWithin(1, 3, 4);
-
-	expect(a.peek()).toEqual([3, 4, 5, 4, 5]);
-});
-
-test('fill', () => {
-	const a = array([1, 2, 3, 4, 5]);
-
-	a.get().fill(99);
-
-	expect(a.peek()).toEqual([99, 99, 99, 99, 99]);
-
-	a.get().fill(100, 1);
-
-	expect(a.peek()).toEqual([99, 100, 100, 100, 100]);
-
-	a.get().fill(101, 1, 3);
-
-	expect(a.peek()).toEqual([99, 101, 101, 100, 100]);
-});
-
-test('pop', () => {
-	const a = array([1, 2, 3, 4, 5]);
-
-	expect(a.pop()).toBe(5);
-	expect(a.peek()).toEqual([1, 2, 3, 4]);
-});
-
-test('push', () => {
-	const a = array([1, 2, 3, 4, 5]);
-
-	expect(a.push(6)).toBe(6);
-	expect(a.peek()).toEqual([1, 2, 3, 4, 5, 6]);
-	expect(a.length).toBe(6);
-});
-
-test('reverse', () => {
-	const a = array([1, 2, 3, 4, 5]);
-
-	a.get().reverse();
-
-	expect(a.peek()).toEqual([5, 4, 3, 2, 1]);
 });
 
 test('shift', () => {
@@ -386,10 +382,70 @@ test('splice + (get)', () => {
 	expect(last).toBe(undefined);
 });
 
+test('subscribe', () => {
+	const a = array([1, 2, 3, 4, 5]);
+
+	const counts = {
+		array: 0,
+		item: 0,
+	};
+
+	a.subscribe(() => {
+		counts.array += 1;
+	});
+
+	a.subscribe(0, () => {
+		counts.item += 1;
+	});
+
+	expect(counts.array).toBe(1);
+	expect(counts.item).toBe(1);
+
+	a.push(6, 7, 8);
+
+	expect(counts.array).toBe(2);
+	expect(counts.item).toBe(1);
+
+	a.set(0, 999);
+
+	expect(counts.array).toBe(3);
+	expect(counts.item).toBe(2);
+
+	expect(a.subscribe('blah' as never, () => {})).toEqual(noop);
+});
+
 test('unshift', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
 	expect(a.unshift(0)).toBe(6);
 	expect(a.peek()).toEqual([0, 1, 2, 3, 4, 5]);
 	expect(a.length).toBe(6);
+});
+
+test('update', () => {
+	const a = array([1, 2, 3, 4, 5]);
+
+	let count = 0;
+
+	effect(() => {
+		a.get();
+
+		count += 1;
+	});
+
+	expect(count).toBe(1);
+
+	a.update(value => value.map(item => item * 2));
+
+	expect(a.peek()).toEqual([2, 4, 6, 8, 10]);
+	expect(count).toBe(2);
+
+	a.update(() => 'blah' as never);
+
+	expect(count).toBe(2);
+
+	a.update(() => null as never);
+
+	expect(a.peek()).toEqual([]);
+	expect(count).toBe(3);
 });

@@ -1,13 +1,6 @@
 import type {GenericCallback} from '@oscarpalmer/atoms/models';
-import {effectName} from './helpers/is';
-
-type EffectState = {
-	callback: GenericCallback;
-};
-
-type InternalEffect = {
-	state: EffectState;
-};
+import {ACTIVE, NAME_EFFECT} from './constants';
+import type {EffectState, InternalEffect} from './models';
 
 export class Effect {
 	private declare readonly $mora: string;
@@ -16,7 +9,7 @@ export class Effect {
 
 	constructor(callback: GenericCallback) {
 		Object.defineProperty(this, '$mora', {
-			value: effectName,
+			value: NAME_EFFECT,
 		});
 
 		this.state = {
@@ -28,22 +21,24 @@ export class Effect {
 }
 
 export function runEffect(effect: Effect): void {
-	const previousEffect = activeEffect;
+	const previousEffect = ACTIVE.effect;
 
-	activeEffect = effect;
+	ACTIVE.effect = effect;
 
 	try {
 		(effect as unknown as InternalEffect).state.callback();
 	} finally {
-		activeEffect = previousEffect;
+		ACTIVE.effect = previousEffect;
 	}
 }
 
 /**
  * Create an effect
+ * @param callback Callback for handling signal effects
+ * @returns Effect
  */
 export function effect(callback: GenericCallback): Effect {
-	return new Effect(callback);
+	return typeof callback === 'function'
+		? new Effect(callback)
+		: (undefined as never);
 }
-
-export let activeEffect: Effect | undefined;

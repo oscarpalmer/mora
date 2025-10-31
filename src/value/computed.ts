@@ -1,19 +1,7 @@
-import {batchDepth, batchedHandlers} from '../batch';
-import {type Effect, activeEffect, effect, runEffect} from '../effect';
-import {computedName} from '../helpers/is';
-import {Reactive, type ReactiveOptions, type ReactiveState} from './reactive';
-
-export type ComputedEffect = {
-	dirty: boolean;
-	instance: Effect;
-};
-
-export type InternalComputed = {
-	readonly effect: ComputedEffect;
-	readonly state: ReactiveState<unknown, unknown>;
-};
-
-export let activeComputed: Computed<unknown> | undefined;
+import {ACTIVE, BATCH, NAME_COMPUTED} from '../constants';
+import {effect, runEffect} from '../effect';
+import type {ComputedEffect, ReactiveOptions} from '../models';
+import {Reactive} from './reactive';
 
 export class Computed<Value> extends Reactive<Value> {
 	private readonly effect: ComputedEffect = {
@@ -22,36 +10,38 @@ export class Computed<Value> extends Reactive<Value> {
 	};
 
 	constructor(callback: () => Value, options?: ReactiveOptions<Value>) {
-		super(computedName, undefined as never, options);
+		super(NAME_COMPUTED, undefined as never, options);
 
 		this.effect.instance = effect(() => {
-			if (this.effect.dirty) {
-				const previousComputed = activeComputed;
+			if (!this.effect.dirty) {
+				return;
+			}
 
-				activeComputed = this as never;
+			const previousComputed = ACTIVE.computed;
 
-				const value = callback();
+			ACTIVE.computed = this as never;
 
-				activeComputed = previousComputed;
+			const value = callback();
 
-				if (!this.state.equal(this.state.value, value)) {
-					this.state.value = value;
+			ACTIVE.computed = previousComputed;
 
-					for (const computed of this.state.computeds) {
-						computed.effect.dirty = true;
-					}
+			if (!this.state.equal(this.state.value, value)) {
+				this.state.value = value;
 
-					for (const effect of this.state.effects) {
-						batchedHandlers.add(effect);
-					}
-
-					for (const [, subscription] of this.state.subscriptions) {
-						subscription.callback(value);
-					}
+				for (const computed of this.state.computeds) {
+					computed.effect.dirty = true;
 				}
 
-				this.effect.dirty = false;
+				for (const effect of this.state.effects) {
+					BATCH.handlers.add(effect);
+				}
+
+				for (const [, subscription] of this.state.subscriptions) {
+					subscription.callback(value);
+				}
 			}
+
+			this.effect.dirty = false;
 		});
 	}
 
@@ -59,15 +49,15 @@ export class Computed<Value> extends Reactive<Value> {
 	 * @inheritdoc
 	 */
 	get(): Value {
-		if (activeComputed != null && this !== activeComputed) {
-			this.state.computeds.add(activeComputed);
+		if (ACTIVE.computed != null && this !== ACTIVE.computed) {
+			this.state.computeds.add(ACTIVE.computed);
 		}
 
-		if (activeEffect != null && activeEffect !== this.effect.instance) {
-			this.state.effects.add(activeEffect);
+		if (ACTIVE.effect != null && ACTIVE.effect !== this.effect.instance) {
+			this.state.effects.add(ACTIVE.effect);
 		}
 
-		if (this.effect.dirty && batchDepth === 0) {
+		if (this.effect.dirty && BATCH.depth === 0) {
 			runEffect(this.effect.instance);
 		}
 

@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/style/noMagicNumbers: Testing */
 import {expect, test} from 'vitest';
 import {effect, signal} from '../src';
 
@@ -19,4 +20,6 @@ test('basic', () => {
 	expect(count).toBe(100);
 	expect(total).toBe(4950);
 	expect(value.get()).toBe(4950);
+
+	expect(effect(123 as never)).toBeUndefined();
 });

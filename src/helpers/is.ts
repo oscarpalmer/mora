@@ -3,6 +3,7 @@ import {
 	NAME_ARRAY,
 	NAME_COMPUTED,
 	NAME_EFFECT,
+	NAME_MORA,
 	NAME_SIGNAL,
 	NAME_STORE,
 	NAMES,
@@ -45,10 +46,10 @@ function isMora<T>(value: unknown, name: string | Set<string>): value is T {
 	return (
 		typeof value === 'object' &&
 		value != null &&
-		'$mora' in value &&
+		NAME_MORA in value &&
 		(typeof name === 'string'
-			? (value as PlainObject).$mora === name
-			: name.has((value as PlainObject).$mora as never))
+			? (value as PlainObject)[NAME_MORA] === name
+			: name.has((value as PlainObject)[NAME_MORA] as never))
 	);
 }
 

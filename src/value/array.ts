@@ -3,8 +3,9 @@ import {
 	METHODS_AFFECTING_LENGTH,
 	METHODS_UPDATE,
 	NAME_ARRAY,
+	PROPERTY_LENGTH,
 } from '../constants';
-import {getReactiveValueInProxy, setValueInProxy} from '../helpers/proxy';
+import {emityProxyValues, getReactiveValueInProxy, setValueInProxy} from '../helpers/proxy';
 import {emitValue, equalArrays, getValue} from '../helpers/value';
 import type {ReactiveOptions, ReactiveState, Unsubscribe} from '../models';
 import {noop, subscribe} from '../subscription';
@@ -102,11 +103,7 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 			return getReactiveValueInProxy(this, this.#indiced, first, true).get();
 		}
 
-		if (first === 'length') {
-			return this.length;
-		}
-
-		return getValue(this.state);
+		return first === PROPERTY_LENGTH ? this.length : getValue(this.state);
 	}
 
 	/**
@@ -127,7 +124,7 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	 * Use this only if you're modifying nested data that would be ignored by equality checks._
 	 */
 	notify(): void {
-		emitValue(this.state);
+		emityProxyValues(this.state, this.#indiced);
 	}
 
 	/**
@@ -153,11 +150,9 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 			return this.#size.peek();
 		}
 
-		if (typeof value === 'number') {
-			return this.state.value.at(value);
-		}
-
-		return [...this.state.value];
+		return typeof value === 'number'
+			? this.state.value.at(value)
+			: [...this.state.value];
 	}
 
 	/**

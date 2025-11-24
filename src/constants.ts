@@ -37,6 +37,8 @@ export const NAME_COMPUTED = 'computed';
 
 export const NAME_EFFECT = 'effect';
 
+export const NAME_MORA = '$mora';
+
 export const NAME_SIGNAL = 'signal';
 
 export const NAME_STORE = 'store';
@@ -47,3 +49,5 @@ export const NAMES: Set<string> = new Set([
 	NAME_SIGNAL,
 	NAME_STORE,
 ]);
+
+export const PROPERTY_LENGTH = 'length';

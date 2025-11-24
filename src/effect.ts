@@ -1,5 +1,5 @@
 import type {GenericCallback} from '@oscarpalmer/atoms/models';
-import {ACTIVE, NAME_EFFECT} from './constants';
+import {ACTIVE, NAME_EFFECT, NAME_MORA} from './constants';
 import type {EffectState, InternalEffect} from './models';
 
 export class Effect {
@@ -8,7 +8,7 @@ export class Effect {
 	private declare readonly state: EffectState;
 
 	constructor(callback: GenericCallback) {
-		Object.defineProperty(this, '$mora', {
+		Object.defineProperty(this, NAME_MORA, {
 			value: NAME_EFFECT,
 		});
 

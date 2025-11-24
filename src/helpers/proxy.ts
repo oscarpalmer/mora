@@ -4,11 +4,40 @@ import type {
 	PlainObject,
 } from '@oscarpalmer/atoms/models';
 import {startBatch, stopBatch} from '../batch';
-import type {SetValueInProxyParameters} from '../models';
+import {PROPERTY_LENGTH} from '../constants';
+import type {
+	InternalComputed,
+	ReactiveState,
+	SetValueInProxyParameters,
+} from '../models';
 import type {ReactiveArray} from '../value/array';
 import {type Computed, computed} from '../value/computed';
 import type {Store} from '../value/store';
 import {emitValue} from './value';
+
+export function emityProxyValues<Value>(
+	state: ReactiveState<Value, Value>,
+	mapped: Map<Key, Computed<unknown>>,
+): void;
+
+export function emityProxyValues<Value>(
+	state: ReactiveState<Value[], Value>,
+	mapped: Map<Key, Computed<unknown>>,
+): void;
+
+export function emityProxyValues(
+	state: ReactiveState<unknown, unknown>,
+	mapped: Map<Key, Computed<unknown>>,
+): void {
+	const values = [...mapped.values()];
+	const {length} = values;
+
+	for (let index = 0; index < length; index += 1) {
+		(values[index] as unknown as InternalComputed).effect.dirty = true;
+	}
+
+	emitValue(state);
+}
 
 export function getReactiveValueInProxy<Value>(
 	array: ReactiveArray<Value>,
@@ -33,13 +62,11 @@ export function getReactiveValueInProxy(
 	let item = mapped.get(key);
 
 	if (item == null) {
-		item = computed(() => {
-			const value = reactive.get();
-
-			return isArray
-				? (value as unknown[]).at(key as number)
-				: (value as PlainObject)[key];
-		}) as Computed<unknown>;
+		item = computed(() =>
+			isArray
+				? (reactive.get() as unknown[]).at(key as number)
+				: (reactive.get() as PlainObject)[key],
+		) as Computed<unknown>;
 
 		mapped.set(key, item);
 	}
@@ -88,7 +115,7 @@ export function setValueInProxy<Value extends ArrayOrPlainObject, Equal>(
 
 	if (isArray) {
 		const isIndex = !Number.isNaN(Number(property));
-		const isLength = property === 'length';
+		const isLength = property === PROPERTY_LENGTH;
 
 		if (!(isIndex || isLength)) {
 			return Reflect.set(target, property, value);

@@ -1,3 +1,4 @@
+import {NAME_MORA} from '../constants';
 import type {ReactiveOptions, ReactiveState, Unsubscribe} from '../models';
 import {subscribe, unsubscribe} from '../subscription';
 
@@ -17,7 +18,7 @@ export abstract class Reactive<Value, Equal = Value> {
 			this.state.equal = options.equal;
 		}
 
-		Object.defineProperty(this, '$mora', {
+		Object.defineProperty(this, NAME_MORA, {
 			value: name,
 		});
 	}

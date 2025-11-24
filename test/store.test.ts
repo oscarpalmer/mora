@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/style/noMagicNumbers: Testing */
 import {expect, test} from 'vitest';
 import {effect, store} from '../src';
 import {noop} from '../src/subscription';
@@ -70,6 +71,42 @@ test('basic', () => {
 	expect(a.peek('a')).toBeUndefined();
 
 	expect(store('blah' as never).peek()).toEqual({});
+});
+
+test('notify', () => {
+	const stored = store({
+		nested: {
+			value: 123,
+		},
+	});
+
+	let count = 0;
+	let value = 0;
+
+	effect(() => {
+		value = stored.get('nested').value;
+		count += 1;
+	});
+
+	expect(count).toBe(1);
+	expect(value).toBe(123);
+
+	const nested = stored.peek('nested');
+
+	nested.value = 456;
+
+	expect(count).toBe(1);
+	expect(value).toBe(123);
+
+	stored.set('nested', nested);
+
+	expect(count).toBe(1);
+	expect(value).toBe(123);
+
+	stored.notify();
+
+	expect(count).toBe(1);
+	expect(value).toBe(123);
 });
 
 test('subscribe', () => {

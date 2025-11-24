@@ -7,11 +7,12 @@ import type {
 import {NAME_STORE} from '../constants';
 import {
 	getReactiveValueInProxy,
+	emityProxyValues,
 	setProxyValue,
 	setValueInProxy,
 } from '../helpers/proxy';
-import {getValue} from '../helpers/value';
-import type {ReactiveOptions, Unsubscribe} from '../models';
+import {emitValue, getValue} from '../helpers/value';
+import type {InternalComputed, ReactiveOptions, Unsubscribe} from '../models';
 import {noop, subscribe} from '../subscription';
 import type {Computed} from './computed';
 import {Reactive} from './reactive';
@@ -46,7 +47,7 @@ export class Store<Value extends PlainObject> extends Reactive<Value, Value> {
 	 * @param key Key of the value to get
 	 * @returns Value for the specified key, or `undefined` if it doesn't exist
 	 */
-	get(key: keyof Value): Value[keyof Value];
+	get<Key extends keyof Value>(key: Key): Value[Key];
 
 	/**
 	 * Get a value by key
@@ -62,6 +63,16 @@ export class Store<Value extends PlainObject> extends Reactive<Value, Value> {
 	}
 
 	/**
+	 * Notify dependents of changes
+	 *
+	 * _This bypasses equality checks and will immediately notify dependents.
+	 * Use this only if you're modifying nested data that would be ignored by equality checks._
+	 */
+	notify(): void {
+		emityProxyValues(this.state, this.#keyed);
+	}
+
+	/**
 	 * Get the value _(without reactivity)_
 	 * @returns The current value
 	 */
@@ -72,7 +83,7 @@ export class Store<Value extends PlainObject> extends Reactive<Value, Value> {
 	 * @param key Key of the value to get
 	 * @returns Value for the specified key, or `undefined` if it doesn't exist
 	 */
-	peek(key: keyof Value): Value[keyof Value];
+	peek<Key extends keyof Value>(key: Key): Value[Key];
 
 	/**
 	 * Get a value by key _(without reactivity)_
@@ -96,7 +107,7 @@ export class Store<Value extends PlainObject> extends Reactive<Value, Value> {
 	 * @param key Key of the value to set
 	 * @param value New value
 	 */
-	set(key: keyof Value, value: Value[keyof Value]): void;
+	set<Key extends keyof Value>(key: Key, value: Value[Key]): void;
 
 	/**
 	 * Set a value by key

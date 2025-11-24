@@ -1,9 +1,10 @@
+/** biome-ignore-all lint/style/noMagicNumbers: Testing */
 import {expect, test} from 'vitest';
 import {computed, signal, startBatch, stopBatch} from '../src';
 import {noop} from '../src/subscription';
 
 test('basic', () => {
-	function d(value: number) {
+	function d(value: number): void {
 		counts[1] += 1;
 		totals[1] = value;
 	}

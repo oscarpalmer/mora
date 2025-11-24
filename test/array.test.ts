@@ -187,21 +187,53 @@ test('map', () => {
 
 test('notify', () => {
 	const items = array<Item>([]);
+	const objs = array<{value: number}>([]);
 	const strings = items.map(item => item.toString());
 
+	let name = '';
+	let value = 0;
+
+	effect(() => {
+		name = items.get(0)?.name ?? '';
+	});
+
+	effect(() => {
+		value = objs.get(0)?.value ?? 0;
+	});
+
 	expect(strings.peek().join(', ')).toBe('');
+	expect(name).toBe('');
+	expect(value).toBe(0);
 
 	items.push(new Item('Apple'));
+	objs.push({value: 123});
 
 	expect(strings.peek().join(', ')).toBe('#1 Apple');
+	expect(name).toBe('Apple');
+	expect(value).toBe(123);
 
-	items.peek()[0].name = 'Banana';
+	const item = items.peek(0);
+
+	if (item != null) {
+		item.name = 'Banana';
+	}
+
+	const obj = objs.peek(0);
+
+	if (obj != null) {
+		obj.value = 456;
+	}
 
 	expect(strings.peek().join(', ')).toBe('#1 Apple');
+	expect(name).toBe('Apple');
+	expect(value).toBe(123);
 
 	items.notify();
+	objs.notify();
 
 	expect(strings.peek().join(', ')).toBe('#1 Banana');
+	expect(name).toBe('Apple');
+	expect(value).toBe(123);
 });
 
 test('peek', () => {

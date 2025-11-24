@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/style/noMagicNumbers: Testing */
 import {equal} from '@oscarpalmer/atoms/value';
 import {expect, test} from 'vitest';
 import {array, signal} from '../src';

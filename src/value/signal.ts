@@ -39,12 +39,9 @@ export class Signal<Value> extends Reactive<Value> {
 /**
  * Create a reactive value
  * @param value Initial value
- * @param options Optional reactivity options
+ * @param options Reactivity options
  * @returns Reactive value
  */
-export function signal<Value>(
-	value: Value,
-	options?: ReactiveOptions<Value>,
-): Signal<Value> {
+export function signal<Value>(value: Value, options?: ReactiveOptions<Value>): Signal<Value> {
 	return new Signal<Value>(value, options);
 }

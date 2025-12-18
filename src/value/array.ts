@@ -1,10 +1,5 @@
 import type {GenericCallback} from '@oscarpalmer/atoms/models';
-import {
-	METHODS_AFFECTING_LENGTH,
-	METHODS_UPDATE,
-	NAME_ARRAY,
-	PROPERTY_LENGTH,
-} from '../constants';
+import {METHODS_AFFECTING_LENGTH, METHODS_UPDATE, NAME_ARRAY, PROPERTY_LENGTH} from '../constants';
 import {emityProxyValues, getReactiveValueInProxy, setValueInProxy} from '../helpers/proxy';
 import {emitValue, equalArrays, getValue} from '../helpers/value';
 import type {ReactiveOptions, ReactiveState, Unsubscribe} from '../models';
@@ -29,11 +24,7 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	 * Set the length of the array
 	 */
 	set length(value: number) {
-		if (
-			typeof value === 'number' &&
-			value >= 0 &&
-			value !== this.state.value.length
-		) {
+		if (typeof value === 'number' && value >= 0 && value !== this.state.value.length) {
 			this.get().length = value;
 		}
 	}
@@ -74,9 +65,7 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	 * @param callback Callback to evaluate each item
 	 * @return Computed array of filtered items
 	 */
-	filter(
-		callback: (item: Item, index: number, array: Item[]) => boolean,
-	): Computed<Item[]> {
+	filter(callback: (item: Item, index: number, array: Item[]) => boolean): Computed<Item[]> {
 		return computed(() => this.get().filter(callback));
 	}
 
@@ -111,9 +100,7 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	 * @param callback Callback to transform each item
 	 * @return Computed array of mapped items
 	 */
-	map<Mapped>(
-		callback: (item: Item, index: number, array: Item[]) => Mapped,
-	): Computed<Mapped[]> {
+	map<Mapped>(callback: (item: Item, index: number, array: Item[]) => Mapped): Computed<Mapped[]> {
 		return computed(() => this.get().map(callback));
 	}
 
@@ -130,29 +117,27 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	/**
 	 * @inheritdoc
 	 */
-	peek(): Item[];
+	override peek(): Item[];
 
 	/**
 	 * Get the value at an index _(without reactivity)_
 	 * @param index Index of item to get _(if negative, starts from the end)_
 	 * @returns Item at index, or `undefined` if it doesn't exist
 	 */
-	peek(index: number): Item | undefined;
+	override peek(index: number): Item | undefined;
 
 	/**
 	 * Get the length of the array _(without reactivity)_
 	 * @returns Length of the array
 	 */
-	peek(property: 'length'): number;
+	override peek(property: 'length'): number;
 
-	peek(value?: unknown): unknown {
+	override peek(value?: unknown): unknown {
 		if (value === 'length') {
 			return this.#size.peek();
 		}
 
-		return typeof value === 'number'
-			? this.state.value.at(value)
-			: [...this.state.value];
+		return typeof value === 'number' ? this.state.value.at(value) : [...this.state.value];
 	}
 
 	/**
@@ -217,17 +202,13 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	 * @returns Removed items
 	 */
 	splice(from: number, to?: number, ...items: Item[]): Item[] {
-		return this.state.value.splice(
-			from,
-			to ?? this.state.value.length,
-			...items,
-		);
+		return this.state.value.splice(from, to ?? this.state.value.length, ...items);
 	}
 
 	/**
 	 * @inheritdoc
 	 */
-	subscribe(callback: (value: Item[]) => void): Unsubscribe;
+	override subscribe(callback: (value: Item[]) => void): Unsubscribe;
 
 	/**
 	 * Subscribe to changes at a specific index
@@ -235,22 +216,11 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	 * @param callback Callback for changes
 	 * @returns Unsubscribe callback
 	 */
-	subscribe(
-		index: number,
-		callback: (value: Item | undefined) => void,
-	): Unsubscribe;
+	override subscribe(index: number, callback: (value: Item | undefined) => void): Unsubscribe;
 
-	subscribe(
-		first: number | GenericCallback,
-		second?: GenericCallback,
-	): Unsubscribe {
+	override subscribe(first: number | GenericCallback, second?: GenericCallback): Unsubscribe {
 		if (typeof first === 'number' && typeof second === 'function') {
-			return getReactiveValueInProxy(
-				this,
-				this.#indiced,
-				first,
-				true,
-			).subscribe(second);
+			return getReactiveValueInProxy(this, this.#indiced, first, true).subscribe(second);
 		}
 
 		return typeof first === 'function' ? subscribe(this.state, first) : noop;
@@ -281,13 +251,10 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 /**
  * Create a reactive array
  * @param value Initial array of items
- * @param options Optional reactivity options
+ * @param options Reactivity options
  * @returns Reactive array
  */
-export function array<Item>(
-	value: Item[],
-	options?: ReactiveOptions<Item>,
-): ReactiveArray<Item> {
+export function array<Item>(value: Item[], options?: ReactiveOptions<Item>): ReactiveArray<Item> {
 	return new ReactiveArray(Array.isArray(value) ? value : [], options);
 }
 
@@ -302,14 +269,10 @@ function updateArray<Item>(
 	const previousLength = array.length;
 
 	return (...args: unknown[]): unknown => {
-		const result = (array[type as never] as (...args: unknown[]) => unknown)(
-			...args,
-		);
+		const result = (array[type as never] as (...args: unknown[]) => unknown)(...args);
 
 		if (
-			affectsLength
-				? array.length !== previousLength
-				: !equalArrays(state, previousArray, array)
+			affectsLength ? array.length !== previousLength : !equalArrays(state, previousArray, array)
 		) {
 			emitValue(state);
 

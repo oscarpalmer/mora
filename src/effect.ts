@@ -3,9 +3,9 @@ import {ACTIVE, NAME_EFFECT, NAME_MORA} from './constants';
 import type {EffectState, InternalEffect} from './models';
 
 export class Effect {
-	private declare readonly $mora: string;
+	declare private readonly $mora: string;
 
-	private declare readonly state: EffectState;
+	declare private readonly state: EffectState;
 
 	constructor(callback: GenericCallback) {
 		Object.defineProperty(this, NAME_MORA, {
@@ -38,7 +38,5 @@ export function runEffect(effect: Effect): void {
  * @returns Effect
  */
 export function effect(callback: GenericCallback): Effect {
-	return typeof callback === 'function'
-		? new Effect(callback)
-		: (undefined as never);
+	return typeof callback === 'function' ? new Effect(callback) : (undefined as never);
 }

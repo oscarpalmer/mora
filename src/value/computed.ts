@@ -67,6 +67,9 @@ export class Computed<Value> extends Reactive<Value> {
 
 /**
  * Create a computed value
+ * @param callback Callback to compute the value
+ * @param options Reactivity options
+ * @returns Computed value
  */
 export function computed<Value>(
 	callback: () => Value,

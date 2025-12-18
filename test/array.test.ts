@@ -1,4 +1,3 @@
-/** biome-ignore-all lint/style/noMagicNumbers: Testing */
 import {expect, test} from 'vitest';
 import {array, effect} from '../src';
 import {noop} from '../src/subscription';

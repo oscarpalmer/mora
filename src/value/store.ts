@@ -1,9 +1,5 @@
 import {isKey, isPlainObject} from '@oscarpalmer/atoms/is';
-import type {
-	GenericCallback,
-	Key,
-	PlainObject,
-} from '@oscarpalmer/atoms/models';
+import type {GenericCallback, Key, PlainObject} from '@oscarpalmer/atoms/models';
 import {NAME_STORE} from '../constants';
 import {
 	getReactiveValueInProxy,
@@ -11,8 +7,8 @@ import {
 	setProxyValue,
 	setValueInProxy,
 } from '../helpers/proxy';
-import {emitValue, getValue} from '../helpers/value';
-import type {InternalComputed, ReactiveOptions, Unsubscribe} from '../models';
+import {getValue} from '../helpers/value';
+import type {ReactiveOptions, Unsubscribe} from '../models';
 import {noop, subscribe} from '../subscription';
 import type {Computed} from './computed';
 import {Reactive} from './reactive';
@@ -76,23 +72,23 @@ export class Store<Value extends PlainObject> extends Reactive<Value, Value> {
 	 * Get the value _(without reactivity)_
 	 * @returns The current value
 	 */
-	peek(): Value;
+	override peek(): Value;
 
 	/**
 	 * Get a value by key _(without reactivity)_
 	 * @param key Key of the value to get
 	 * @returns Value for the specified key, or `undefined` if it doesn't exist
 	 */
-	peek<Key extends keyof Value>(key: Key): Value[Key];
+	override peek<Key extends keyof Value>(key: Key): Value[Key];
 
 	/**
 	 * Get a value by key _(without reactivity)_
 	 * @param key Key of the value to get
 	 * @returns Value for the specified key, or `undefined` if it doesn't exist
 	 */
-	peek(key: Key): unknown;
+	override peek(key: Key): unknown;
 
-	peek(key?: unknown): unknown {
+	override peek(key?: unknown): unknown {
 		return isKey(key) ? this.state.value[key] : {...this.state.value};
 	}
 
@@ -127,7 +123,7 @@ export class Store<Value extends PlainObject> extends Reactive<Value, Value> {
 	/**
 	 * @inheritdoc
 	 */
-	subscribe(callback: (value: Value) => void): Unsubscribe;
+	override subscribe(callback: (value: Value) => void): Unsubscribe;
 
 	/**
 	 * Subscribe to changes for a specific key
@@ -135,7 +131,7 @@ export class Store<Value extends PlainObject> extends Reactive<Value, Value> {
 	 * @param callback Callback for changes
 	 * @returns Unsubscribe callback
 	 */
-	subscribe<Key extends keyof Value>(
+	override subscribe<Key extends keyof Value>(
 		key: Key,
 		callback: (value: Value[Key] | undefined) => void,
 	): Unsubscribe;
@@ -146,16 +142,11 @@ export class Store<Value extends PlainObject> extends Reactive<Value, Value> {
 	 * @param callback Callback for changes
 	 * @returns Unsubscribe callback
 	 */
-	subscribe(key: Key, callback: (value: unknown) => void): Unsubscribe;
+	override subscribe(key: Key, callback: (value: unknown) => void): Unsubscribe;
 
-	subscribe(
-		first: Key | GenericCallback,
-		second?: GenericCallback,
-	): Unsubscribe {
+	override subscribe(first: Key | GenericCallback, second?: GenericCallback): Unsubscribe {
 		if (isKey(first) && typeof second === 'function') {
-			return getReactiveValueInProxy(this, this.#keyed, first, false).subscribe(
-				second,
-			);
+			return getReactiveValueInProxy(this, this.#keyed, first, false).subscribe(second);
 		}
 
 		return typeof first === 'function' ? subscribe(this.state, first) : noop;
@@ -177,7 +168,7 @@ export class Store<Value extends PlainObject> extends Reactive<Value, Value> {
 /**
  * Create a reactive store
  * @param value Initial object value
- * @param options Optional reactivity options
+ * @param options Reactivity options
  * @returns Reactive store
  */
 export function store<Value extends PlainObject>(

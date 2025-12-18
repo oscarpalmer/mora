@@ -6,7 +6,7 @@ import {
 	NAME_MORA,
 	NAME_SIGNAL,
 	NAME_STORE,
-	NAMES,
+	NAME_ALL,
 } from '../constants';
 import type {Effect} from '../effect';
 import type {ReactiveArray} from '../value/array';
@@ -58,10 +58,8 @@ function isMora<T>(value: unknown, name: string | Set<string>): value is T {
  * @param value Value to check
  * @returns True if value is a {@link Reactive}
  */
-export function isReactive<Value, Equal = Value>(
-	value: unknown,
-): value is Reactive<Value, Equal> {
-	return isMora<Reactive<Value, Equal>>(value, NAMES);
+export function isReactive<Value, Equal = Value>(value: unknown): value is Reactive<Value, Equal> {
+	return isMora<Reactive<Value, Equal>>(value, NAME_ALL);
 }
 
 /**
@@ -78,8 +76,6 @@ export function isSignal<Value>(value: unknown): value is Signal<Value> {
  * @param value Value to check
  * @returns True if value is a {@link Store}
  */
-export function isStore<Value extends PlainObject>(
-	value: unknown,
-): value is Store<Value> {
+export function isStore<Value extends PlainObject>(value: unknown): value is Store<Value> {
 	return isMora<Store<Value>>(value, NAME_STORE);
 }

@@ -1,15 +1,7 @@
-import type {
-	ArrayOrPlainObject,
-	Key,
-	PlainObject,
-} from '@oscarpalmer/atoms/models';
+import type {ArrayOrPlainObject, Key, PlainObject} from '@oscarpalmer/atoms/models';
 import {startBatch, stopBatch} from '../batch';
 import {PROPERTY_LENGTH} from '../constants';
-import type {
-	InternalComputed,
-	ReactiveState,
-	SetValueInProxyParameters,
-} from '../models';
+import type {InternalComputed, ReactiveState, SetValueInProxyParameters} from '../models';
 import type {ReactiveArray} from '../value/array';
 import {type Computed, computed} from '../value/computed';
 import type {Store} from '../value/store';
@@ -74,10 +66,7 @@ export function getReactiveValueInProxy(
 	return item;
 }
 
-export function setProxyValue(
-	proxy: ArrayOrPlainObject,
-	value: ArrayOrPlainObject,
-): void {
+export function setProxyValue(proxy: ArrayOrPlainObject, value: ArrayOrPlainObject): void {
 	startBatch();
 
 	const proxyKeys = Object.keys(proxy);
@@ -88,9 +77,7 @@ export function setProxyValue(
 	for (let index = 0; index < length; index += 1) {
 		const key = proxyKeys[index];
 
-		(proxy as PlainObject)[key] = valueKeys.includes(key)
-			? (value as PlainObject)[key]
-			: undefined;
+		(proxy as PlainObject)[key] = valueKeys.includes(key) ? (value as PlainObject)[key] : undefined;
 	}
 
 	length = valueKeys.length;

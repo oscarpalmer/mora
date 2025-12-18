@@ -20,7 +20,7 @@ export function flushHandlers(): void {
 
 /**
  * Start batching effects
- * 
+ *
  * _(Use {@link stopBatch} to flush and run batched effects)_
  */
 export function startBatch(): void {

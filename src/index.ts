@@ -1,12 +1,6 @@
 export {startBatch, stopBatch} from './batch';
 export {effect, type Effect} from './effect';
-export {
-	isArray,
-	isComputed,
-	isEffect,
-	isReactive,
-	isSignal,
-} from './helpers/is';
+export {isArray, isComputed, isEffect, isReactive, isSignal} from './helpers/is';
 export type {Unsubscribe} from './models';
 export {array, type ReactiveArray} from './value/array';
 export {computed, type Computed} from './value/computed';

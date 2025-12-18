@@ -1,5 +1,3 @@
-/** biome-ignore-all lint/style/noMagicNumbers: Testing */
-/** biome-ignore-all lint/nursery/useExplicitType: Testing */
 import {expect, test} from 'vitest';
 import {
 	array,
@@ -20,17 +18,7 @@ const c = array([]);
 const d = store({});
 const e = effect(() => {});
 
-const values: unknown[] = [
-	undefined,
-	null,
-	'a',
-	123,
-	true,
-	Symbol('test'),
-	{},
-	[],
-	() => {},
-];
+const values: unknown[] = [undefined, null, 'a', 123, true, Symbol('test'), {}, [], () => {}];
 
 test('isArray', () => {
 	for (const value of values) {

@@ -1,11 +1,5 @@
 import {flushHandlers} from '../batch';
-import {
-	ACTIVE,
-	ARRAY_OFFSET,
-	ARRAY_PEEK,
-	ARRAY_THRESHOLD,
-	BATCH,
-} from '../constants';
+import {ACTIVE, ARRAY_OFFSET, ARRAY_PEEK, ARRAY_THRESHOLD, BATCH} from '../constants';
 import type {InternalComputed, ReactiveState} from '../models';
 
 export function emitValue<Value>(state: ReactiveState<Value, never>): void {

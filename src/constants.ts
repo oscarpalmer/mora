@@ -15,14 +15,14 @@ export const BATCH: Batch = {
 	handlers: new Set<Effect | Subscription>(),
 };
 
-export const METHODS_AFFECTING_LENGTH: Set<string> = new Set<string>([
+export const METHODS_AFFECTING_LENGTH = new Set<string>([
 	'pop',
 	'push',
 	'shift',
 	'unshift',
 ]);
 
-export const METHODS_UPDATE: Set<string> = new Set<string>([
+export const METHODS_UPDATE = new Set<string>([
 	...METHODS_AFFECTING_LENGTH,
 	'copyWithin',
 	'fill',
@@ -43,11 +43,6 @@ export const NAME_SIGNAL = 'signal';
 
 export const NAME_STORE = 'store';
 
-export const NAMES: Set<string> = new Set([
-	NAME_ARRAY,
-	NAME_COMPUTED,
-	NAME_SIGNAL,
-	NAME_STORE,
-]);
+export const NAME_ALL = new Set([NAME_ARRAY, NAME_COMPUTED, NAME_SIGNAL, NAME_STORE]);
 
 export const PROPERTY_LENGTH = 'length';

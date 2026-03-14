@@ -15,12 +15,7 @@ export const BATCH: Batch = {
 	handlers: new Set<Effect | Subscription>(),
 };
 
-export const METHODS_AFFECTING_LENGTH = new Set<string>([
-	'pop',
-	'push',
-	'shift',
-	'unshift',
-]);
+export const METHODS_AFFECTING_LENGTH = new Set<string>(['pop', 'push', 'shift', 'unshift']);
 
 export const METHODS_UPDATE = new Set<string>([
 	...METHODS_AFFECTING_LENGTH,

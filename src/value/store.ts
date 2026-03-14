@@ -2,8 +2,8 @@ import {isKey, isPlainObject} from '@oscarpalmer/atoms/is';
 import type {GenericCallback, Key, PlainObject} from '@oscarpalmer/atoms/models';
 import {NAME_STORE} from '../constants';
 import {
-	getReactiveValueInProxy,
 	emityProxyValues,
+	getReactiveValueInProxy,
 	setProxyValue,
 	setValueInProxy,
 } from '../helpers/proxy';

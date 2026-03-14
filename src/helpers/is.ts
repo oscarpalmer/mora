@@ -1,12 +1,12 @@
 import type {PlainObject} from '@oscarpalmer/atoms/models';
 import {
+	NAME_ALL,
 	NAME_ARRAY,
 	NAME_COMPUTED,
 	NAME_EFFECT,
 	NAME_MORA,
 	NAME_SIGNAL,
 	NAME_STORE,
-	NAME_ALL,
 } from '../constants';
 import type {Effect} from '../effect';
 import type {ReactiveArray} from '../value/array';

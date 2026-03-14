@@ -85,7 +85,7 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	 * Get the length of the array
 	 * @returns Length of the array
 	 */
-	get(property: 'length'): number;
+	get(property: typeof PROPERTY_LENGTH): number;
 
 	get(first?: unknown): unknown {
 		if (typeof first === 'number') {
@@ -130,10 +130,10 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	 * Get the length of the array _(without reactivity)_
 	 * @returns Length of the array
 	 */
-	override peek(property: 'length'): number;
+	override peek(property: typeof PROPERTY_LENGTH): number;
 
 	override peek(value?: unknown): unknown {
-		if (value === 'length') {
+		if (value === PROPERTY_LENGTH) {
 			return this.#size.peek();
 		}
 
@@ -174,12 +174,12 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	 * Set the length of the array
 	 * @param value New array length
 	 */
-	set(property: 'length', value: number): void;
+	set(property: typeof PROPERTY_LENGTH, value: number): void;
 
-	set(first?: number | 'length' | Item[], second?: number | Item): void {
+	set(first?: number | typeof PROPERTY_LENGTH | Item[], second?: number | Item): void {
 		if (first == null || Array.isArray(first)) {
 			this.state.value.splice(0, this.state.value.length, ...(first ?? []));
-		} else if (first === 'length') {
+		} else if (first === PROPERTY_LENGTH) {
 			this.length = second as number;
 		} else if (typeof first === 'number' && !Number.isNaN(first)) {
 			setAtIndex(this.state.value, first, second as Item);

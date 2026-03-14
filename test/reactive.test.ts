@@ -1,4 +1,4 @@
-import {equal} from '@oscarpalmer/atoms/value';
+import {equal} from '@oscarpalmer/atoms/value/equal';
 import {expect, test} from 'vitest';
 import {array, signal} from '../src';
 

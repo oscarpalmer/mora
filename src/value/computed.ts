@@ -1,6 +1,7 @@
+import {flushHandlers} from '../batch';
 import {ACTIVE, BATCH, NAME_COMPUTED} from '../constants';
 import {effect, runEffect} from '../effect';
-import type {ComputedEffect, ReactiveOptions} from '../models';
+import type {ComputedEffect, InternalComputed, ReactiveOptions, ReactiveState} from '../models';
 import {Reactive} from './reactive';
 
 export class Computed<Value> extends Reactive<Value> {
@@ -9,39 +10,15 @@ export class Computed<Value> extends Reactive<Value> {
 		instance: undefined as never,
 	};
 
-	constructor(callback: () => Value, options?: ReactiveOptions<Value>) {
+	constructor(callback: () => Value | Promise<Value>, options?: ReactiveOptions<Value>) {
 		super(NAME_COMPUTED, undefined as never, options);
 
 		this.effect.instance = effect(() => {
-			if (!this.effect.dirty) {
-				return;
+			if (this.effect.dirty) {
+				setValue(this, this.state, callback);
+
+				this.effect.dirty = false;
 			}
-
-			const previousComputed = ACTIVE.computed;
-
-			ACTIVE.computed = this as never;
-
-			const value = callback();
-
-			ACTIVE.computed = previousComputed;
-
-			if (!this.state.equal(this.state.value, value)) {
-				this.state.value = value;
-
-				for (const computed of this.state.computeds) {
-					computed.effect.dirty = true;
-				}
-
-				for (const effect of this.state.effects) {
-					BATCH.handlers.add(effect);
-				}
-
-				for (const [, subscription] of this.state.subscriptions) {
-					subscription.callback(value);
-				}
-			}
-
-			this.effect.dirty = false;
 		});
 	}
 
@@ -72,8 +49,66 @@ export class Computed<Value> extends Reactive<Value> {
  * @returns Computed value
  */
 export function computed<Value>(
-	callback: () => Value,
+	callback: () => Value | Promise<Value>,
 	options?: ReactiveOptions<Value>,
 ): Computed<Value> {
 	return new Computed(callback, options);
+}
+
+function setAndEmit<Value>(state: ReactiveState<Value, Value>, value: Value): void {
+	if (state.equal(state.value, value)) {
+		return;
+	}
+
+	state.value = value;
+
+	for (const computed of state.computeds) {
+		(computed as unknown as InternalComputed).effect.dirty = true;
+	}
+
+	for (const effect of state.effects) {
+		BATCH.handlers.add(effect);
+	}
+
+	for (const [, subscription] of state.subscriptions) {
+		subscription.callback(value);
+	}
+
+	flushHandlers();
+}
+
+function setValue<Value>(
+	instance: Computed<Value>,
+	state: ReactiveState<Value, Value>,
+	callback: () => Value | Promise<Value>,
+): void {
+	const previousComputed = ACTIVE.computed;
+
+	ACTIVE.computed = instance as never;
+
+	try {
+		const value = callback();
+
+		if (value instanceof Promise) {
+			state.promise = value;
+
+			value
+				.then(resolvedValue => {
+					if (state.promise === value) {
+						state.promise = undefined;
+
+						setAndEmit(state, resolvedValue);
+					}
+				})
+				.catch(() => {
+					if (state.promise === value) {
+						state.promise = undefined;
+					}
+				});
+		} else {
+			setAndEmit(state, value);
+		}
+	} finally {
+		ACTIVE.computed = previousComputed;
+	}
 }

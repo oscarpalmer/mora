@@ -480,3 +480,104 @@ test('update', () => {
 	expect(a.peek()).toEqual([]);
 	expect(count).toBe(3);
 });
+
+test('value: function', () => {
+	let count = 0;
+
+	const arr = array(() => [1, 2, 3]);
+
+	arr.subscribe(() => {
+		count += 1;
+	});
+
+	expect(arr.peek()).toEqual([1, 2, 3]);
+	expect(count).toBe(1);
+
+	arr.set(1, () => 99);
+
+	expect(arr.peek()).toEqual([1, 99, 3]);
+	expect(count).toBe(2);
+
+	arr.set(() => {
+		throw new Error('Should be a silent error');
+	});
+
+	expect(arr.peek()).toEqual([1, 99, 3]);
+	expect(count).toBe(2);
+
+	arr.set(() => undefined);
+
+	expect(arr.peek()).toEqual([]);
+	expect(count).toBe(3);
+
+	arr.set(() => 'blah' as never);
+
+	expect(arr.peek()).toEqual([]);
+	expect(count).toBe(3);
+});
+
+test('value: promise', () =>
+	new Promise<void>(done => {
+		let count = 0;
+
+		const arr = array(new Promise<number[]>(resolve => resolve([1, 2, 3])));
+
+		arr.subscribe(() => {
+			count += 1;
+		});
+
+		setTimeout(() => {
+			expect(arr.peek()).toEqual([1, 2, 3]);
+			expect(count).toBe(2); // TODO: Because the promise is set after the initial value; can we improve the logic to avoid this?
+
+			arr.set(1, new Promise<number>(resolve => setTimeout(() => resolve(99), 25)));
+		}, 25);
+
+		setTimeout(() => {
+			expect(arr.peek()).toEqual([1, 99, 3]);
+			expect(count).toBe(3);
+
+			arr.set(
+				new Promise((_, reject) =>
+					setTimeout(() => reject(new Error('Should be a silent error')), 25),
+				),
+			);
+
+			arr.set(
+				new Promise((_, reject) =>
+					setTimeout(() => reject(new Error('Should be a silent error')), 25),
+				),
+			);
+		}, 75);
+
+		setTimeout(() => {
+			expect(arr.peek()).toEqual([1, 99, 3]);
+			expect(count).toBe(3);
+
+			arr.set(new Promise<number[]>(resolve => setTimeout(() => resolve([7, 8, 9]), 25)));
+			arr.set(new Promise<number[]>(resolve => setTimeout(() => resolve([10, 11, 12]), 25)));
+			arr.set(new Promise<number[]>(resolve => setTimeout(() => resolve([13, 14, 15]), 25)));
+			arr.set(new Promise<number[]>(resolve => setTimeout(() => resolve([16, 17, 18]), 25)));
+		}, 125);
+
+		setTimeout(() => {
+			expect(arr.peek()).toEqual([16, 17, 18]);
+			expect(count).toBe(4);
+
+			arr.set(new Promise(resolve => resolve(undefined)));
+		}, 175);
+
+		setTimeout(() => {
+			expect(arr.peek()).toEqual([]);
+			expect(count).toBe(5);
+
+			arr.set(new Promise(resolve => resolve('blah' as never)));
+		}, 225);
+
+		setTimeout(() => {
+			expect(arr.peek()).toEqual([]);
+			expect(count).toBe(5);
+
+			done();
+		}, 275);
+	}));

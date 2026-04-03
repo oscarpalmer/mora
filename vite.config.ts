@@ -1,5 +1,4 @@
-/// <reference types="vitest" />
-import {defineConfig} from 'vite';
+import {defineConfig} from 'vite-plus';
 
 export default defineConfig({
 	base: './',
@@ -8,7 +7,7 @@ export default defineConfig({
 		clean: false,
 		dts: true,
 		entry: ['./src/**/*.ts'],
-		unbundle: false,
+		unbundle: true,
 	},
 	test: {
 		coverage: {

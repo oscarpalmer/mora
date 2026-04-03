@@ -1,5 +1,4 @@
 import type {ArrayOrPlainObject, Key, PlainObject} from '@oscarpalmer/atoms/models';
-import {startBatch, stopBatch} from '../batch';
 import {PROPERTY_LENGTH} from '../constants';
 import type {InternalComputed, ReactiveState, SetValueInProxyParameters} from '../models';
 import type {ReactiveArray} from '../value/array';
@@ -66,33 +65,81 @@ export function getReactiveValueInProxy(
 	return item;
 }
 
-export function setProxyValue(proxy: ArrayOrPlainObject, value: ArrayOrPlainObject): void {
-	startBatch();
+export function setProxyValue<Value, Item = Value>(
+	array: boolean,
+	state: ReactiveState<Value, Item>,
+	isObject: (value: unknown) => value is Value | undefined,
+	isProperty: (value: unknown) => boolean,
+	setObject: (state: ReactiveState<Value, Item>, value: Value | undefined) => void,
+	setProperty: (state: ReactiveState<Value, Item>, property: unknown, value: Item) => void,
+	first?: unknown,
+	second?: unknown,
+): void {
+	if (array && first === PROPERTY_LENGTH) {
+		(state.value as unknown[]).length = second as number;
 
-	const proxyKeys = Object.keys(proxy);
-	const valueKeys = Object.keys(value);
-
-	let {length} = proxyKeys;
-
-	for (let index = 0; index < length; index += 1) {
-		const key = proxyKeys[index];
-
-		(proxy as PlainObject)[key] = valueKeys.includes(key) ? (value as PlainObject)[key] : undefined;
+		return;
 	}
 
-	length = valueKeys.length;
+	if (isObject(first)) {
+		setObject(state, first);
 
-	for (let index = 0; index < length; index += 1) {
-		const key = valueKeys[index];
+		return;
+	}
 
-		if (!proxyKeys.includes(key)) {
-			const keyedValue = (value as PlainObject)[key];
+	const property = isProperty(first);
 
-			(proxy as PlainObject)[key] = keyedValue;
+	if (array && property && Number.isNaN(first)) {
+		return;
+	}
+
+	let actual = property ? second : first;
+
+	if (typeof actual === 'function') {
+		try {
+			actual = (actual as Function)();
+		} catch {
+			return;
 		}
 	}
 
-	stopBatch();
+	if (actual instanceof Promise) {
+		if (property) {
+			state.promises ??= new Map();
+
+			state.promises.set(first as Key, actual as Promise<never>);
+		} else {
+			state.promise = actual as Promise<never>;
+		}
+
+		void actual
+			.then(value => {
+				if (property && state.promises!.get(first as Key) === actual) {
+					state.promises!.delete(first as Key);
+
+					setProperty(state, first, value);
+
+					return;
+				}
+
+				if (!property && isObject(value) && state.promise === actual) {
+					state.promise = undefined;
+
+					setObject(state, value);
+				}
+			})
+			.catch(() => {
+				if (property && state.promises!.get(first as Key) === actual) {
+					state.promises!.delete(first as Key);
+				} else if (!property && state.promise === actual) {
+					state.promise = undefined;
+				}
+			});
+	} else if (property) {
+		setProperty(state, first, actual as Item);
+	} else if (isObject(actual)) {
+		setObject(state, actual);
+	}
 }
 
 export function setValueInProxy<Value extends ArrayOrPlainObject, Equal>(

@@ -1,5 +1,6 @@
 import {isKey, isPlainObject} from '@oscarpalmer/atoms/is';
 import type {GenericCallback, Key, PlainObject} from '@oscarpalmer/atoms/models';
+import {startBatch, stopBatch} from '../batch';
 import {NAME_STORE} from '../constants';
 import {
 	emityProxyValues,
@@ -8,7 +9,7 @@ import {
 	setValueInProxy,
 } from '../helpers/proxy';
 import {getValue} from '../helpers/value';
-import type {ReactiveOptions, Unsubscribe} from '../models';
+import type {ReactiveOptions, ReactiveState, Unsubscribe} from '../models';
 import {noop, subscribe} from '../subscription';
 import type {Computed} from './computed';
 import {Reactive} from './reactive';
@@ -96,14 +97,22 @@ export class Store<Value extends PlainObject> extends Reactive<Value, Value> {
 	 * Set the value
 	 * @param value New value _(defaults to an empty object)_
 	 */
-	set(value?: Value): void;
+	set(
+		value?:
+			| Value
+			| (() => null | undefined | Value | Promise<null | undefined | Value>)
+			| Promise<null | undefined | Value>,
+	): void;
 
 	/**
 	 * Set a value by key
 	 * @param key Key of the value to set
 	 * @param value New value
 	 */
-	set<Key extends keyof Value>(key: Key, value: Value[Key]): void;
+	set<Key extends keyof Value>(
+		key: Key,
+		value: Value[Key] | (() => Value[Key] | Promise<Value[Key]>) | Promise<Value[Key]>,
+	): void;
 
 	/**
 	 * Set a value by key
@@ -113,11 +122,16 @@ export class Store<Value extends PlainObject> extends Reactive<Value, Value> {
 	set(key: Key, value: unknown): void;
 
 	set(first?: unknown, second?: unknown): void {
-		if (isKey(first)) {
-			(this.state.value as PlainObject)[first] = second;
-		} else if (first == null || isPlainObject(first)) {
-			setProxyValue(this.state.value, first ?? {});
-		}
+		setProxyValue<Value>(
+			false,
+			this.state,
+			isStoreObject,
+			isKey,
+			setObject,
+			setProperty,
+			first,
+			second,
+		);
 	}
 
 	/**
@@ -157,13 +171,79 @@ export class Store<Value extends PlainObject> extends Reactive<Value, Value> {
 	 * @param callback Callback to update the value
 	 */
 	update(callback: (value: Value) => Value): void {
-		const updated = callback({...this.state.value});
+		const updated = callback(this.state.value);
 
 		if (updated == null || isPlainObject(updated)) {
-			setProxyValue(this.state.value, updated ?? {});
+			setObject(this.state, updated);
 		}
 	}
 }
+
+function isStoreObject<Value extends PlainObject>(value: unknown): value is Value | undefined {
+	return value == null || isPlainObject(value);
+}
+
+function setObject(state: ReactiveState<PlainObject, never>, value: PlainObject | undefined): void {
+	startBatch();
+
+	const actual = value ?? {};
+	const proxy = state.value as PlainObject;
+
+	const proxyKeys = Object.keys(proxy);
+	const actualKeys = Object.keys(actual);
+
+	let {length} = proxyKeys;
+
+	for (let index = 0; index < length; index += 1) {
+		const key = proxyKeys[index];
+
+		proxy[key] = actualKeys.includes(key) ? actual[key] : undefined;
+	}
+
+	length = actualKeys.length;
+
+	for (let index = 0; index < length; index += 1) {
+		const key = actualKeys[index];
+
+		if (!proxyKeys.includes(key)) {
+			const keyedValue = actual[key];
+
+			proxy[key] = keyedValue;
+		}
+	}
+
+	stopBatch();
+}
+
+function setProperty<Value extends PlainObject>(
+	state: ReactiveState<Value, Value>,
+	key: unknown,
+	value: unknown,
+): void {
+	(state.value as PlainObject)[key as Key] = value;
+}
+
+/**
+ * Create a reactive store from a function result
+ * @param value Initial object value
+ * @param options Reactivity options
+ * @returns Reactive store
+ */
+export function store<Value extends PlainObject>(
+	value: () => Value | Promise<Value>,
+	options?: ReactiveOptions<Value>,
+): Store<Value>;
+
+/**
+ * Create a reactive store from a promise
+ * @param value Initial object value
+ * @param options Reactivity options
+ * @returns Reactive store
+ */
+export function store<Value extends PlainObject>(
+	value: Promise<Value>,
+	options?: ReactiveOptions<Value>,
+): Store<Value>;
 
 /**
  * Create a reactive store
@@ -174,6 +254,15 @@ export class Store<Value extends PlainObject> extends Reactive<Value, Value> {
 export function store<Value extends PlainObject>(
 	value: Value,
 	options?: ReactiveOptions<Value>,
+): Store<Value>;
+
+export function store<Value extends PlainObject>(
+	value: Value | (() => Value | Promise<Value>) | Promise<Value>,
+	options?: ReactiveOptions<Value>,
 ): Store<Value> {
-	return new Store((isPlainObject(value) ? value : {}) as Value, options);
+	const instance = new Store({} as unknown as Value, options);
+
+	instance.set(value);
+
+	return instance;
 }

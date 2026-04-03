@@ -1,6 +1,11 @@
 import type {GenericCallback} from '@oscarpalmer/atoms/models';
 import {METHODS_AFFECTING_LENGTH, METHODS_UPDATE, NAME_ARRAY, PROPERTY_LENGTH} from '../constants';
-import {emityProxyValues, getReactiveValueInProxy, setValueInProxy} from '../helpers/proxy';
+import {
+	emityProxyValues,
+	getReactiveValueInProxy,
+	setProxyValue,
+	setValueInProxy,
+} from '../helpers/proxy';
 import {emitValue, equalArrays, getValue} from '../helpers/value';
 import type {ReactiveOptions, ReactiveState, Unsubscribe} from '../models';
 import {noop, subscribe} from '../subscription';
@@ -137,7 +142,7 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 			return this.#size.peek();
 		}
 
-		return typeof value === 'number' ? this.state.value.at(value) : [...this.state.value];
+		return typeof value === 'number' ? this.state.value.at(value) : this.state.value.slice();
 	}
 
 	/**
@@ -161,14 +166,19 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	 * Set the value
 	 * @param value New array of items _(defaults to an empty array)_
 	 */
-	set(value?: Item[]): void;
+	set(
+		value?:
+			| Item[]
+			| (() => null | undefined | Item[] | Promise<null | undefined | Item[]>)
+			| Promise<null | undefined | Item[]>,
+	): void;
 
 	/**
 	 * Set the value at an index
 	 * @param index Index of item to set __(if negative, starts from the end)_
 	 * @param value New item
 	 */
-	set(index: number, value: Item): void;
+	set(index: number, value: Item | (() => Item | Promise<Item>) | Promise<Item>): void;
 
 	/**
 	 * Set the length of the array
@@ -176,14 +186,17 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 	 */
 	set(property: typeof PROPERTY_LENGTH, value: number): void;
 
-	set(first?: number | typeof PROPERTY_LENGTH | Item[], second?: number | Item): void {
-		if (first == null || Array.isArray(first)) {
-			this.state.value.splice(0, this.state.value.length, ...(first ?? []));
-		} else if (first === PROPERTY_LENGTH) {
-			this.length = second as number;
-		} else if (typeof first === 'number' && !Number.isNaN(first)) {
-			setAtIndex(this.state.value, first, second as Item);
-		}
+	set(first?: unknown, second?: unknown): void {
+		setProxyValue<Item[], Item>(
+			true,
+			this.state,
+			isArrayValue,
+			isArrayIndex,
+			setArray,
+			setAtIndex,
+			first,
+			second,
+		);
 	}
 
 	/**
@@ -249,13 +262,52 @@ export class ReactiveArray<Item> extends Reactive<Item[], Item> {
 }
 
 /**
+ * Create a reactive array from a function result
+ * @param value Initial array of items
+ * @param options Reactivity options
+ * @returns Reactive array
+ */
+export function array<Item>(
+	value: () => Item[] | Promise<Item[]>,
+	options?: ReactiveOptions<Item>,
+): ReactiveArray<Item>;
+
+/**
+ * Create a reactive array from a promise
+ * @param value Initial array of items
+ * @param options Reactivity options
+ * @returns Reactive array
+ */
+export function array<Item>(
+	value: Promise<Item[]>,
+	options?: ReactiveOptions<Item>,
+): ReactiveArray<Item>;
+
+/**
  * Create a reactive array
  * @param value Initial array of items
  * @param options Reactivity options
  * @returns Reactive array
  */
-export function array<Item>(value: Item[], options?: ReactiveOptions<Item>): ReactiveArray<Item> {
-	return new ReactiveArray(Array.isArray(value) ? value : [], options);
+export function array<Item>(value: Item[], options?: ReactiveOptions<Item>): ReactiveArray<Item>;
+
+export function array<Item>(
+	value: Item[] | (() => Item[] | Promise<Item[]>) | Promise<Item[]>,
+	options?: ReactiveOptions<Item>,
+): ReactiveArray<Item> {
+	const instance = new ReactiveArray([], options);
+
+	instance.set(value);
+
+	return instance;
+}
+
+function isArrayIndex(value: unknown): boolean {
+	return typeof value === 'number';
+}
+
+function isArrayValue<Item>(value: unknown): value is Item[] | undefined {
+	return value == null || Array.isArray(value);
 }
 
 function updateArray<Item>(
@@ -265,7 +317,7 @@ function updateArray<Item>(
 	length: Signal<number>,
 ): unknown {
 	const affectsLength = METHODS_AFFECTING_LENGTH.has(type);
-	const previousArray = affectsLength ? [] : [...array];
+	const previousArray = affectsLength ? [] : array.slice();
 	const previousLength = array.length;
 
 	return (...args: unknown[]): unknown => {
@@ -283,10 +335,14 @@ function updateArray<Item>(
 	};
 }
 
-function setAtIndex<Item>(array: Item[], index: number, value: Item): void {
-	const actual = index < 0 ? array.length + index : index;
+function setArray<Item>(state: ReactiveState<Item[], Item>, value: Item[] | undefined): void {
+	state.value.splice(0, state.value.length, ...(value ?? []));
+}
+
+function setAtIndex<Item>(state: ReactiveState<Item[], Item>, index: unknown, value: Item): void {
+	const actual = (index as number) < 0 ? state.value.length + (index as number) : (index as number);
 
 	if (actual > -1) {
-		array[actual] = value;
+		state.value[actual] = value;
 	}
 }

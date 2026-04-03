@@ -35,7 +35,7 @@
 		"build": "vpx vp run tsdown:build && vpx vp pack",
 		"tsdown:build": "vpx tsdown -c ./tsdown.config.ts",
 		"tsdown:watch": "vpx tsdown -c ./tsdown.config.ts --watch",
-		"test": "vpx vp test run --coverage",
+		"test": "npx vp test run --coverage",
 		"test:leak": "vpx vp test run --detect-async-leaks --coverage"
 	},
 	"dependencies": {

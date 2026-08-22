@@ -1,6 +1,4 @@
-import type {Effect} from './effect';
-import type {Active, Batch} from './models';
-import type {Subscription} from './subscription';
+import type {Active, Batch, EffectState, Subscription} from './models';
 
 export const ACTIVE: Active = {};
 
@@ -12,7 +10,8 @@ export const ARRAY_PEEK = 10;
 
 export const BATCH: Batch = {
 	depth: 0,
-	handlers: new Set<Effect | Subscription>(),
+	flushing: false,
+	handlers: new Set<EffectState | Subscription>(),
 };
 
 export const METHODS_AFFECTING_LENGTH = new Set<string>(['pop', 'push', 'shift', 'unshift']);

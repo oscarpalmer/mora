@@ -1,68 +1,73 @@
 import type {ArrayOrPlainObject, Key, PlainObject} from '@oscarpalmer/atoms/models';
 import {PROPERTY_LENGTH} from '../constants';
-import type {InternalComputed, ReactiveState, SetValueInProxyParameters} from '../models';
-import type {ReactiveArray} from '../value/array';
-import {type Computed, computed} from '../value/computed';
-import type {Store} from '../value/store';
+import type {
+	Computed,
+	ComputedEffect,
+	ReactiveArray,
+	ReactiveState,
+	ReactiveStore,
+	SetValueInProxyParameters,
+} from '../models';
+import {internalComputed} from '../value/computed';
 import {emitValue} from './value';
 
 export function emityProxyValues<Value>(
 	state: ReactiveState<Value, Value>,
-	mapped: Map<Key, Computed<unknown>>,
+	mapped: Map<Key, [Computed<unknown>, ComputedEffect]>,
 ): void;
 
 export function emityProxyValues<Value>(
 	state: ReactiveState<Value[], Value>,
-	mapped: Map<Key, Computed<unknown>>,
+	mapped: Map<Key, [Computed<unknown>, ComputedEffect]>,
 ): void;
 
 export function emityProxyValues(
 	state: ReactiveState<unknown, unknown>,
-	mapped: Map<Key, Computed<unknown>>,
+	mapped: Map<Key, [Computed<unknown>, ComputedEffect]>,
 ): void {
 	const values = [...mapped.values()];
 	const {length} = values;
 
 	for (let index = 0; index < length; index += 1) {
-		(values[index] as unknown as InternalComputed).effect.dirty = true;
+		values[index][1].dirty = true;
 	}
 
 	emitValue(state);
 }
 
-export function getReactiveValueInProxy<Value>(
+export function getReactiveValueInProxy<Value, Result = Value>(
 	array: ReactiveArray<Value>,
-	mapped: Map<Key, Computed<unknown>>,
+	mapped: Map<Key, [Computed<unknown>, ComputedEffect]>,
 	index: number,
 	isArray: true,
-): Computed<unknown>;
+): Computed<Result>;
 
 export function getReactiveValueInProxy<Value extends PlainObject>(
-	store: Store<Value>,
-	mapped: Map<Key, Computed<unknown>>,
+	store: ReactiveStore<Value>,
+	mapped: Map<Key, [Computed<unknown>, ComputedEffect]>,
 	key: Key,
 	isArray: false,
 ): Computed<unknown>;
 
 export function getReactiveValueInProxy(
-	reactive: ReactiveArray<unknown> | Store<PlainObject>,
-	mapped: Map<Key, Computed<unknown>>,
+	reactive: ReactiveArray<unknown> | ReactiveStore<PlainObject>,
+	mapped: Map<Key, [Computed<unknown>, ComputedEffect]>,
 	key: Key,
 	isArray: boolean,
 ): Computed<unknown> {
 	let item = mapped.get(key);
 
 	if (item == null) {
-		item = computed(() =>
+		item = internalComputed(() =>
 			isArray
 				? (reactive.get() as unknown[]).at(key as number)
 				: (reactive.get() as PlainObject)[key],
-		) as Computed<unknown>;
+		);
 
 		mapped.set(key, item);
 	}
 
-	return item;
+	return item[0];
 }
 
 export function setProxyValue<Value, Item = Value>(

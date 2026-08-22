@@ -350,48 +350,74 @@ test('promise', () =>
 	}));
 
 test('subscribe', () => {
-	const a = store({a: 1, b: 2, c: 3});
+	function onA(): void {
+		counts.a[1] += 1;
+	}
+
+	function onStore(): void {
+		counts.store[1] += 1;
+	}
+
+	const obj = store({a: 1, b: 2, c: 3});
 
 	const counts = {
-		obj: 0,
-		a: 0,
+		a: [0, 0],
+		store: [0, 0],
 	};
 
-	a.subscribe(() => {
-		counts.obj += 1;
+	obj.subscribe(onStore);
+
+	const unsubscribeStore = obj.subscribe(() => {
+		counts.store[0] += 1;
 	});
 
-	a.subscribe('a', () => {
-		counts.a += 1;
+	obj.subscribe('a', onA);
+
+	const unsubscribeA = obj.subscribe('a', () => {
+		counts.a[0] += 1;
 	});
 
-	expect(counts.obj).toBe(1);
-	expect(counts.a).toBe(1);
+	expect(counts.store).toEqual([1, 1]);
+	expect(counts.a).toEqual([1, 1]);
 
-	a.update(value => ({
+	obj.update(value => ({
 		...value,
 		c: 99,
 		d: 4,
 	}));
 
-	expect(counts.obj).toBe(2);
-	expect(counts.a).toBe(1);
+	expect(counts.store).toEqual([2, 2]);
+	expect(counts.a).toEqual([1, 1]);
 
-	a.set('a', 123);
+	obj.set('a', 123);
 
-	expect(counts.obj).toBe(3);
-	expect(counts.a).toBe(2);
+	expect(counts.store).toEqual([3, 3]);
+	expect(counts.a).toEqual([2, 2]);
 
-	a.update(() => 'blah' as never);
+	obj.update(() => 'blah' as never);
 
-	expect(counts.obj).toBe(3);
-	expect(counts.a).toBe(2);
+	expect(counts.store).toEqual([3, 3]);
+	expect(counts.a).toEqual([2, 2]);
 
-	a.update(() => null as never);
+	obj.unsubscribe(onStore);
+	obj.unsubscribe('a', onA);
 
-	expect(a.peek()).toEqual({});
-	expect(counts.obj).toBe(4);
-	expect(counts.a).toBe(3);
+	unsubscribeStore();
+	unsubscribeA();
 
-	expect(a.subscribe('blah' as never)).toEqual(noop);
+	obj.set('a', 456);
+
+	expect(counts.store).toEqual([3, 3]);
+	expect(counts.a).toEqual([2, 2]);
+
+	obj.update(() => null as never);
+
+	expect(counts.store).toEqual([3, 3]);
+	expect(counts.a).toEqual([2, 2]);
+
+	expect(obj.subscribe('blah' as never)).toEqual(noop);
+	expect(obj.subscribe('blah', 123 as never)).toEqual(noop);
+
+	obj.unsubscribe('blah' as never);
+	obj.unsubscribe('blah' as never, 123 as never);
 });

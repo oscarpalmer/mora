@@ -1,20 +1,33 @@
 import {BATCH} from './constants';
 import {runEffect} from './effect';
-import {isEffect} from './helpers/is';
+import type {EffectState, Subscription} from './models';
 
 export function flushHandlers(): void {
-	while (BATCH.depth === 0 && BATCH.handlers.size > 0) {
-		const handlers = [...BATCH.handlers];
+	if (BATCH.flushing) {
+		return;
+	}
 
-		BATCH.handlers.clear();
+	BATCH.flushing = true;
 
-		for (const handler of handlers) {
-			if (isEffect(handler)) {
-				runEffect(handler);
-			} else {
-				handler.callback(handler.state.value);
+	try {
+		while (BATCH.depth === 0 && BATCH.handlers.size > 0) {
+			const handlers = [...BATCH.handlers];
+			const {length} = handlers;
+
+			BATCH.handlers.clear();
+
+			for (let index = 0; index < length; index += 1) {
+				const handler = handlers[index];
+
+				if (typeof (handler as Subscription).destroy === 'function') {
+					(handler as Subscription).callback((handler as Subscription).state.value);
+				} else {
+					runEffect(handler as EffectState);
+				}
 			}
 		}
+	} finally {
+		BATCH.flushing = false;
 	}
 }
 

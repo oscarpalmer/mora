@@ -1,6 +1,6 @@
 {
 	"name": "@oscarpalmer/mora",
-	"version": "0.28.0",
+	"version": "0.29.0",
 	"description": "Signals and stuff…",
 	"keywords": [
 		"reactive",
@@ -39,14 +39,14 @@
 		"test:leak": "vpx vp test run --detect-async-leaks --coverage"
 	},
 	"dependencies": {
-		"@oscarpalmer/atoms": "^0.172"
+		"@oscarpalmer/atoms": "^0.190"
 	},
 	"devDependencies": {
-		"@types/node": "^25.5",
-		"@vitest/coverage-istanbul": "^4.1",
-		"jsdom": "^29",
-		"tsdown": "^0.21",
-		"typescript": "^5.9",
+		"@types/node": "^26.2",
+		"@vitest/coverage-istanbul": "4.1.10",
+		"jsdom": "^30",
+		"tsdown": "^0.22",
+		"typescript": "^6",
 		"vite": "npm:@voidzero-dev/vite-plus-core@latest",
 		"vite-plus": "latest",
 		"vitest": "npm:@voidzero-dev/vite-plus-test@latest"

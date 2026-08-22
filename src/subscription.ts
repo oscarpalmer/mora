@@ -1,22 +1,4 @@
-import type {GenericCallback} from '@oscarpalmer/atoms/models';
-import type {ReactiveState, Unsubscribe} from './models';
-
-export class Subscription {
-	callback: GenericCallback;
-	state: ReactiveState<unknown, never>;
-
-	constructor(state: ReactiveState<unknown, never>, callback: GenericCallback) {
-		this.state = state;
-		this.callback = callback;
-
-		callback(state.value);
-	}
-
-	destroy(): void {
-		this.callback = noop;
-		this.state = undefined as never;
-	}
-}
+import type {ReactiveState, Subscription, Unsubscribe} from './models';
 
 export function noop(): void {}
 
@@ -28,11 +10,29 @@ export function subscribe<Value>(
 		return noop;
 	}
 
-	state.subscriptions.set(callback, new Subscription(state, callback));
+	state.subscriptions.set(callback, subscription(state, callback));
 
 	return () => {
 		unsubscribe(state, callback);
 	};
+}
+
+function subscription<Value>(
+	state: ReactiveState<Value, never>,
+	callback: (value: Value) => void,
+): Subscription {
+	const instance: Subscription = {
+		callback,
+		state,
+		destroy: () => {
+			instance.callback = noop;
+			instance.state = undefined as never;
+		},
+	};
+
+	callback(state.value);
+
+	return instance;
 }
 
 export function unsubscribe<Value>(

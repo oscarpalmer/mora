@@ -1,9 +1,8 @@
 export {startBatch, stopBatch} from './batch';
-export {effect, type Effect} from './effect';
+export {effect} from './effect';
 export {isArray, isComputed, isEffect, isReactive, isSignal} from './helpers/is';
-export type {Unsubscribe} from './models';
-export {array, type ReactiveArray} from './value/array';
-export {computed, type Computed} from './value/computed';
-export type {Reactive} from './value/reactive';
-export {signal, type Signal} from './value/signal';
-export {store, type Store} from './value/store';
+export type {Computed, Effect, ReactiveArray, ReactiveStore, Signal, Unsubscribe} from './models';
+export {array} from './value/array';
+export {computed} from './value/computed';
+export {signal} from './value/signal';
+export {store} from './value/store';

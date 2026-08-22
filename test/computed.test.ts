@@ -1,5 +1,5 @@
 import {expect, test} from 'vitest';
-import {computed, effect, signal, startBatch, stopBatch} from '../src';
+import {type Computed, computed, effect, signal, startBatch, stopBatch} from '../src';
 
 test(' basic', () => {
 	const a = signal(1);
@@ -160,3 +160,38 @@ test('promise', () =>
 			done();
 		}, 150);
 	}));
+
+// Thanks, Claude :-)
+test('recompute while dirty mid-flush', () => {
+	const count = signal(1);
+
+	let doubled: Computed<number> | undefined;
+	let seenDuringFlush: number | undefined;
+	let computeCount = 0;
+
+	// Registered as a dependent of `count` before `doubled` is, so it runs
+	// first in the flush triggered by `count.set` below.
+	effect(() => {
+		count.get();
+
+		seenDuringFlush = doubled?.get();
+	});
+
+	doubled = computed(() => {
+		computeCount += 1;
+
+		return count.get() * 2;
+	});
+
+	expect(doubled.get()).toBe(2);
+
+	count.set(5);
+
+	// The effect above runs before `doubled`'s own internal effect in this
+	// flush, so it observes `doubled` while still marked dirty. Reading it
+	// there must trigger a synchronous recompute (line 79) instead of
+	// returning the stale value.
+	expect(seenDuringFlush).toBe(10);
+	expect(doubled.get()).toBe(10);
+	expect(computeCount).toBe(2);
+});

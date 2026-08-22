@@ -1,10 +1,10 @@
 import {flushHandlers} from '../batch';
 import {ACTIVE, ARRAY_OFFSET, ARRAY_PEEK, ARRAY_THRESHOLD, BATCH} from '../constants';
-import type {InternalComputed, ReactiveState} from '../models';
+import type {ReactiveState} from '../models';
 
 export function emitValue<Value>(state: ReactiveState<Value, never>): void {
 	for (const computed of state.computeds) {
-		(computed as unknown as InternalComputed).effect.dirty = true;
+		computed.dirty = true;
 	}
 
 	for (const effect of state.effects) {
@@ -55,7 +55,7 @@ export function equalArrays<Value>(
 	return true;
 }
 
-export function getValue<Value>(state: ReactiveState<Value, never>): Value {
+export function getSimpleValue<Value>(state: ReactiveState<Value, never>): Value {
 	if (ACTIVE.computed != null) {
 		state.computeds.add(ACTIVE.computed);
 	}
@@ -65,4 +65,39 @@ export function getValue<Value>(state: ReactiveState<Value, never>): Value {
 	}
 
 	return state.value;
+}
+
+export function handleSimpleValue<Value>(
+	state: ReactiveState<Value, Value>,
+	origin: Value | (() => Value | Promise<Value>) | Promise<Value>,
+	setValue: (state: ReactiveState<Value, Value>, value: Value) => void,
+	onAfter?: () => void,
+): void {
+	try {
+		let actual = typeof origin === 'function' ? (origin as () => unknown)() : origin;
+
+		if (actual instanceof Promise) {
+			state.promise = actual;
+
+			void actual
+				.then(value => {
+					if (actual === state.promise) {
+						state.promise = undefined;
+
+						setValue(state, value);
+					}
+				})
+				.catch(() => {
+					if (actual === state.promise) {
+						state.promise = undefined;
+					}
+				});
+		} else {
+			setValue(state, actual as Value);
+		}
+	} catch {
+		// ?
+	} finally {
+		onAfter?.();
+	}
 }

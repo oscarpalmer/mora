@@ -20,5 +20,5 @@ test('basic', () => {
 	expect(total).toBe(4950);
 	expect(value.get()).toBe(4950);
 
-	expect(effect(123 as never)).toBeUndefined();
+	expect(() => effect(123 as never)).toThrow(TypeError);
 });

@@ -1,6 +1,7 @@
 import {select} from '@oscarpalmer/atoms/array';
 import {filter} from '@oscarpalmer/atoms/array/filter';
 import {noop} from '@oscarpalmer/atoms/function';
+import {isPlainObject} from '@oscarpalmer/atoms/is';
 import type {GenericCallback} from '@oscarpalmer/atoms/models';
 import {
 	METHODS_AFFECTING_LENGTH,
@@ -22,11 +23,13 @@ import type {
 	ReactiveArray,
 	ReactiveOptions,
 	ReactiveState,
+	ReadonlyInstances,
 	Signal,
 } from '../models';
 import {subscribe, unsubscribe} from '../subscription';
 import {computed} from './computed';
 import {reactive} from './reactive';
+import {getReadonlyInstance} from './readonly';
 import {signal} from './signal';
 
 /**
@@ -70,6 +73,9 @@ export function array<Item>(
 
 	const indiced = new Map<number, [Computed<unknown>, ComputedEffect]>();
 	const length = signal(0);
+	const readonlies: ReadonlyInstances<Item[]> = {};
+
+	let instance: Record<string, unknown> = {};
 
 	state.value = new Proxy([], {
 		get: (target: Item[], property: PropertyKey) =>
@@ -96,43 +102,23 @@ export function array<Item>(
 		return getArrayValue(instance as ReactiveArray<Item>, indiced, state, length, value);
 	}
 
-	const instance = {
+	function set(first?: unknown, second?: unknown): void {
+		setProxyValue<Item[], Item>(
+			true,
+			state,
+			isArrayValue,
+			isArrayIndex,
+			setArray,
+			setAtIndex,
+			first,
+			second,
+		);
+	}
+
+	const handlers = {
 		...rx,
-		length: state.value.length,
-		at: (index: number): Item | undefined => get(index),
-		clear: () => {
-			state.value.length = 0;
-		},
-		filter: (callback: (item: Item, index: number, array: Item[]) => boolean) =>
-			computed(() => filter(get(), callback)),
 		get: (value?: number | typeof PROPERTY_LENGTH) => get(value),
-		map: <Mapped>(callback: (item: Item, index: number, array: Item[]) => Mapped) =>
-			computed(() => (get() as Item[]).map(callback)),
-		notify: () => {
-			emityProxyValues(state, indiced);
-		},
-		peek: (value?: unknown) => peekArrayValue(state, length, value),
-		pop: () => state.value.pop(),
-		push: (...items: Item[]) => state.value.push(...items),
-		select: <Mapped>(
-			filter: (item: Item, index: number, array: Item[]) => boolean,
-			map: (item: Item, index: number, array: Item[]) => Mapped,
-		) => computed(() => select(get() as Item[], filter, map)),
-		set: (first?: unknown, second?: unknown) => {
-			setProxyValue<Item[], Item>(
-				true,
-				state,
-				isArrayValue,
-				isArrayIndex,
-				setArray,
-				setAtIndex,
-				first,
-				second,
-			);
-		},
-		shift: () => state.value.shift(),
-		splice: (from: number, to?: number, ...items: Item[]) =>
-			state.value.splice(from, to ?? state.value.length, ...items),
+		peek: (first?: unknown, second?: boolean) => peekArrayValue(state, length, first, second),
 		subscribe: (first: number | GenericCallback, second?: GenericCallback) => {
 			if (typeof first === 'number' && typeof second === 'function') {
 				return getReactiveValueInProxy(
@@ -145,7 +131,6 @@ export function array<Item>(
 
 			return typeof first === 'function' ? subscribe(state, first) : noop;
 		},
-		unshift: (...items: Item[]) => state.value.unshift(...items),
 		unsubscribe: (first: number | GenericCallback, second?: GenericCallback) => {
 			if (typeof first === 'number' && typeof second === 'function') {
 				getReactiveValueInProxy(instance as ReactiveArray<Item>, indiced, first, true)?.unsubscribe(
@@ -155,6 +140,36 @@ export function array<Item>(
 				unsubscribe(state, first);
 			}
 		},
+	};
+
+	instance = {
+		...handlers,
+		asReadonly: (frozen?: unknown) =>
+			getReadonlyInstance(state, readonlies, handlers, frozen === true),
+		at: (index: number): Item | undefined => get(index),
+		clear: () => {
+			state.value.length = 0;
+		},
+		filter: (callback: (item: Item, index: number, array: Item[]) => boolean) =>
+			computed(() => filter(get(), callback)),
+		map: <Mapped>(callback: (item: Item, index: number, array: Item[]) => Mapped) =>
+			computed(() => get().map(callback)),
+		notify: () => {
+			emityProxyValues(state, indiced);
+		},
+		pop: () => state.value.pop(),
+		push: (...items: Item[]) => state.value.push(...items),
+		select: <Mapped>(
+			filter: (item: Item, index: number, array: Item[]) => boolean,
+			map: (item: Item, index: number, array: Item[]) => Mapped,
+		) => computed(() => select(get() as Item[], filter, map)),
+		set: (first?: unknown, second?: unknown) => {
+			set(first, second);
+		},
+		shift: () => state.value.shift(),
+		splice: (from: number, to?: number, ...items: Item[]) =>
+			state.value.splice(from, to ?? state.value.length, ...items),
+		unshift: (...items: Item[]) => state.value.unshift(...items),
 		update: (callback: (value: Item[]) => Item[]) =>
 			updateArrayValue(instance as ReactiveArray<Item>, state, callback),
 	};
@@ -171,7 +186,7 @@ export function array<Item>(
 		},
 	});
 
-	instance.set(value);
+	set(value);
 
 	return Object.freeze(instance) as ReactiveArray<Item>;
 }
@@ -201,13 +216,34 @@ function isArrayValue<Item>(value: unknown): value is Item[] | undefined {
 function peekArrayValue<Item>(
 	state: ReactiveState<Item[], Item>,
 	length: Signal<number>,
-	value?: unknown,
+	first?: unknown,
+	second?: boolean,
 ): number | Item | Item[] | undefined {
-	if (value === PROPERTY_LENGTH) {
+	if (first === PROPERTY_LENGTH) {
 		return length.peek();
 	}
 
-	return typeof value === 'number' ? state.value.at(value) : state.value.slice();
+	let value: Item | Item[] | undefined;
+
+	if (typeof first === 'number') {
+		value = state.value.at(first);
+	} else {
+		value = state.value;
+	}
+
+	if (!(first === true || second === true)) {
+		return value;
+	}
+
+	if (Array.isArray(value)) {
+		return value.slice();
+	}
+
+	if (isPlainObject(value)) {
+		return {...value};
+	}
+
+	return value;
 }
 
 function setArray<Item>(state: ReactiveState<Item[], Item>, value: Item[] | undefined): void {

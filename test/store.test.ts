@@ -191,6 +191,67 @@ test('notify', () => {
 	expect(value).toBe(123);
 });
 
+test('peek', () => {
+	const obj = store({
+		a: 1,
+		b: [2],
+		c: {
+			d: 3,
+		},
+	});
+
+	const counts = [0, 0];
+
+	effect(() => {
+		obj.peek();
+
+		counts[0] += 1;
+	});
+
+	effect(() => {
+		obj.peek('a');
+
+		counts[1] += 1;
+	});
+
+	expect(obj.peek()).toEqual({a: 1, b: [2], c: {d: 3}});
+	expect(counts[0]).toBe(1);
+
+	let o = obj.peek();
+	let a = obj.peek('a');
+	let b = obj.peek('b');
+	let c = obj.peek('c');
+
+	o.a = 11;
+	a = 99;
+	b[0] = 22;
+	c.d = 33;
+
+	expect(obj.peek()).toEqual({a: 11, b: [22], c: {d: 33}});
+	expect(obj.peek('a')).toBe(11);
+	expect(obj.peek('b')).toEqual([22]);
+	expect(obj.peek('c')).toEqual({d: 33});
+
+	expect(counts).toEqual([1, 1]);
+
+	o = obj.peek(true);
+	a = obj.peek('a', true);
+	b = obj.peek('b', true);
+	c = obj.peek('c', true);
+
+	o.a = 111;
+	a = 999;
+	b[0] = 222;
+	c.d = 333;
+
+	expect(obj.peek()).toEqual({a: 11, b: [22], c: {d: 33}});
+	expect(obj.peek('a')).toBe(11);
+	expect(obj.peek('b')).toEqual([22]);
+	expect(obj.peek('c')).toEqual({d: 33});
+
+	expect(counts).toEqual([1, 1]);
+});
+
 test('promise', () =>
 	new Promise<void>(done => {
 		const count = {

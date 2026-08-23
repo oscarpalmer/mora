@@ -1,4 +1,4 @@
-import type {GenericCallback, Key} from '@oscarpalmer/atoms/models';
+import type {GenericCallback, Key, PlainObject} from '@oscarpalmer/atoms/models';
 import type {PROPERTY_LENGTH} from './constants';
 
 export type Active = {
@@ -51,6 +51,24 @@ export type ReactiveArray<Item> = {
 	 * Set the length of the array
 	 */
 	set length(value: number);
+
+	/**
+	 * Get a readonly version of the reactive array
+	 *
+	 * @param frozen Freeze the array? _(defaults to `false`)_
+	 * @returns Readonly reactive array
+	 */
+	asReadonly(frozen: true): ReadonlyFrozenSignal<Item[]>;
+
+	/**
+	 * Get a readonly version of the reactive array
+	 *
+	 * @param frozen Freeze the array? _(defaults to `false`)_
+	 * @returns Readonly reactive array
+	 */
+	asReadonly(
+		frozen?: boolean,
+	): typeof frozen extends true ? ReadonlyFrozenSignal<Item[]> : ReadonlySignal<Item[]>;
 
 	/**
 	 * Get the value at an index
@@ -114,17 +132,19 @@ export type ReactiveArray<Item> = {
 	/**
 	 * Get the array _(without reactivity)_
 	 *
+	 * @param copy Copy the array? _(defaults to `false`)_
 	 * @returns Array of items
 	 */
-	peek(): Item[];
+	peek(copy?: boolean): Item[];
 
 	/**
 	 * Get the value at an index _(without reactivity)_
 	 *
 	 * @param index Index of item to get _(if negative, starts from the end)_
+	 * @param copy If the item is an array or record, should it be copied? _(defaults to `false`)_
 	 * @returns Item at index, or `undefined` if it doesn't exist
 	 */
-	peek(index: number): Item | undefined;
+	peek(index: number, copy?: boolean): Item | undefined;
 
 	/**
 	 * Get the length of the array _(without reactivity)_
@@ -272,13 +292,31 @@ export type ReactiveState<Value, Equal> = {
 	value: Value;
 };
 
-export type ReactiveStore<Value> = {
+export type ReactiveStore<Store> = {
+	/**
+	 * Get a readonly version of the reactive store
+	 *
+	 * @param frozen Freeze the store? _(defaults to `false`)_
+	 * @returns Readonly reactive store
+	 */
+	asReadonly(frozen: true): ReadonlyFrozenSignal<Store>;
+
+	/**
+	 * Get a readonly version of the reactive store
+	 *
+	 * @param frozen Freeze the store? _(defaults to `false`)_
+	 * @returns Readonly reactive store
+	 */
+	asReadonly(
+		frozen?: boolean,
+	): typeof frozen extends true ? ReadonlyFrozenSignal<Store> : ReadonlySignal<Store>;
+
 	/**
 	 * Get the value
 	 *
 	 * @returns Current value
 	 */
-	get(): Value;
+	get(): Store;
 
 	/**
 	 * Get a value by key
@@ -286,7 +324,7 @@ export type ReactiveStore<Value> = {
 	 * @param key Key of the value to get
 	 * @returns Value for the specified key, or `undefined` if it doesn't exist
 	 */
-	get<Key extends keyof Value>(key: Key): Value[Key];
+	get<Key extends keyof Store>(key: Key): Store[Key];
 
 	/**
 	 * Get a value by key
@@ -307,25 +345,28 @@ export type ReactiveStore<Value> = {
 	/**
 	 * Get the value _(without reactivity)_
 	 *
+	 * @param copy Copy the store? _(defaults to `false`)_
 	 * @returns Current value
 	 */
-	peek(): Value;
+	peek(copy?: boolean): Store;
 
 	/**
 	 * Get a value by key _(without reactivity)_
 	 *
 	 * @param key Key of the value to get
+	 * @param copy If the value is an array or record, should it be copied? _(defaults to `false`)_
 	 * @returns Value for the specified key, or `undefined` if it doesn't exist
 	 */
-	peek<Key extends keyof Value>(key: Key): Value[Key];
+	peek<Key extends keyof Store>(key: Key, copy?: boolean): Store[Key];
 
 	/**
 	 * Get a value by key _(without reactivity)_
 	 *
 	 * @param key Key of the value to get
+	 * @param copy If the value is an array or record, should it be copied? _(defaults to `false`)_
 	 * @returns Value for the specified key, or `undefined` if it doesn't exist
 	 */
-	peek(key: Key): unknown;
+	peek(key: Key, copy?: boolean): unknown;
 
 	/**
 	 * Set the value
@@ -334,9 +375,9 @@ export type ReactiveStore<Value> = {
 	 */
 	set(
 		value?:
-			| Value
-			| (() => null | undefined | Value | Promise<null | undefined | Value>)
-			| Promise<null | undefined | Value>,
+			| Store
+			| (() => null | undefined | Store | Promise<null | undefined | Store>)
+			| Promise<null | undefined | Store>,
 	): void;
 
 	/**
@@ -345,9 +386,9 @@ export type ReactiveStore<Value> = {
 	 * @param key Key of the value to set
 	 * @param value New value
 	 */
-	set<Key extends keyof Value>(
+	set<Key extends keyof Store>(
 		key: Key,
-		value: Value[Key] | (() => Value[Key] | Promise<Value[Key]>) | Promise<Value[Key]>,
+		value: Store[Key] | (() => Store[Key] | Promise<Store[Key]>) | Promise<Store[Key]>,
 	): void;
 
 	/**
@@ -364,7 +405,7 @@ export type ReactiveStore<Value> = {
 	 * @param callback Callback for changes
 	 * @returns Unsubscribe callback
 	 */
-	subscribe(callback: (value: Value) => void): Unsubscribe;
+	subscribe(callback: (value: Store) => void): Unsubscribe;
 
 	/**
 	 * Subscribe to changes for a specific key
@@ -373,9 +414,9 @@ export type ReactiveStore<Value> = {
 	 * @param callback Callback for changes
 	 * @returns Unsubscribe callback
 	 */
-	subscribe<Key extends keyof Value>(
+	subscribe<Key extends keyof Store>(
 		key: Key,
-		callback: (value: Value[Key] | undefined) => void,
+		callback: (value: Store[Key] | undefined) => void,
 	): Unsubscribe;
 
 	/**
@@ -393,25 +434,54 @@ export type ReactiveStore<Value> = {
 	 * @param key Key of the value to unsubscribe from
 	 * @param callback Callback to unsubscribe
 	 */
-	unsubscribe<Key extends keyof Value>(
+	unsubscribe<Key extends keyof Store>(
 		key: Key,
-		callback: (value: Value[Key] | undefined) => void,
+		callback: (value: Store[Key] | undefined) => void,
 	): void;
+
+	/**
+	 * Unsubscribe from changes for a specific key
+	 *
+	 * @param key Key of the value to unsubscribe from
+	 * @param callback Callback to unsubscribe
+	 */
+	unsubscribe(key: Key, callback: (value: unknown | undefined) => void): void;
 
 	/**
 	 * Unsubscribe from changes
 	 *
 	 * @param callback Callback to unsubscribe
 	 */
-	unsubscribe(callback: (value: Value) => void): void;
+	unsubscribe(callback: (value: Store) => void): void;
 
 	/**
 	 * Update the value _(based on the current value)_
 	 *
 	 * @param callback Callback to update the value
 	 */
-	update(callback: (value: Value) => Value): void;
-} & Reactive<Value>;
+	update(callback: (value: Store) => Store): void;
+} & Reactive<Store>;
+
+export type ReadonlyInstances<Value> = {
+	frozen?: ReadonlyFrozenSignal<Value>;
+	original?: ReadonlySignal<Value>;
+};
+
+export type ReadonlyFrozenSignal<Value> = ReadonlySignal<ReadonlySignalValue<Value>>;
+
+export type ReadonlySignal<Value> = {
+	/**
+	 * Is the signal frozen?
+	 */
+	get frozen(): boolean;
+} & Reactive<Value> &
+	SimpleReactive<Value>;
+
+export type ReadonlySignalValue<Value> = Value extends unknown[]
+	? Readonly<Value>
+	: Value extends PlainObject
+		? Readonly<Value>
+		: Value;
 
 export type SetValueInProxyParameters<Value, Equal> = {
 	target: Value;
@@ -423,6 +493,24 @@ export type SetValueInProxyParameters<Value, Equal> = {
 };
 
 export type Signal<Value> = {
+	/**
+	 * Get a readonly version of the signal
+	 *
+	 * @param frozen Freeze the signal? _(defaults to `false`)_
+	 * @returns Readonly signal
+	 */
+	asReadonly(frozen: true): ReadonlyFrozenSignal<Value>;
+
+	/**
+	 * Get a readonly version of the signal
+	 *
+	 * @param frozen Freeze the signal? _(defaults to `false`)_
+	 * @returns Readonly signal
+	 */
+	asReadonly(
+		frozen?: boolean,
+	): typeof frozen extends true ? ReadonlyFrozenSignal<Value> : ReadonlySignal<Value>;
+
 	/**
 	 * Set the value
 	 *

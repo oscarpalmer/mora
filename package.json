@@ -1,6 +1,6 @@
 {
 	"name": "@oscarpalmer/mora",
-	"version": "0.30.0",
+	"version": "0.31.0",
 	"description": "Signals and stuff…",
 	"keywords": [
 		"reactive",

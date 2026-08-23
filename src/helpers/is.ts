@@ -5,20 +5,19 @@ import {
 	NAME_COMPUTED,
 	NAME_EFFECT,
 	NAME_MORA,
+	NAME_READONLY,
 	NAME_SIGNAL,
 	NAME_STORE,
 } from '../constants';
-import type {Computed, Effect, Reactive, ReactiveArray, ReactiveStore, Signal} from '../models';
-
-/**
- * Is the value a reactive array?
- *
- * @param value Value to check
- * @returns True if value is a {@link ReactiveArray}
- */
-export function isArray<Item>(value: unknown): value is ReactiveArray<Item> {
-	return isMora<ReactiveArray<Item>>(value, NAME_ARRAY);
-}
+import type {
+	Computed,
+	Effect,
+	Reactive,
+	ReactiveArray,
+	ReactiveStore,
+	ReadonlySignal,
+	Signal,
+} from '../models';
 
 /**
  * Is the value a computed signal?
@@ -40,7 +39,7 @@ export function isEffect(value: unknown): value is Effect {
 	return isMora<Effect>(value, NAME_EFFECT);
 }
 
-function isMora<T>(value: unknown, name: string | Set<string>): value is T {
+function isMora<Instance>(value: unknown, name: string | Set<string>): value is Instance {
 	return (
 		typeof value === 'object' &&
 		value != null &&
@@ -72,11 +71,27 @@ export function isSignal<Value>(value: unknown): value is Signal<Value> {
 }
 
 /**
+ * Is the value a reactive array?
+ *
+ * @param value Value to check
+ * @returns True if value is a {@link ReactiveArray}
+ */
+export function isReactiveArray<Item>(value: unknown): value is ReactiveArray<Item> {
+	return isMora<ReactiveArray<Item>>(value, NAME_ARRAY);
+}
+
+/**
  * Is the value a reactive store?
  *
  * @param value Value to check
  * @returns True if value is a {@link Store}
  */
-export function isStore<Value extends PlainObject>(value: unknown): value is ReactiveStore<Value> {
+export function isReactiveStore<Value extends PlainObject>(
+	value: unknown,
+): value is ReactiveStore<Value> {
 	return isMora<ReactiveStore<Value>>(value, NAME_STORE);
+}
+
+export function isReadonlySignal<Value>(value: unknown): value is ReadonlySignal<Value> {
+	return isMora<ReadonlySignal<Value>>(value, NAME_READONLY);
 }

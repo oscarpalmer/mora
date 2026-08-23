@@ -266,33 +266,102 @@ test('notify', () => {
 
 test('peek', () => {
 	const a = array([1, 2, 3, 4, 5]);
+	const b = array([[1], [2], [3], [4], [5]]);
+	const c = array([{id: 1, value: 1}]);
 
 	const counts = [0, 0, 0];
 
 	effect(() => {
 		a.peek();
+		b.peek();
+		c.peek();
 
 		counts[0] += 1;
 	});
 
 	effect(() => {
 		a.peek(0);
+		b.peek(0);
+		c.peek(0);
 
 		counts[1] += 1;
 	});
 
 	effect(() => {
 		a.peek('length');
+		b.peek('length');
+		c.peek('length');
 
 		counts[2] += 1;
 	});
 
-	expect(counts).toEqual([1, 1, 1]);
 	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
 	expect(a.peek('length')).toBe(5);
 	expect(a.peek('blah' as never)).toEqual([1, 2, 3, 4, 5]);
 
-	a.set([11, 22, 33, 44, 55]);
+	expect(b.peek()).toEqual([[1], [2], [3], [4], [5]]);
+	expect(b.peek('length')).toBe(5);
+	expect(b.peek('blah' as never)).toEqual([[1], [2], [3], [4], [5]]);
+
+	expect(c.peek()).toEqual([{id: 1, value: 1}]);
+	expect(c.peek('length')).toBe(1);
+	expect(c.peek('blah' as never)).toEqual([{id: 1, value: 1}]);
+
+	expect(counts).toEqual([1, 1, 1]);
+
+	let values = a.peek();
+	let numbers = b.peek();
+	let items = c.peek();
+
+	values[0] = 11;
+	numbers[0] = [11];
+	items[0] = {id: 1, value: 11};
+
+	expect(a.peek()).toEqual([11, 2, 3, 4, 5]);
+	expect(b.peek()).toEqual([[11], [2], [3], [4], [5]]);
+	expect(c.peek()).toEqual([{id: 1, value: 11}]);
+
+	expect(counts).toEqual([1, 1, 1]);
+
+	values = a.peek(true);
+	numbers = b.peek(true);
+	items = c.peek(true);
+
+	values[0] = 111;
+	numbers[0] = [111];
+	items[0] = {id: 1, value: 111};
+
+	expect(a.peek()).toEqual([11, 2, 3, 4, 5]);
+	expect(b.peek()).toEqual([[11], [2], [3], [4], [5]]);
+	expect(c.peek()).toEqual([{id: 1, value: 11}]);
+
+	expect(counts).toEqual([1, 1, 1]);
+
+	let value = a.peek(0)!;
+	let number = b.peek(0)!;
+	let item = c.peek(0)!;
+
+	value = 1111;
+	number[0] = 1111;
+	item.value = 1111;
+
+	expect(a.peek()).toEqual([11, 2, 3, 4, 5]);
+	expect(b.peek()).toEqual([[1111], [2], [3], [4], [5]]);
+	expect(c.peek()).toEqual([{id: 1, value: 1111}]);
+
+	expect(counts).toEqual([1, 1, 1]);
+
+	value = a.peek(0, true)!;
+	number = b.peek(0, true)!;
+	item = c.peek(0, true)!;
+
+	value = 11111;
+	number[0] = 11111;
+	item.value = 11111;
+
+	expect(a.peek()).toEqual([11, 2, 3, 4, 5]);
+	expect(b.peek()).toEqual([[1111], [2], [3], [4], [5]]);
+	expect(c.peek()).toEqual([{id: 1, value: 1111}]);
 
 	expect(counts).toEqual([1, 1, 1]);
 });

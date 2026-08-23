@@ -15,10 +15,12 @@ import type {
 	ReactiveOptions,
 	ReactiveState,
 	ReactiveStore,
+	ReadonlyInstances,
 	Unsubscribe,
 } from '../models';
 import {noop, subscribe, unsubscribe} from '../subscription';
 import {reactive} from './reactive';
+import {getReadonlyInstance} from './readonly';
 
 function isStoreObject<Value extends PlainObject>(value: unknown): value is Value | undefined {
 	return value == null || isPlainObject(value);
@@ -54,6 +56,34 @@ function setObject(state: ReactiveState<PlainObject, never>, value: PlainObject 
 	}
 
 	stopBatch();
+}
+
+function peekStoreValue<Value extends PlainObject>(
+	state: ReactiveState<Value, Value>,
+	first?: unknown,
+	second?: boolean,
+): unknown {
+	let value: unknown;
+
+	if (isKey(first)) {
+		value = state.value[first];
+	} else {
+		value = state.value;
+	}
+
+	if (!(first === true || second === true)) {
+		return value;
+	}
+
+	if (Array.isArray(value)) {
+		return value.slice();
+	}
+
+	if (isPlainObject(value)) {
+		return {...value};
+	}
+
+	return value;
 }
 
 function setProperty<Value extends PlainObject>(
@@ -107,6 +137,9 @@ export function store<Value extends PlainObject>(
 	const [rx, state] = reactive<Value>(undefined as never, options);
 
 	const keyed = new Map<Key, [Computed<unknown>, ComputedEffect]>();
+	const readonlies: ReadonlyInstances<Value> = {};
+
+	let instance: Record<string, GenericCallback> = {};
 
 	state.value = new Proxy({} as Value, {
 		set: (target: Value, property: PropertyKey, value: unknown) =>
@@ -119,16 +152,43 @@ export function store<Value extends PlainObject>(
 			}),
 	});
 
-	const instance = {
+	const handlers = {
 		...rx,
 		get: (value?: unknown): unknown =>
 			isKey(value)
-				? getReactiveValueInProxy(instance, keyed, value, false).get()
+				? getReactiveValueInProxy(instance as ReactiveStore<Value>, keyed, value, false).get()
 				: getSimpleValue(state),
+		peek: (first?: unknown, second?: boolean): unknown => peekStoreValue(state, first, second),
+		subscribe: (first: Key | GenericCallback, second?: GenericCallback): Unsubscribe => {
+			if (isKey(first) && typeof second === 'function') {
+				return getReactiveValueInProxy(
+					instance as ReactiveStore<Value>,
+					keyed,
+					first,
+					false,
+				).subscribe(second);
+			}
+
+			return typeof first === 'function' ? subscribe(state, first) : noop;
+		},
+		unsubscribe: (first: Key | GenericCallback, second?: GenericCallback) => {
+			if (isKey(first) && typeof second === 'function') {
+				getReactiveValueInProxy(instance as ReactiveStore<Value>, keyed, first, false)?.unsubscribe(
+					second,
+				);
+			} else if (typeof first === 'function') {
+				unsubscribe(state, first);
+			}
+		},
+	};
+
+	instance = {
+		...handlers,
+		asReadonly: (frozen?: unknown) =>
+			getReadonlyInstance(state, readonlies, handlers, frozen === true),
 		notify(): void {
 			emityProxyValues(state, keyed);
 		},
-		peek: (value?: unknown): unknown => (isKey(value) ? state.value[value] : {...state.value}),
 		set: (first?: unknown, second?: unknown) => {
 			setProxyValue<Value>(
 				false,
@@ -140,20 +200,6 @@ export function store<Value extends PlainObject>(
 				first,
 				second,
 			);
-		},
-		subscribe: (first: Key | GenericCallback, second?: GenericCallback): Unsubscribe => {
-			if (isKey(first) && typeof second === 'function') {
-				return getReactiveValueInProxy(instance, keyed, first, false).subscribe(second);
-			}
-
-			return typeof first === 'function' ? subscribe(state, first) : noop;
-		},
-		unsubscribe: (first: Key | GenericCallback, second?: GenericCallback) => {
-			if (isKey(first) && typeof second === 'function') {
-				getReactiveValueInProxy(instance, keyed, first, false)?.unsubscribe(second);
-			} else if (typeof first === 'function') {
-				unsubscribe(state, first);
-			}
 		},
 		update: (callback: (value: Value) => Value) => {
 			const updated = callback(state.value);

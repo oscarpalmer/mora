@@ -33,10 +33,18 @@ export const NAME_EFFECT = 'effect';
 
 export const NAME_MORA = '$mora';
 
+export const NAME_READONLY = 'readonly';
+
 export const NAME_SIGNAL = 'signal';
 
 export const NAME_STORE = 'store';
 
-export const NAME_ALL = new Set([NAME_ARRAY, NAME_COMPUTED, NAME_SIGNAL, NAME_STORE]);
+export const NAME_ALL = new Set([
+	NAME_ARRAY,
+	NAME_COMPUTED,
+	NAME_READONLY,
+	NAME_SIGNAL,
+	NAME_STORE,
+]);
 
 export const PROPERTY_LENGTH = 'length';

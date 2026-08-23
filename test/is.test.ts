@@ -3,14 +3,16 @@ import {
 	array,
 	computed,
 	effect,
-	isArray,
 	isComputed,
 	isEffect,
+	isReactive,
+	isReactiveArray,
+	isReactiveStore,
+	isReadonlySignal,
 	isSignal,
 	signal,
 	store,
 } from '../src';
-import {isReactive, isStore} from '../src/helpers/is';
 
 const a = signal('a');
 const b = computed(() => `${a.get()}b`);
@@ -19,18 +21,6 @@ const d = store({});
 const e = effect(() => {});
 
 const values: unknown[] = [undefined, null, 'a', 123, true, Symbol('test'), {}, [], () => {}];
-
-test('isArray', () => {
-	for (const value of values) {
-		expect(isArray(value)).toBe(false);
-	}
-
-	expect(isArray(a)).toBe(false);
-	expect(isArray(b)).toBe(false);
-	expect(isArray(c)).toBe(true);
-	expect(isArray(d)).toBe(false);
-	expect(isArray(e)).toBe(false);
-});
 
 test('isComputed', () => {
 	for (const value of values) {
@@ -80,14 +70,49 @@ test('isSignal', () => {
 	expect(isSignal(e)).toBe(false);
 });
 
-test('isStore', () => {
+test('isReactiveArray', () => {
 	for (const value of values) {
-		expect(isStore(value)).toBe(false);
+		expect(isReactiveArray(value)).toBe(false);
 	}
 
-	expect(isStore(a)).toBe(false);
-	expect(isStore(b)).toBe(false);
-	expect(isStore(c)).toBe(false);
-	expect(isStore(d)).toBe(true);
-	expect(isStore(e)).toBe(false);
+	expect(isReactiveArray(a)).toBe(false);
+	expect(isReactiveArray(b)).toBe(false);
+	expect(isReactiveArray(c)).toBe(true);
+	expect(isReactiveArray(d)).toBe(false);
+	expect(isReactiveArray(e)).toBe(false);
+});
+
+test('isReactiveStore', () => {
+	for (const value of values) {
+		expect(isReactiveStore(value)).toBe(false);
+	}
+
+	expect(isReactiveStore(a)).toBe(false);
+	expect(isReactiveStore(b)).toBe(false);
+	expect(isReactiveStore(c)).toBe(false);
+	expect(isReactiveStore(d)).toBe(true);
+	expect(isReactiveStore(e)).toBe(false);
+});
+
+test('isReadonlySignal', () => {
+	for (const value of values) {
+		expect(isReadonlySignal(value)).toBe(false);
+	}
+
+	expect(isReadonlySignal(a)).toBe(false);
+	expect(isReadonlySignal(b)).toBe(false);
+	expect(isReadonlySignal(c)).toBe(false);
+	expect(isReadonlySignal(d)).toBe(false);
+	expect(isReadonlySignal(e)).toBe(false);
+
+	const f = a.asReadonly();
+	const g = c.asReadonly();
+	const h = d.asReadonly();
+
+	expect(isReadonlySignal(f)).toBe(true);
+	expect(isReadonlySignal(g)).toBe(true);
+	expect(isReadonlySignal(h)).toBe(true);
+
+	expect(() => (b as any).asReadonly()).toThrow();
+	expect(() => (e as any).asReadonly()).toThrow();
 });

@@ -10,6 +10,8 @@ import type {
 	ReadonlySignalValue,
 } from '../models';
 
+// #region Functions
+
 export function getReadonlyInstance<Value>(
 	state: ReactiveState<Value, never>,
 	instances: ReadonlyInstances<Value>,
@@ -36,7 +38,6 @@ export function getReadonlySignal<Value>(
 
 	Object.defineProperties(instance, {
 		[NAME_MORA]: {
-			enumerable: false,
 			value: NAME_READONLY,
 		},
 		frozen: {
@@ -69,3 +70,5 @@ function getReadonlyValue<Value>(
 
 	return Object.freeze(value);
 }
+
+// #endregion

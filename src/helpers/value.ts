@@ -2,6 +2,8 @@ import {flushHandlers} from '../batch';
 import {ACTIVE, ARRAY_OFFSET, ARRAY_PEEK, ARRAY_THRESHOLD, BATCH} from '../constants';
 import type {ReactiveState} from '../models';
 
+// #region Functions
+
 export function emitValue<Value>(state: ReactiveState<Value, never>): void {
 	for (const computed of state.computeds) {
 		computed.dirty = true;
@@ -101,3 +103,17 @@ export function handleSimpleValue<Value>(
 		onAfter?.();
 	}
 }
+
+export function updateSimpleValue<Value>(
+	state: ReactiveState<Value, Value>,
+	callback: (value: Value) => Value,
+	setValue: (state: ReactiveState<Value, Value>, value: Value) => void,
+): void {
+	if (typeof callback !== 'function') {
+		throw new TypeError('Callback must be a function');
+	}
+
+	handleSimpleValue(state, callback(state.value), setValue);
+}
+
+// #endregion

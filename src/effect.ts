@@ -2,6 +2,8 @@ import type {GenericCallback} from '@oscarpalmer/atoms/models';
 import {ACTIVE, NAME_EFFECT} from './constants';
 import type {Effect, EffectState} from './models';
 
+// #region Functions
+
 /**
  * Create an effect
  *
@@ -45,3 +47,5 @@ export function runEffect(state: EffectState): void {
 		ACTIVE.effect = previousEffect;
 	}
 }
+
+// #endregion

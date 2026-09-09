@@ -627,6 +627,8 @@ test('update', () => {
 
 	expect(a.peek()).toEqual([]);
 	expect(count).toBe(3);
+
+	expect(() => a.update(undefined as never)).toThrow();
 });
 
 test('value: function', () => {

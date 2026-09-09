@@ -30,6 +30,8 @@ test('basic', () => {
 
 	expect(value.toJSON()).toEqual(3);
 	expect(value.toString()).toBe('3');
+
+	expect(() => value.update(undefined as never)).toThrow();
 });
 
 test('peek', () => {

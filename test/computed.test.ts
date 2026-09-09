@@ -1,7 +1,7 @@
 import {expect, test} from 'vitest';
 import {type Computed, computed, effect, signal, startBatch, stopBatch} from '../src';
 
-test(' basic', () => {
+test('basic', () => {
 	const a = signal(1);
 	const b = signal(2);
 
@@ -26,6 +26,8 @@ test(' basic', () => {
 
 	expect(c.toString()).toBe('7');
 	expect(d.toString()).toBe('8');
+
+	expect(() => computed(undefined as never)).toThrow();
 });
 
 test('get & peek', () => {

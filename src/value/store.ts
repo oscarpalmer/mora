@@ -3,10 +3,11 @@ import type {GenericCallback, Key, PlainObject} from '@oscarpalmer/atoms/models'
 import {startBatch, stopBatch} from '../batch';
 import {NAME_MORA, NAME_STORE} from '../constants';
 import {
-	emityProxyValues,
+	emitProxyValues,
 	getReactiveValueInProxy,
 	setProxyValue,
 	setValueInProxy,
+	updateProxyValue,
 } from '../helpers/proxy';
 import {getSimpleValue} from '../helpers/value';
 import type {
@@ -16,17 +17,57 @@ import type {
 	ReactiveState,
 	ReactiveStore,
 	ReadonlyInstances,
-	Unsubscribe,
 } from '../models';
 import {noop, subscribe, unsubscribe} from '../subscription';
 import {reactive} from './reactive';
 import {getReadonlyInstance} from './readonly';
 
-function isStoreObject<Value extends PlainObject>(value: unknown): value is Value | undefined {
+// #region Functions
+
+function isStoreObject<Value extends PlainObject>(value: unknown): value is Value {
 	return value == null || isPlainObject(value);
 }
 
-function setObject(state: ReactiveState<PlainObject, never>, value: PlainObject | undefined): void {
+function peekStoreValue<Value extends PlainObject, Item = Value>(
+	state: ReactiveState<Value, Item>,
+	first?: unknown,
+	second?: boolean,
+): unknown {
+	let value: unknown;
+
+	if (isKey(first)) {
+		value = state.value[first];
+	} else {
+		value = state.value;
+	}
+
+	if (!(first === true || second === true)) {
+		return value;
+	}
+
+	if (Array.isArray(value)) {
+		return value.slice();
+	}
+
+	if (isPlainObject(value)) {
+		return {...value};
+	}
+
+	return value;
+}
+
+function setPropertyValue<Value extends PlainObject, Item = Value>(
+	state: ReactiveState<Value, Item>,
+	key: unknown,
+	value: unknown,
+): void {
+	(state.value as PlainObject)[key as Key] = value;
+}
+
+function setStoreValue<Value extends PlainObject, Item = Value>(
+	state: ReactiveState<Value, Item>,
+	value: PlainObject | undefined,
+): void {
 	startBatch();
 
 	const actual = value ?? {};
@@ -56,42 +97,6 @@ function setObject(state: ReactiveState<PlainObject, never>, value: PlainObject 
 	}
 
 	stopBatch();
-}
-
-function peekStoreValue<Value extends PlainObject>(
-	state: ReactiveState<Value, Value>,
-	first?: unknown,
-	second?: boolean,
-): unknown {
-	let value: unknown;
-
-	if (isKey(first)) {
-		value = state.value[first];
-	} else {
-		value = state.value;
-	}
-
-	if (!(first === true || second === true)) {
-		return value;
-	}
-
-	if (Array.isArray(value)) {
-		return value.slice();
-	}
-
-	if (isPlainObject(value)) {
-		return {...value};
-	}
-
-	return value;
-}
-
-function setProperty<Value extends PlainObject>(
-	state: ReactiveState<Value, Value>,
-	key: unknown,
-	value: unknown,
-): void {
-	(state.value as PlainObject)[key as Key] = value;
 }
 
 /**
@@ -136,46 +141,33 @@ export function store<Value extends PlainObject>(
 ): ReactiveStore<Value> {
 	const [rx, state] = reactive<Value>(undefined as never, options);
 
+	const isArray = false;
 	const keyed = new Map<Key, [Computed<unknown>, ComputedEffect]>();
 	const readonlies: ReadonlyInstances<Value> = {};
 
 	let instance: Record<string, GenericCallback> = {};
 
 	state.value = new Proxy({} as Value, {
-		set: (target: Value, property: PropertyKey, value: unknown) =>
-			setValueInProxy({
-				target,
-				property,
-				state,
-				value,
-				isArray: false,
-			}),
+		set: (target, property, value) => setValueInProxy(isArray, state, target, property, value),
 	});
 
 	const handlers = {
 		...rx,
-		get: (value?: unknown): unknown =>
+		get: (value?: never) =>
 			isKey(value)
-				? getReactiveValueInProxy(instance as ReactiveStore<Value>, keyed, value, false).get()
+				? getReactiveValueInProxy(instance as never, keyed, value, isArray).get()
 				: getSimpleValue(state),
-		peek: (first?: unknown, second?: boolean): unknown => peekStoreValue(state, first, second),
-		subscribe: (first: Key | GenericCallback, second?: GenericCallback): Unsubscribe => {
+		peek: (first?: never, second?: never) => peekStoreValue(state, first, second),
+		subscribe: (first: never, second?: never) => {
 			if (isKey(first) && typeof second === 'function') {
-				return getReactiveValueInProxy(
-					instance as ReactiveStore<Value>,
-					keyed,
-					first,
-					false,
-				).subscribe(second);
+				return getReactiveValueInProxy(instance as never, keyed, first, isArray).subscribe(second);
 			}
 
 			return typeof first === 'function' ? subscribe(state, first) : noop;
 		},
-		unsubscribe: (first: Key | GenericCallback, second?: GenericCallback) => {
+		unsubscribe: (first: never, second?: never) => {
 			if (isKey(first) && typeof second === 'function') {
-				getReactiveValueInProxy(instance as ReactiveStore<Value>, keyed, first, false)?.unsubscribe(
-					second,
-				);
+				getReactiveValueInProxy(instance as never, keyed, first, isArray)?.unsubscribe(second);
 			} else if (typeof first === 'function') {
 				unsubscribe(state, first);
 			}
@@ -184,34 +176,33 @@ export function store<Value extends PlainObject>(
 
 	instance = {
 		...handlers,
-		asReadonly: (frozen?: unknown) =>
+		asReadonly: (frozen?: never) =>
 			getReadonlyInstance(state, readonlies, handlers, frozen === true),
-		notify(): void {
-			emityProxyValues(state, keyed);
-		},
-		set: (first?: unknown, second?: unknown) => {
+		notify: () => emitProxyValues(state, keyed),
+		set: (first?: never, second?: never) =>
 			setProxyValue<Value>(
-				false,
+				isArray,
 				state,
 				isStoreObject,
 				isKey,
-				setObject,
-				setProperty,
+				setStoreValue,
+				setPropertyValue,
 				first,
 				second,
-			);
-		},
-		update: (callback: (value: Value) => Value) => {
-			const updated = callback(state.value);
-
-			if (updated == null || isPlainObject(updated)) {
-				setObject(state, updated);
-			}
-		},
+			),
+		update: (callback: never) =>
+			updateProxyValue(
+				isArray,
+				state,
+				isStoreObject,
+				isKey,
+				setStoreValue,
+				setPropertyValue,
+				callback,
+			),
 	};
 
 	Object.defineProperty(instance, NAME_MORA, {
-		enumerable: false,
 		value: NAME_STORE,
 	});
 
@@ -219,3 +210,5 @@ export function store<Value extends PlainObject>(
 
 	return Object.freeze(instance) as ReactiveStore<Value>;
 }
+
+// #endregion

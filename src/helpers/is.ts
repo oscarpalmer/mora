@@ -19,6 +19,8 @@ import type {
 	Signal,
 } from '../models';
 
+// #region Functions
+
 /**
  * Is the value a computed signal?
  *
@@ -92,6 +94,14 @@ export function isReactiveStore<Value extends PlainObject>(
 	return isMora<ReactiveStore<Value>>(value, NAME_STORE);
 }
 
+/**
+ * Is the value a readonly signal?
+ *
+ * @param value Value to check
+ * @returns True if value is a {@link ReadonlySignal}
+ */
 export function isReadonlySignal<Value>(value: unknown): value is ReadonlySignal<Value> {
 	return isMora<ReadonlySignal<Value>>(value, NAME_READONLY);
 }
+
+// #endregion

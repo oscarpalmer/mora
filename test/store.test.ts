@@ -481,4 +481,6 @@ test('subscribe', () => {
 
 	obj.unsubscribe('blah' as never);
 	obj.unsubscribe('blah' as never, 123 as never);
+
+	expect(() => obj.update(undefined as never)).toThrow();
 });

@@ -1,4 +1,4 @@
-import type {ArrayOrPlainObject, Key, PlainObject} from '@oscarpalmer/atoms/models';
+import type {Key, PlainObject} from '@oscarpalmer/atoms/models';
 import {PROPERTY_LENGTH} from '../constants';
 import type {
 	Computed,
@@ -6,23 +6,34 @@ import type {
 	ReactiveArray,
 	ReactiveState,
 	ReactiveStore,
-	SetValueInProxyParameters,
+	Signal,
 } from '../models';
 import {internalComputed} from '../value/computed';
 import {emitValue} from './value';
 
-export function emityProxyValues<Value>(
-	state: ReactiveState<Value, Value>,
-	mapped: Map<Key, [Computed<unknown>, ComputedEffect]>,
-): void;
+// #region Types
 
-export function emityProxyValues<Value>(
-	state: ReactiveState<Value[], Value>,
-	mapped: Map<Key, [Computed<unknown>, ComputedEffect]>,
-): void;
+type IsObjectCallback<Value> = (value: unknown) => value is Value;
 
-export function emityProxyValues(
-	state: ReactiveState<unknown, unknown>,
+type IsPropertyCallback = (value: unknown) => value is Key;
+
+type SetObjectCallback<Value, Item> = (
+	state: ReactiveState<Value, Item>,
+	value: Value | undefined,
+) => void;
+
+type SetPropertyCallback<Value, Item> = (
+	state: ReactiveState<Value, Item>,
+	property: unknown,
+	value: Item,
+) => void;
+
+// #endregion
+
+// #region Functions
+
+export function emitProxyValues<Value, Item = Value>(
+	state: ReactiveState<Value, Item>,
 	mapped: Map<Key, [Computed<unknown>, ComputedEffect]>,
 ): void {
 	const values = [...mapped.values()];
@@ -35,27 +46,15 @@ export function emityProxyValues(
 	emitValue(state);
 }
 
-export function getReactiveValueInProxy<Value, Result = Value>(
-	array: ReactiveArray<Value>,
-	mapped: Map<Key, [Computed<unknown>, ComputedEffect]>,
-	index: number,
-	isArray: true,
-): Computed<Result>;
-
-export function getReactiveValueInProxy<Value extends PlainObject>(
-	store: ReactiveStore<Value>,
-	mapped: Map<Key, [Computed<unknown>, ComputedEffect]>,
-	key: Key,
-	isArray: false,
-): Computed<unknown>;
-
-export function getReactiveValueInProxy(
-	reactive: ReactiveArray<unknown> | ReactiveStore<PlainObject>,
+export function getReactiveValueInProxy<Value>(
+	reactive: ReactiveArray<Value> | ReactiveStore<Value>,
 	mapped: Map<Key, [Computed<unknown>, ComputedEffect]>,
 	key: Key,
 	isArray: boolean,
 ): Computed<unknown> {
-	let item = mapped.get(key);
+	const mapKey = String(key);
+
+	let item = mapped.get(mapKey);
 
 	if (item == null) {
 		item = internalComputed(() =>
@@ -64,7 +63,7 @@ export function getReactiveValueInProxy(
 				: (reactive.get() as PlainObject)[key],
 		);
 
-		mapped.set(key, item);
+		mapped.set(mapKey, item);
 	}
 
 	return item[0];
@@ -73,10 +72,10 @@ export function getReactiveValueInProxy(
 export function setProxyValue<Value, Item = Value>(
 	array: boolean,
 	state: ReactiveState<Value, Item>,
-	isObject: (value: unknown) => value is Value | undefined,
-	isProperty: (value: unknown) => boolean,
-	setObject: (state: ReactiveState<Value, Item>, value: Value | undefined) => void,
-	setProperty: (state: ReactiveState<Value, Item>, property: unknown, value: Item) => void,
+	isObject: IsObjectCallback<Value>,
+	isProperty: IsPropertyCallback,
+	setObject: SetObjectCallback<Value, Item>,
+	setProperty: SetPropertyCallback<Value, Item>,
 	first?: unknown,
 	second?: unknown,
 ): void {
@@ -147,11 +146,14 @@ export function setProxyValue<Value, Item = Value>(
 	}
 }
 
-export function setValueInProxy<Value extends ArrayOrPlainObject, Equal>(
-	parameters: SetValueInProxyParameters<Value, Equal>,
+export function setValueInProxy<Value, Item = Value>(
+	isArray: boolean,
+	state: ReactiveState<Value, Item>,
+	target: object,
+	property: PropertyKey,
+	value: unknown,
+	length?: Signal<number>,
 ): boolean {
-	const {isArray, length, property, state, target, value} = parameters;
-
 	if (isArray) {
 		const isIndex = !Number.isNaN(Number(property));
 		const isLength = property === PROPERTY_LENGTH;
@@ -161,7 +163,7 @@ export function setValueInProxy<Value extends ArrayOrPlainObject, Equal>(
 		}
 	}
 
-	const previous = Reflect.get(target, property);
+	const previous = Reflect.get(target as object, property);
 
 	if (!state.equal(previous as never, value as never)) {
 		Reflect.set(target, property, value);
@@ -175,3 +177,21 @@ export function setValueInProxy<Value extends ArrayOrPlainObject, Equal>(
 
 	return true;
 }
+
+export function updateProxyValue<Value, Item = Value>(
+	array: boolean,
+	state: ReactiveState<Value, Item>,
+	isObject: IsObjectCallback<Value>,
+	isProperty: IsPropertyCallback,
+	setObject: SetObjectCallback<Value, Item>,
+	setProperty: SetPropertyCallback<Value, Item>,
+	callback: unknown,
+): void {
+	if (typeof callback !== 'function') {
+		throw new TypeError('Callback must be a function');
+	}
+
+	setProxyValue(array, state, isObject, isProperty, setObject, setProperty, callback(state.value));
+}
+
+// #endregion

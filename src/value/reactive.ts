@@ -1,10 +1,12 @@
 import type {Reactive, ReactiveOptions, ReactiveState} from '../models';
 
-export function reactive<Value, Equal = Value>(
+// #region Functions
+
+export function reactive<Value, Item = Value>(
 	value: Value,
-	options?: ReactiveOptions<Equal>,
-): [Reactive<Value>, ReactiveState<Value, Equal>] {
-	const state: ReactiveState<Value, Equal> = {
+	options?: ReactiveOptions<Item>,
+): [Reactive<Value>, ReactiveState<Value, Item>] {
+	const state: ReactiveState<Value, Item> = {
 		computeds: new Set(),
 		effects: new Set(),
 		equal:
@@ -22,3 +24,5 @@ export function reactive<Value, Equal = Value>(
 
 	return [instance, state];
 }
+
+// #endregion

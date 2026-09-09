@@ -1,5 +1,7 @@
 import type {Active, Batch, EffectState, Subscription} from './models';
 
+// #region Variables
+
 export const ACTIVE: Active = {};
 
 export const ARRAY_THRESHOLD = 100;
@@ -48,3 +50,5 @@ export const NAME_ALL = new Set([
 ]);
 
 export const PROPERTY_LENGTH = 'length';
+
+// #endregion

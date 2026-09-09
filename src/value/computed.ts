@@ -6,6 +6,8 @@ import type {Computed, ComputedEffect, ReactiveOptions, ReactiveState} from '../
 import {subscribe} from '../subscription';
 import {reactive} from './reactive';
 
+// #region Functions
+
 /**
  * Create a computed value
  *
@@ -24,6 +26,10 @@ function getComputed<Value>(
 	callback: () => Value | Promise<Value>,
 	options?: ReactiveOptions<Value>,
 ): [Computed<Value>, ComputedEffect] {
+	if (typeof callback !== 'function') {
+		throw new TypeError('Computed callback must be a function');
+	}
+
 	const [rx, state] = reactive<Value>(undefined as never, options);
 
 	let fx: ComputedEffect;
@@ -32,14 +38,13 @@ function getComputed<Value>(
 		...rx,
 		get: () => getValue(state, fx),
 		peek: () => state.value,
-		subscribe: (callback: (value: Value) => void) => subscribe(state, callback),
-		unsubscribe: (callback: (value: Value) => void) => {
+		subscribe: (callback: never) => subscribe(state, callback),
+		unsubscribe: (callback: never) => {
 			state.subscriptions.delete(callback);
 		},
 	};
 
 	Object.defineProperty(instance, NAME_MORA, {
-		enumerable: false,
 		value: NAME_COMPUTED,
 	});
 
@@ -118,3 +123,5 @@ function setAndEmit<Value>(state: ReactiveState<Value, Value>, value: Value): vo
 
 	flushHandlers();
 }
+
+// #endregion

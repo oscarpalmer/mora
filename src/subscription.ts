@@ -1,5 +1,7 @@
 import type {ReactiveState, Subscription, Unsubscribe} from './models';
 
+// #region Functions
+
 export function noop(): void {}
 
 export function subscribe<Value>(
@@ -43,3 +45,5 @@ export function unsubscribe<Value>(
 
 	state.subscriptions.delete(callback);
 }
+
+// #endregion

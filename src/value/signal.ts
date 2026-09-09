@@ -1,9 +1,11 @@
 import {NAME_MORA, NAME_SIGNAL} from '../constants';
-import {emitValue, getSimpleValue, handleSimpleValue} from '../helpers/value';
+import {emitValue, getSimpleValue, handleSimpleValue, updateSimpleValue} from '../helpers/value';
 import type {ReactiveOptions, ReactiveState, ReadonlyInstances, Signal} from '../models';
 import {subscribe} from '../subscription';
 import {reactive} from './reactive';
 import {getReadonlyInstance} from './readonly';
+
+// #region Functions
 
 function setAndEmit<Value>(state: ReactiveState<Value, Value>, value: Value): void {
 	if (!state.equal(state.value, value)) {
@@ -56,28 +58,23 @@ export function signal<Value>(
 
 	const handlers = {
 		...rx,
-		subscribe: (callback: (value: Value) => void) => subscribe(state, callback),
-		unsubscribe: (callback: (value: Value) => void) => {
+		subscribe: (callback: never) => subscribe(state, callback),
+		unsubscribe: (callback: never) => {
 			state.subscriptions.delete(callback);
 		},
 	};
 
 	const instance = {
 		...handlers,
-		asReadonly: (frozen?: unknown) =>
+		asReadonly: (frozen?: never) =>
 			getReadonlyInstance(state, readonlies, handlers, frozen === true),
 		get: () => getSimpleValue(state),
 		peek: () => state.value,
-		set: (value: Value | (() => Value | Promise<Value>) | Promise<Value>) => {
-			handleSimpleValue(state, value, setAndEmit);
-		},
-		update: (callback: (value: Value) => Value) => {
-			handleSimpleValue(state, callback(state.value), setAndEmit);
-		},
+		set: (value: never) => handleSimpleValue(state, value, setAndEmit),
+		update: (callback: never) => updateSimpleValue(state, callback, setAndEmit),
 	};
 
 	Object.defineProperty(instance, NAME_MORA, {
-		enumerable: false,
 		value: NAME_SIGNAL,
 	});
 
@@ -85,3 +82,5 @@ export function signal<Value>(
 
 	return Object.freeze(instance) as Signal<Value>;
 }
+
+// #endregion

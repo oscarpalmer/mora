@@ -1,6 +1,8 @@
 import type {GenericCallback, Key, PlainObject} from '@oscarpalmer/atoms/models';
 import type {PROPERTY_LENGTH} from './constants';
 
+// #region Types
+
 export type Active = {
 	computed?: ComputedEffect;
 	effect?: EffectState;
@@ -282,10 +284,10 @@ export type ReactiveOptions<Value> = {
 	equal?: (first: Value, second: Value) => boolean;
 };
 
-export type ReactiveState<Value, Equal> = {
+export type ReactiveState<Value, Item = Value> = {
 	computeds: Set<ComputedEffect>;
 	effects: Set<EffectState>;
-	equal: (first: Equal, second: Equal) => boolean;
+	equal: (first: Item, second: Item) => boolean;
 	promise?: Promise<Value>;
 	promises?: Map<Key, Promise<never>>;
 	subscriptions: Map<GenericCallback, Subscription>;
@@ -483,15 +485,6 @@ export type ReadonlySignalValue<Value> = Value extends unknown[]
 		? Readonly<Value>
 		: Value;
 
-export type SetValueInProxyParameters<Value, Equal> = {
-	target: Value;
-	property: PropertyKey;
-	value: unknown;
-	state: ReactiveState<Value, Equal>;
-	isArray: boolean;
-	length?: Signal<number>;
-};
-
 export type Signal<Value> = {
 	/**
 	 * Get a readonly version of the signal
@@ -569,3 +562,5 @@ export type Subscription = {
  * Unsubscribe from changes
  */
 export type Unsubscribe = () => void;
+
+// #endregion

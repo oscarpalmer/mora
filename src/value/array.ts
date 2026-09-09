@@ -2,7 +2,7 @@ import {select} from '@oscarpalmer/atoms/array';
 import {filter} from '@oscarpalmer/atoms/array/filter';
 import {noop} from '@oscarpalmer/atoms/function';
 import {isPlainObject} from '@oscarpalmer/atoms/is';
-import type {GenericCallback} from '@oscarpalmer/atoms/models';
+import type {Key} from '@oscarpalmer/atoms/models';
 import {
 	METHODS_AFFECTING_LENGTH,
 	METHODS_UPDATE,
@@ -11,10 +11,11 @@ import {
 	PROPERTY_LENGTH,
 } from '../constants';
 import {
-	emityProxyValues,
+	emitProxyValues,
 	getReactiveValueInProxy,
 	setProxyValue,
 	setValueInProxy,
+	updateProxyValue,
 } from '../helpers/proxy';
 import {emitValue, equalArrays, getSimpleValue} from '../helpers/value';
 import type {
@@ -31,6 +32,8 @@ import {computed} from './computed';
 import {reactive} from './reactive';
 import {getReadonlyInstance} from './readonly';
 import {signal} from './signal';
+
+// #region Functions
 
 /**
  * Create a reactive array from a function result
@@ -72,6 +75,7 @@ export function array<Item>(
 	const [rx, state] = reactive<Item[], Item>([], options);
 
 	const indiced = new Map<number, [Computed<unknown>, ComputedEffect]>();
+	const isArray = true;
 	const length = signal(0);
 	const readonlies: ReadonlyInstances<Item[]> = {};
 
@@ -83,14 +87,7 @@ export function array<Item>(
 				? updateArray(property as string, target, state, length)
 				: Reflect.get(target, property),
 		set: (target: Item[], property: PropertyKey, value: Item) =>
-			setValueInProxy({
-				length,
-				property,
-				state,
-				target,
-				value,
-				isArray: true,
-			}),
+			setValueInProxy(isArray, state, target, property, value, length),
 	});
 
 	function get(): Item[];
@@ -98,17 +95,17 @@ export function array<Item>(
 	function get(property: typeof PROPERTY_LENGTH): number;
 	function get(value?: unknown): number | Item | Item[] | undefined;
 
-	function get(value?: unknown): number | Item | Item[] | undefined {
-		return getArrayValue(instance as ReactiveArray<Item>, indiced, state, length, value);
+	function get(value?: unknown): unknown {
+		return getArrayValue(instance as never, indiced, state, length, value);
 	}
 
-	function set(first?: unknown, second?: unknown): void {
+	function set(first?: never, second?: never): void {
 		setProxyValue<Item[], Item>(
 			true,
 			state,
 			isArrayValue,
 			isArrayIndex,
-			setArray,
+			setArrayValue,
 			setAtIndex,
 			first,
 			second,
@@ -117,9 +114,9 @@ export function array<Item>(
 
 	const handlers = {
 		...rx,
-		get: (value?: number | typeof PROPERTY_LENGTH) => get(value),
-		peek: (first?: unknown, second?: boolean) => peekArrayValue(state, length, first, second),
-		subscribe: (first: number | GenericCallback, second?: GenericCallback) => {
+		get: (value?: never) => get(value),
+		peek: (first?: never, second?: never) => peekArrayValue(state, length, first, second),
+		subscribe: (first: never, second?: never) => {
 			if (typeof first === 'number' && typeof second === 'function') {
 				return getReactiveValueInProxy(
 					instance as ReactiveArray<Item>,
@@ -131,7 +128,7 @@ export function array<Item>(
 
 			return typeof first === 'function' ? subscribe(state, first) : noop;
 		},
-		unsubscribe: (first: number | GenericCallback, second?: GenericCallback) => {
+		unsubscribe: (first: never, second?: never) => {
 			if (typeof first === 'number' && typeof second === 'function') {
 				getReactiveValueInProxy(instance as ReactiveArray<Item>, indiced, first, true)?.unsubscribe(
 					second,
@@ -144,39 +141,37 @@ export function array<Item>(
 
 	instance = {
 		...handlers,
-		asReadonly: (frozen?: unknown) =>
+		asReadonly: (frozen?: never) =>
 			getReadonlyInstance(state, readonlies, handlers, frozen === true),
-		at: (index: number): Item | undefined => get(index),
+		at: (index: never) => get(index),
 		clear: () => {
 			state.value.length = 0;
 		},
-		filter: (callback: (item: Item, index: number, array: Item[]) => boolean) =>
-			computed(() => filter(get(), callback)),
-		map: <Mapped>(callback: (item: Item, index: number, array: Item[]) => Mapped) =>
-			computed(() => get().map(callback)),
-		notify: () => {
-			emityProxyValues(state, indiced);
-		},
+		filter: (callback: never) => computed(() => filter(get(), callback)),
+		map: (callback: never) => computed(() => get().map(callback)),
+		notify: () => emitProxyValues(state, indiced),
 		pop: () => state.value.pop(),
 		push: (...items: Item[]) => state.value.push(...items),
-		select: <Mapped>(
-			filter: (item: Item, index: number, array: Item[]) => boolean,
-			map: (item: Item, index: number, array: Item[]) => Mapped,
-		) => computed(() => select(get() as Item[], filter, map)),
-		set: (first?: unknown, second?: unknown) => {
-			set(first, second);
-		},
+		select: (filter: never, map: never) => computed(() => select(get(), filter, map)),
+		set: (first?: never, second?: never) => set(first, second),
 		shift: () => state.value.shift(),
-		splice: (from: number, to?: number, ...items: Item[]) =>
+		splice: (from: never, to?: never, ...items: Item[]) =>
 			state.value.splice(from, to ?? state.value.length, ...items),
 		unshift: (...items: Item[]) => state.value.unshift(...items),
-		update: (callback: (value: Item[]) => Item[]) =>
-			updateArrayValue(instance as ReactiveArray<Item>, state, callback),
+		update: (callback: never) =>
+			updateProxyValue(
+				true,
+				state,
+				isArrayValue,
+				isArrayIndex,
+				setArrayValue,
+				setAtIndex,
+				callback,
+			),
 	};
 
 	Object.defineProperties(instance, {
 		[NAME_MORA]: {
-			enumerable: false,
 			value: NAME_ARRAY,
 		},
 		length: {
@@ -186,7 +181,7 @@ export function array<Item>(
 		},
 	});
 
-	set(value);
+	set(value as never);
 
 	return Object.freeze(instance) as ReactiveArray<Item>;
 }
@@ -197,7 +192,7 @@ function getArrayValue<Item>(
 	state: ReactiveState<Item[], Item>,
 	length: Signal<number>,
 	first?: unknown,
-): number | Item | Item[] | undefined {
+): unknown {
 	if (typeof first === 'number') {
 		return getReactiveValueInProxy(instance, indiced, first, true).get();
 	}
@@ -205,11 +200,11 @@ function getArrayValue<Item>(
 	return first === PROPERTY_LENGTH ? length.get() : getSimpleValue(state);
 }
 
-function isArrayIndex(value: unknown): boolean {
+function isArrayIndex(value: unknown): value is Key {
 	return typeof value === 'number';
 }
 
-function isArrayValue<Item>(value: unknown): value is Item[] | undefined {
+function isArrayValue<Item>(value: unknown): value is Item[] {
 	return value == null || Array.isArray(value);
 }
 
@@ -246,21 +241,32 @@ function peekArrayValue<Item>(
 	return value;
 }
 
-function setArray<Item>(state: ReactiveState<Item[], Item>, value: Item[] | undefined): void {
-	state.value.splice(0, state.value.length, ...(value ?? []));
-}
-
 function setArrayLength<Item>(state: ReactiveState<Item[], Item>, value: number): void {
 	if (typeof value === 'number' && value >= 0 && value !== state.value.length) {
 		state.value.length = value;
 	}
 }
 
-function setAtIndex<Item>(state: ReactiveState<Item[], Item>, index: unknown, value: Item): void {
-	const actual = (index as number) < 0 ? state.value.length + (index as number) : (index as number);
+function setArrayValue<Value, Item = Value>(state: ReactiveState<Value, Item>, value: Value): void {
+	(state.value as unknown[]).splice(
+		0,
+		(state.value as unknown[]).length,
+		...((value as unknown[]) ?? []),
+	);
+}
+
+function setAtIndex<Value, Item = Value>(
+	state: ReactiveState<Value, Item>,
+	index: unknown,
+	value: Item,
+): void {
+	const actual =
+		(index as number) < 0
+			? (state.value as unknown[]).length + (index as number)
+			: (index as number);
 
 	if (actual > -1) {
-		state.value[actual] = value;
+		(state.value as unknown[])[actual] = value;
 	}
 }
 
@@ -274,7 +280,7 @@ function updateArray<Item>(
 	const previousArray = affectsLength ? [] : array.slice();
 	const previousLength = array.length;
 
-	return (...args: unknown[]): unknown => {
+	return (...args: unknown[]) => {
 		const result = (array[type as never] as (...args: unknown[]) => unknown)(...args);
 
 		if (
@@ -289,14 +295,4 @@ function updateArray<Item>(
 	};
 }
 
-function updateArrayValue<Item>(
-	instance: ReactiveArray<Item>,
-	state: ReactiveState<Item[], Item>,
-	callback: (value: Item[]) => Item[],
-): void {
-	const updated = callback(state.value);
-
-	if (updated == null || Array.isArray(updated)) {
-		instance.set(updated);
-	}
-}
+// #endregion

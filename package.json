@@ -39,17 +39,17 @@
 		"test:leak": "vpx vp test run --detect-async-leaks --coverage"
 	},
 	"dependencies": {
-		"@oscarpalmer/atoms": "^0.190"
+		"@oscarpalmer/atoms": "^0.202"
 	},
 	"devDependencies": {
-		"@types/node": "^26.2",
-		"@vitest/coverage-istanbul": "4.1.10",
+		"@types/node": "^26.5",
+		"@vitest/coverage-istanbul": "^4.1",
 		"jsdom": "^30",
-		"tsdown": "^0.22",
+		"tsdown": "^0.23",
 		"typescript": "^6",
 		"vite": "npm:@voidzero-dev/vite-plus-core@latest",
 		"vite-plus": "latest",
 		"vitest": "npm:@voidzero-dev/vite-plus-test@latest"
 	},
-	"packageManager": "npm@11.11.1"
+	"packageManager": "npm@11.19.0"
 }

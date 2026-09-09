@@ -2,6 +2,8 @@ import {BATCH} from './constants';
 import {runEffect} from './effect';
 import type {EffectState, Subscription} from './models';
 
+// #region Functions
+
 export function flushHandlers(): void {
 	if (BATCH.flushing) {
 		return;
@@ -50,3 +52,5 @@ export function stopBatch(): void {
 
 	flushHandlers();
 }
+
+// #endregion

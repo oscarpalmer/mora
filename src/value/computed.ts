@@ -1,3 +1,4 @@
+import type {GenericCallback} from '@oscarpalmer/atoms/models';
 import {flushHandlers} from '../batch';
 import {
 	ACTIVE,
@@ -7,12 +8,46 @@ import {
 	SUBSCRIPTION_TYPE_FROZEN,
 	SUBSCRIPTION_TYPES,
 	SUBSCRIPTION_TYPES_COPY,
+	SYMBOL_EFFECT,
+	SYMBOL_STATE,
 } from '../constants';
 import {internalEffect, runEffect} from '../effect';
+import {getState} from '../helpers/misc';
 import {subscribeToSignal} from '../helpers/subscription';
-import {handleSimpleValue, peekSimpleValue} from '../helpers/value';
+import {getStringValue, handleSimpleValue, peekSimpleValue} from '../helpers/value';
 import type {Computed, ComputedEffect, ReactiveOptions, ReactiveState} from '../models';
-import {reactive} from './reactive';
+
+// #region Instance
+
+function Computed<Value>(this: any, callback: GenericCallback, options?: ReactiveOptions<Value>) {
+	this[SYMBOL_STATE] = getState<Value, Value>(undefined as never, options);
+
+	this[SYMBOL_EFFECT] = getComputedEffect(this[SYMBOL_STATE], callback);
+}
+
+Computed.prototype[NAME_MORA] = NAME_COMPUTED;
+
+Computed.prototype.get = function () {
+	return getValue(this[SYMBOL_STATE], this[SYMBOL_EFFECT]);
+};
+
+Computed.prototype.peek = function (copy?: never) {
+	return peekSimpleValue(this[SYMBOL_STATE].value, copy === true);
+};
+
+Computed.prototype.subscribe = function (subscriber: never, copy?: never) {
+	return subscribeToSignal(this[SYMBOL_STATE], subscriber, copy === true);
+};
+
+Computed.prototype.toJSON = function () {
+	return this[SYMBOL_STATE].value;
+};
+
+Computed.prototype.toString = function (json?: boolean) {
+	return getStringValue(this[SYMBOL_STATE], json);
+};
+
+// #endregion
 
 // #region Functions
 
@@ -38,25 +73,10 @@ function getComputed<Value>(
 		throw new TypeError('Computed callback must be a function');
 	}
 
-	const [rx, state] = reactive<Value>(undefined as never, options);
+	// @ts-expect-error All good, no worries :-)
+	const instance = new Computed(callback, options);
 
-	let fx: ComputedEffect;
-
-	const instance = {
-		...rx,
-		get: () => getValue(state, fx),
-		peek: (copy?: never) => peekSimpleValue(state.value, copy === true),
-		subscribe: (subscriber: never, copy?: never) =>
-			subscribeToSignal(state, subscriber, copy === true),
-	};
-
-	Object.defineProperty(instance, NAME_MORA, {
-		value: NAME_COMPUTED,
-	});
-
-	fx = getComputedEffect(state, callback);
-
-	return [Object.freeze(instance) as never, fx];
+	return [instance as never, instance[SYMBOL_EFFECT]];
 }
 
 function getComputedEffect<Value>(
@@ -87,10 +107,14 @@ function getComputedEffect<Value>(
 
 function getValue<Value>(state: ReactiveState<Value, Value>, fx: ComputedEffect): Value {
 	if (ACTIVE.computed != null && fx !== ACTIVE.computed) {
+		state.computeds ??= new Set();
+
 		state.computeds.add(ACTIVE.computed);
 	}
 
 	if (ACTIVE.effect != null && ACTIVE.effect !== fx.instance) {
+		state.effects ??= new Set();
+
 		state.effects.add(ACTIVE.effect);
 	}
 
@@ -115,12 +139,16 @@ function setAndEmit<Value>(state: ReactiveState<Value, Value>, value: Value): vo
 
 	state.value = value;
 
-	for (const computed of state.computeds) {
-		computed.dirty = true;
+	if (state.computeds != null) {
+		for (const computed of state.computeds) {
+			computed.dirty = true;
+		}
 	}
 
-	for (const effect of state.effects) {
-		BATCH.handlers.set(effect, effect);
+	if (state.effects != null) {
+		for (const effect of state.effects) {
+			BATCH.handlers.set(effect, effect);
+		}
 	}
 
 	for (const type of SUBSCRIPTION_TYPES) {

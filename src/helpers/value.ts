@@ -15,12 +15,16 @@ import type {ReactiveState} from '../models';
 // #region Functions
 
 export function emitValue<Value>(state: ReactiveState<Value, never>): void {
-	for (const computed of state.computeds) {
-		computed.dirty = true;
+	if (state.computeds != null) {
+		for (const computed of state.computeds) {
+			computed.dirty = true;
+		}
 	}
 
-	for (const effect of state.effects) {
-		BATCH.handlers.set(effect, effect);
+	if (state.effects != null) {
+		for (const effect of state.effects) {
+			BATCH.handlers.set(effect, effect);
+		}
 	}
 
 	for (const type of SUBSCRIPTION_TYPES) {
@@ -92,14 +96,25 @@ export function getFrozenValue(value: unknown): unknown {
 
 export function getSimpleValue<Value>(state: ReactiveState<Value, never>): Value {
 	if (ACTIVE.computed != null) {
+		state.computeds ??= new Set();
+
 		state.computeds.add(ACTIVE.computed);
 	}
 
 	if (ACTIVE.effect != null) {
+		state.effects ??= new Set();
+
 		state.effects.add(ACTIVE.effect);
 	}
 
 	return state.value;
+}
+
+export function getStringValue<Value, Item = Value>(
+	state: ReactiveState<Value, Item>,
+	json?: boolean,
+): string {
+	return json === true ? JSON.stringify(state.value) : String(state.value);
 }
 
 export function handleSimpleValue<Value>(

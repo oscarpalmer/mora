@@ -128,6 +128,14 @@ test('signal', () => {
 	expect(b.peek()).toBe(1);
 	expect(c.peek()).toBe(1);
 
+	expect(a.toJSON()).toBe(1);
+	expect(b.toJSON()).toBe(1);
+	expect(c.toJSON()).toBe(1);
+
+	expect(a.toString()).toBe('1');
+	expect(b.toString()).toBe('1');
+	expect(c.toString()).toBe('1');
+
 	expect(() => {
 		(b as any).set(2);
 	}).toThrow();

@@ -1,15 +1,60 @@
-import {NAME_MORA, NAME_SIGNAL} from '../constants';
+import {NAME_MORA, NAME_SIGNAL, SYMBOL_STATE} from '../constants';
+import {getState} from '../helpers/misc';
 import {subscribeToSignal} from '../helpers/subscription';
 import {
 	emitValue,
 	getSimpleValue,
+	getStringValue,
 	handleSimpleValue,
 	peekSimpleValue,
 	updateSimpleValue,
 } from '../helpers/value';
-import type {ReactiveOptions, ReactiveState, ReadonlyInstances, Signal} from '../models';
-import {reactive} from './reactive';
+import type {ReactiveOptions, ReactiveState, Signal} from '../models';
 import {getReadonlyInstance} from './readonly';
+
+// #region Instance
+
+function Signal<Value>(this: any, value: never, options?: ReactiveOptions<Value>) {
+	this[SYMBOL_STATE] = getState<Value, Value>(undefined as never, options);
+
+	handleSimpleValue(this[SYMBOL_STATE], value, setAndEmit);
+}
+
+Signal.prototype[NAME_MORA] = NAME_SIGNAL;
+
+Signal.prototype.asReadonly = function (frozen?: never) {
+	return getReadonlyInstance(this[SYMBOL_STATE], frozen === true);
+};
+
+Signal.prototype.get = function () {
+	return getSimpleValue(this[SYMBOL_STATE]);
+};
+
+Signal.prototype.peek = function (copy?: boolean) {
+	return peekSimpleValue(this[SYMBOL_STATE].value, copy === true);
+};
+
+Signal.prototype.set = function (value: never) {
+	return handleSimpleValue(this[SYMBOL_STATE], value, setAndEmit);
+};
+
+Signal.prototype.subscribe = function (subscriber: never, copy?: never) {
+	return subscribeToSignal(this[SYMBOL_STATE], subscriber, copy === true);
+};
+
+Signal.prototype.toJSON = function () {
+	return this[SYMBOL_STATE].value;
+};
+
+Signal.prototype.toString = function (json?: boolean) {
+	return getStringValue(this[SYMBOL_STATE], json);
+};
+
+Signal.prototype.update = function (callback: never) {
+	return updateSimpleValue(this[SYMBOL_STATE], callback, setAndEmit);
+};
+
+// #endregion
 
 // #region Functions
 
@@ -54,32 +99,9 @@ export function signal<Value>(
  */
 export function signal<Value>(value: Value, options?: ReactiveOptions<Value>): Signal<Value>;
 
-export function signal<Value>(
-	value: Value | (() => Value | Promise<Value>) | Promise<Value>,
-	options?: ReactiveOptions<Value>,
-): Signal<Value> {
-	const [rx, state] = reactive<Value>(undefined as unknown as Value, options);
-
-	const readonlies: ReadonlyInstances<Value> = {};
-
-	const instance = {
-		...rx,
-		asReadonly: (frozen?: never) => getReadonlyInstance(state, readonlies, frozen === true),
-		get: () => getSimpleValue(state),
-		peek: (copy?: boolean) => peekSimpleValue(state.value, copy === true),
-		set: (value: never) => handleSimpleValue(state, value, setAndEmit),
-		subscribe: (subscriber: never, copy?: never) =>
-			subscribeToSignal(state, subscriber, copy === true),
-		update: (callback: never) => updateSimpleValue(state, callback, setAndEmit),
-	};
-
-	Object.defineProperty(instance, NAME_MORA, {
-		value: NAME_SIGNAL,
-	});
-
-	handleSimpleValue(state, value, setAndEmit);
-
-	return Object.freeze(instance) as never;
+export function signal<Value>(value: unknown, options?: ReactiveOptions<Value>): Signal<Value> {
+	// @ts-expect-error All good, no worries :-)
+	return new Signal(value, options);
 }
 
 // #endregion

@@ -1,6 +1,7 @@
 import type {Key, PlainObject} from '@oscarpalmer/atoms/models';
 import {startBatch, stopBatch} from '../batch';
-import {NAME_MORA, NAME_STORE} from '../constants';
+import {NAME_MORA, NAME_STORE, SYMBOL_STATE} from '../constants';
+import {getState} from '../helpers/misc';
 import {
 	emitProxyValues,
 	getValueInProxy,
@@ -10,16 +11,68 @@ import {
 	updateProxyValue,
 } from '../helpers/proxy';
 import {subscribeToProxy} from '../helpers/subscription';
-import type {
-	Computed,
-	ComputedEffect,
-	ReactiveOptions,
-	ReactiveState,
-	ReactiveStore,
-	ReadonlyInstances,
-} from '../models';
-import {reactive} from './reactive';
+import {getStringValue} from '../helpers/value';
+import type {ReactiveOptions, ReactiveState, ReactiveStore} from '../models';
 import {getReadonlyInstance} from './readonly';
+
+// #region Instance
+
+function ReactiveStore<Value extends PlainObject>(
+	this: any,
+	value: never,
+	options?: ReactiveOptions<Value>,
+) {
+	this[SYMBOL_STATE] = {
+		...getState<Value, Value>(undefined as never, options),
+		isArray: false,
+	};
+
+	this[SYMBOL_STATE].value = new Proxy({} as Value, {
+		set: (target, property, value) => setValueInProxy(this[SYMBOL_STATE], target, property, value),
+	});
+
+	setProxyValue<Value>(this[SYMBOL_STATE], setStoreValue, setPropertyValue, value);
+}
+
+ReactiveStore.prototype[NAME_MORA] = NAME_STORE;
+
+ReactiveStore.prototype.asReadonly = function (frozen?: never) {
+	return getReadonlyInstance(this[SYMBOL_STATE], frozen === true);
+};
+
+ReactiveStore.prototype.get = function (value?: never) {
+	return getValueInProxy(this, this[SYMBOL_STATE], value);
+};
+
+ReactiveStore.prototype.notify = function () {
+	emitProxyValues(this[SYMBOL_STATE]);
+};
+
+ReactiveStore.prototype.peek = function (first?: never, second?: never) {
+	return peekValueInProxy(this[SYMBOL_STATE], first, second);
+};
+
+ReactiveStore.prototype.set = function (first?: never, second?: never) {
+	return setProxyValue(this[SYMBOL_STATE], setStoreValue, setPropertyValue, first, second);
+};
+
+ReactiveStore.prototype.subscribe = function (first: never, second?: never, third?: never) {
+	return subscribeToProxy(this, this[SYMBOL_STATE], first, second, third);
+};
+
+ReactiveStore.prototype.toJSON = function () {
+	return this[SYMBOL_STATE].value;
+};
+
+ReactiveStore.prototype.toString = function (json?: never) {
+	return getStringValue(this[SYMBOL_STATE], json);
+};
+
+ReactiveStore.prototype.update = function (callback: never) {
+	updateProxyValue(this[SYMBOL_STATE], setStoreValue, setPropertyValue, callback);
+};
+
+// #endregion
 
 // #region Functions
 
@@ -31,7 +84,7 @@ function setPropertyValue<Value extends PlainObject, Item = Value>(
 	(state.value as PlainObject)[key as Key] = value;
 }
 
-function setStoreValue<Value extends PlainObject, Item = Value>(
+function setStoreValue<Value, Item = Value>(
 	state: ReactiveState<Value, Item>,
 	value: PlainObject | undefined,
 ): void {
@@ -106,37 +159,8 @@ export function store<Value extends PlainObject>(
 	value: Value | (() => Value | Promise<Value>) | Promise<Value>,
 	options?: ReactiveOptions<Value>,
 ): ReactiveStore<Value> {
-	const [rx, state] = reactive<Value>(undefined as never, options);
-
-	const isArray = false;
-	const keyed = new Map<Key, [Computed<unknown>, ComputedEffect]>();
-	const readonlies: ReadonlyInstances<Value> = {};
-
-	state.value = new Proxy({} as Value, {
-		set: (target, property, value) => setValueInProxy(isArray, state, target, property, value),
-	});
-
-	const instance = {
-		...rx,
-		asReadonly: (frozen?: never) => getReadonlyInstance(state, readonlies, frozen === true),
-		get: (value?: never) => getValueInProxy(isArray, instance as never, state, keyed, value),
-		notify: () => emitProxyValues(state, keyed),
-		peek: (first?: never, second?: never) => peekValueInProxy(isArray, state, first, second),
-		set: (first?: never, second?: never) =>
-			setProxyValue<Value>(isArray, state, setStoreValue, setPropertyValue, first, second),
-		subscribe: (first: never, second?: never, third?: never) =>
-			subscribeToProxy(isArray, instance as never, state, keyed, first, second, third),
-		update: (callback: never) =>
-			updateProxyValue(isArray, state, setStoreValue, setPropertyValue, callback),
-	};
-
-	Object.defineProperty(instance, NAME_MORA, {
-		value: NAME_STORE,
-	});
-
-	instance.set(value as never);
-
-	return Object.freeze(instance) as never;
+	// @ts-expect-error All good, no worries :-)
+	return new ReactiveStore(value, options);
 }
 
 // #endregion

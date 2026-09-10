@@ -10,9 +10,8 @@ import {
 	SUBSCRIPTION_TYPES_COPY,
 } from '../constants';
 import type {
-	Computed,
-	ComputedEffect,
 	ReactiveArray,
+	ReactiveProxyState,
 	ReactiveState,
 	ReactiveStore,
 	Subscriber,
@@ -22,16 +21,14 @@ import {getReactiveValueInProxy} from './proxy';
 import {getFrozenValue, peekSimpleValue} from './value';
 
 export function subscribeToProxy<Value, Item = Value>(
-	isArray: boolean,
 	instance: ReactiveArray<Value> | ReactiveStore<Value>,
-	state: ReactiveState<Value, Item>,
-	mapped: Map<Key, [Computed<unknown>, ComputedEffect]>,
+	state: ReactiveProxyState<Value, Item>,
 	first: Key | Subscriber<unknown>,
 	second?: Subscriber<unknown> | boolean,
 	third?: boolean,
 ): Subscription {
 	if (isKey(first)) {
-		return getReactiveValueInProxy(instance as never, mapped, first, isArray).subscribe(
+		return getReactiveValueInProxy(instance as never, state, first).subscribe(
 			second as never,
 			third as never,
 		);

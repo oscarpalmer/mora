@@ -1,6 +1,18 @@
 import type {GenericCallback} from '@oscarpalmer/atoms/models';
-import {ACTIVE, NAME_EFFECT, NAME_MORA} from './constants';
+import {ACTIVE, NAME_EFFECT, NAME_MORA, SYMBOL_STATE} from './constants';
 import type {Effect, EffectState} from './models';
+
+// #region Instance
+
+function Effect(this: any, callback: GenericCallback) {
+	this[SYMBOL_STATE] = {callback};
+
+	runEffect(this[SYMBOL_STATE]);
+}
+
+Effect.prototype[NAME_MORA] = NAME_EFFECT;
+
+// #endregion
 
 // #region Functions
 
@@ -19,17 +31,10 @@ export function effect(callback: GenericCallback): Effect {
 }
 
 function getEffect(callback: GenericCallback): [Effect, EffectState] {
-	const state: EffectState = {
-		callback,
-	};
+	// @ts-expect-error All good, no worries :-)
+	const instance = new Effect(callback);
 
-	const instance = Object.freeze({
-		[NAME_MORA]: NAME_EFFECT,
-	});
-
-	runEffect(state);
-
-	return [instance, state];
+	return [instance, instance[SYMBOL_STATE]];
 }
 
 export function internalEffect(callback: GenericCallback): EffectState {

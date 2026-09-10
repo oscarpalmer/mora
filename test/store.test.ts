@@ -2,7 +2,7 @@ import {expect, test} from 'vitest';
 import {effect, store} from '../src';
 
 test('basic', () => {
-	const a = store({a: 1, b: 2, c: 3});
+	const stored = store({a: 1, b: 2, c: 3});
 
 	const counts = {
 		obj: 0,
@@ -10,63 +10,67 @@ test('basic', () => {
 	};
 
 	effect(() => {
-		a.get();
+		stored.get();
 
 		counts.obj += 1;
 	});
 
 	effect(() => {
-		a.get('a');
+		stored.get('a');
 
 		counts.a += 1;
 	});
 
 	expect(counts.obj).toBe(1);
 	expect(counts.a).toBe(1);
-	expect(a.peek()).toEqual({a: 1, b: 2, c: 3});
-	expect(a.peek('a')).toBe(1);
+	expect(stored.peek()).toEqual({a: 1, b: 2, c: 3});
+	expect(stored.peek('a')).toBe(1);
 
-	a.set({a: 1, b: 2, c: 4});
+	expect(stored.toJSON()).toEqual({a: 1, b: 2, c: 3});
+	expect(stored.toString()).toBe('[object Object]');
+	expect(stored.toString(true)).toBe('{"a":1,"b":2,"c":3}');
+
+	stored.set({a: 1, b: 2, c: 4});
 
 	expect(counts.obj).toBe(2);
 	expect(counts.a).toBe(1);
-	expect(a.peek()).toEqual({a: 1, b: 2, c: 4});
-	expect(a.peek('a')).toBe(1);
+	expect(stored.peek()).toEqual({a: 1, b: 2, c: 4});
+	expect(stored.peek('a')).toBe(1);
 
-	a.set({a: 1, b: 2, d: 99} as never);
+	stored.set({a: 1, b: 2, d: 99} as never);
 
 	expect(counts.obj).toBe(3);
 	expect(counts.a).toBe(1);
-	expect(a.peek()).toEqual({a: 1, b: 2, d: 99});
-	expect(a.peek('a')).toBe(1);
+	expect(stored.peek()).toEqual({a: 1, b: 2, d: 99});
+	expect(stored.peek('a')).toBe(1);
 
-	a.set('a', 123);
-
-	expect(counts.obj).toBe(4);
-	expect(counts.a).toBe(2);
-	expect(a.peek()).toEqual({a: 123, b: 2, d: 99});
-	expect(a.peek('a')).toBe(123);
-
-	a.set('a', 123);
+	stored.set('a', 123);
 
 	expect(counts.obj).toBe(4);
 	expect(counts.a).toBe(2);
-	expect(a.peek()).toEqual({a: 123, b: 2, d: 99});
-	expect(a.peek('a')).toBe(123);
+	expect(stored.peek()).toEqual({a: 123, b: 2, d: 99});
+	expect(stored.peek('a')).toBe(123);
 
-	a.set();
+	stored.set('a', 123);
+
+	expect(counts.obj).toBe(4);
+	expect(counts.a).toBe(2);
+	expect(stored.peek()).toEqual({a: 123, b: 2, d: 99});
+	expect(stored.peek('a')).toBe(123);
+
+	stored.set();
 
 	expect(counts.obj).toBe(5);
 	expect(counts.a).toBe(3);
-	expect(a.peek()).toEqual({});
-	expect(a.peek('a')).toBeUndefined();
+	expect(stored.peek()).toEqual({});
+	expect(stored.peek('a')).toBeUndefined();
 
-	a.set([] as never);
+	stored.set([] as never);
 
 	expect(counts.obj).toBe(5);
 	expect(counts.a).toBe(3);
-	expect(a.peek()).toEqual({});
-	expect(a.peek('a')).toBeUndefined();
+	expect(stored.peek()).toEqual({});
+	expect(stored.peek('a')).toBeUndefined();
 
 	expect(store('blah' as never).peek()).toEqual({});
 });
@@ -191,7 +195,7 @@ test('notify', () => {
 });
 
 test('peek', () => {
-	const obj = store({
+	const stored = store({
 		a: 1,
 		b: [2],
 		c: {
@@ -202,51 +206,51 @@ test('peek', () => {
 	const counts = [0, 0];
 
 	effect(() => {
-		obj.peek();
+		stored.peek();
 
 		counts[0] += 1;
 	});
 
 	effect(() => {
-		obj.peek('a');
+		stored.peek('a');
 
 		counts[1] += 1;
 	});
 
-	expect(obj.peek()).toEqual({a: 1, b: [2], c: {d: 3}});
+	expect(stored.peek()).toEqual({a: 1, b: [2], c: {d: 3}});
 	expect(counts[0]).toBe(1);
 
-	let o = obj.peek();
-	let a = obj.peek('a');
-	let b = obj.peek('b');
-	let c = obj.peek('c');
+	let o = stored.peek();
+	let a = stored.peek('a');
+	let b = stored.peek('b');
+	let c = stored.peek('c');
 
 	o.a = 11;
 	a = 99;
 	b[0] = 22;
 	c.d = 33;
 
-	expect(obj.peek()).toEqual({a: 11, b: [22], c: {d: 33}});
-	expect(obj.peek('a')).toBe(11);
-	expect(obj.peek('b')).toEqual([22]);
-	expect(obj.peek('c')).toEqual({d: 33});
+	expect(stored.peek()).toEqual({a: 11, b: [22], c: {d: 33}});
+	expect(stored.peek('a')).toBe(11);
+	expect(stored.peek('b')).toEqual([22]);
+	expect(stored.peek('c')).toEqual({d: 33});
 
 	expect(counts).toEqual([1, 1]);
 
-	o = obj.peek(true);
-	a = obj.peek('a', true);
-	b = obj.peek('b', true);
-	c = obj.peek('c', true);
+	o = stored.peek(true);
+	a = stored.peek('a', true);
+	b = stored.peek('b', true);
+	c = stored.peek('c', true);
 
 	o.a = 111;
 	a = 999;
 	b[0] = 222;
 	c.d = 333;
 
-	expect(obj.peek()).toEqual({a: 11, b: [22], c: {d: 33}});
-	expect(obj.peek('a')).toBe(11);
-	expect(obj.peek('b')).toEqual([22]);
-	expect(obj.peek('c')).toEqual({d: 33});
+	expect(stored.peek()).toEqual({a: 11, b: [22], c: {d: 33}});
+	expect(stored.peek('a')).toBe(11);
+	expect(stored.peek('b')).toEqual([22]);
+	expect(stored.peek('c')).toEqual({d: 33});
 
 	expect(counts).toEqual([1, 1]);
 });

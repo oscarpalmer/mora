@@ -30,18 +30,19 @@ export type EffectState = {
 
 export type Reactive<Value> = {
 	/**
-	 * JSON representation of the value
+	 * _JSON_ representation of the value
 	 *
-	 * @returns JSON value
+	 * @returns _JSON_ value
 	 */
 	toJSON(): Value;
 
 	/**
 	 * String representation of the value
 	 *
+	 * @param json When `true`, returns the _JSON_ string representation of the value _(defaults to `false`)_
 	 * @returns Value as string
 	 */
-	toString(): string;
+	toString(json?: boolean): string;
 };
 
 export type ReactiveArray<Item> = {
@@ -272,9 +273,15 @@ export type ReactiveOptions<Value> = {
 	equal?: (first: Value, second: Value) => boolean;
 };
 
+export type ReactiveProxyState<Value, Item = Value> = {
+	isArray: boolean;
+	length?: Signal<number>;
+	mapped?: Map<string, [Computed<unknown>, ComputedEffect]>;
+} & SignalState<Value, Item>;
+
 export type ReactiveState<Value, Item = Value> = {
-	computeds: Set<ComputedEffect>;
-	effects: Set<EffectState>;
+	computeds?: Set<ComputedEffect>;
+	effects?: Set<EffectState>;
 	equal: (first: Item, second: Item) => boolean;
 	promise?: Promise<Value>;
 	promises?: Map<Key, Promise<never>>;
@@ -430,7 +437,7 @@ export type ReactiveStore<Store> = {
 	update(callback: (value: Store) => Store): void;
 } & Reactive<Store>;
 
-export type ReadonlyInstances<Value> = {
+type ReadonlyInstances<Value> = {
 	frozen?: ReadonlyFrozenSignal<Value>;
 	original?: ReadonlySignal<Value>;
 };
@@ -485,6 +492,10 @@ export type Signal<Value> = {
 	update(callback: (value: Value) => Value): void;
 } & Reactive<Value> &
 	SimpleReactive<Value>;
+
+export type SignalState<Value, Item = Value> = {
+	readonlies?: ReadonlyInstances<Value>;
+} & ReactiveState<Value, Item>;
 
 type SimpleReactive<Value> = {
 	/**

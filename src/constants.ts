@@ -53,6 +53,10 @@ export const NAME_ALL = new Set([
 
 export const PROPERTY_LENGTH = 'length';
 
+export const SYMBOL_EFFECT = Symbol('effect');
+
+export const SYMBOL_STATE = Symbol('state');
+
 export const SUBSCRIPTION_PROPERTY = {
 	key: NAME_MORA,
 	value: NAME_SUBSCRIPTION,

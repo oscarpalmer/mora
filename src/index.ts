@@ -1,3 +1,4 @@
+export type {Subscription} from '@oscarpalmer/atoms/subscription';
 export {startBatch, stopBatch} from './batch';
 export {effect} from './effect';
 export {
@@ -16,7 +17,6 @@ export type {
 	ReactiveStore,
 	ReadonlySignal,
 	Signal,
-	Unsubscribe,
 } from './models';
 export {array} from './value/array';
 export {computed} from './value/computed';

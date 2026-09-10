@@ -89,6 +89,21 @@ test('batch', () => {
 	expect(count).toBe(2);
 });
 
+test('peek, copy', () => {
+	const value = signal([1, 2, 3]);
+	const squared = computed(() => value.get().map(x => x ** 2));
+
+	const peeked = squared.peek();
+	const copied = squared.peek(true);
+
+	expect(peeked).toEqual([1, 4, 9]);
+	expect(copied).toEqual([1, 4, 9]);
+	expect(copied).not.toBe(peeked);
+	expect(peeked).toBe(squared.peek());
+	expect(copied).not.toBe(squared.peek());
+	expect(copied).not.toBe(squared.peek(true));
+});
+
 test('promise', () =>
 	new Promise<void>(done => {
 		const count = {

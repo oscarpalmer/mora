@@ -1,9 +1,17 @@
 import {flushHandlers} from '../batch';
-import {ACTIVE, BATCH, NAME_COMPUTED, NAME_MORA} from '../constants';
+import {
+	ACTIVE,
+	BATCH,
+	NAME_COMPUTED,
+	NAME_MORA,
+	SUBSCRIPTION_TYPES_COPY,
+	SUBSCRIPTION_TYPE_FROZEN,
+	SUBSCRIPTION_TYPES,
+} from '../constants';
 import {internalEffect, runEffect} from '../effect';
-import {handleSimpleValue} from '../helpers/value';
+import {subscribeToSignal} from '../helpers/subscription';
+import {handleSimpleValue, peekSimpleValue} from '../helpers/value';
 import type {Computed, ComputedEffect, ReactiveOptions, ReactiveState} from '../models';
-import {subscribe} from '../subscription';
 import {reactive} from './reactive';
 
 // #region Functions
@@ -37,11 +45,8 @@ function getComputed<Value>(
 	const instance = {
 		...rx,
 		get: () => getValue(state, fx),
-		peek: () => state.value,
-		subscribe: (callback: never) => subscribe(state, callback),
-		unsubscribe: (callback: never) => {
-			state.subscriptions.delete(callback);
-		},
+		peek: (copy?: never) => peekSimpleValue(state.value, copy === true),
+		subscribe: (callback: never, copy?: never) => subscribeToSignal(state, callback, copy === true),
 	};
 
 	Object.defineProperty(instance, NAME_MORA, {
@@ -50,7 +55,7 @@ function getComputed<Value>(
 
 	fx = getComputedEffect(state, callback);
 
-	return [Object.freeze(instance), fx];
+	return [Object.freeze(instance) as never, fx];
 }
 
 function getComputedEffect<Value>(
@@ -114,11 +119,22 @@ function setAndEmit<Value>(state: ReactiveState<Value, Value>, value: Value): vo
 	}
 
 	for (const effect of state.effects) {
-		BATCH.handlers.add(effect);
+		BATCH.handlers.set(effect, effect);
 	}
 
-	for (const [, subscription] of state.subscriptions) {
-		subscription.callback(value);
+	for (const type of SUBSCRIPTION_TYPES) {
+		if (type === SUBSCRIPTION_TYPE_FROZEN) {
+			continue;
+		}
+
+		const copy = SUBSCRIPTION_TYPES_COPY.has(type);
+		const subscriptions = state.subscriptions?.values.to.keyed?.get(type);
+
+		if (subscriptions != null) {
+			for (const [, callback] of subscriptions) {
+				callback(peekSimpleValue(state.value, copy));
+			}
+		}
 	}
 
 	flushHandlers();

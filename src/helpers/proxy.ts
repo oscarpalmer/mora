@@ -1,4 +1,5 @@
-import type {Key, PlainObject} from '@oscarpalmer/atoms/models';
+import {isKey, isPlainObject} from '@oscarpalmer/atoms/is';
+import type {ArrayOrPlainObject, Key, PlainObject} from '@oscarpalmer/atoms/models';
 import {PROPERTY_LENGTH} from '../constants';
 import type {
 	Computed,
@@ -9,13 +10,9 @@ import type {
 	Signal,
 } from '../models';
 import {internalComputed} from '../value/computed';
-import {emitValue} from './value';
+import {emitValue, getSimpleValue, peekSimpleValue} from './value';
 
 // #region Types
-
-type IsObjectCallback<Value> = (value: unknown) => value is Value;
-
-type IsPropertyCallback = (value: unknown) => value is Key;
 
 type SetObjectCallback<Value, Item> = (
 	state: ReactiveState<Value, Item>,
@@ -69,31 +66,66 @@ export function getReactiveValueInProxy<Value>(
 	return item[0];
 }
 
-export function setProxyValue<Value, Item = Value>(
-	array: boolean,
+export function getValueInProxy<Value, Item = Value>(
+	isArray: boolean,
+	instance: ReactiveArray<Value> | ReactiveStore<Value>,
 	state: ReactiveState<Value, Item>,
-	isObject: IsObjectCallback<Value>,
-	isProperty: IsPropertyCallback,
+	mapped: Map<Key, [Computed<unknown>, ComputedEffect]>,
+	first?: unknown,
+): unknown {
+	if (isArray ? typeof first === 'number' : isKey(first)) {
+		return getReactiveValueInProxy(instance, mapped, first as Key, isArray).get();
+	}
+
+	return getSimpleValue(state);
+}
+
+function isProxyObject(isArray: boolean, value: unknown): value is ArrayOrPlainObject {
+	return value == null || (isArray ? Array.isArray(value) : isPlainObject(value));
+}
+
+export function peekValueInProxy<Value, Item = Value>(
+	isArray: boolean,
+	state: ReactiveState<Value, Item>,
+	first?: unknown,
+	second?: boolean,
+): unknown {
+	let value: unknown;
+
+	if (isArray ? typeof first === 'number' : isKey(first)) {
+		value = isArray
+			? (state.value as unknown[]).at(first as number)
+			: (state.value as PlainObject)[first as Key];
+	} else {
+		value = state.value;
+	}
+
+	return peekSimpleValue(value, first === true || second === true);
+}
+
+export function setProxyValue<Value, Item = Value>(
+	isArray: boolean,
+	state: ReactiveState<Value, Item>,
 	setObject: SetObjectCallback<Value, Item>,
 	setProperty: SetPropertyCallback<Value, Item>,
 	first?: unknown,
 	second?: unknown,
 ): void {
-	if (array && first === PROPERTY_LENGTH) {
+	if (isArray && first === PROPERTY_LENGTH) {
 		(state.value as unknown[]).length = second as number;
 
 		return;
 	}
 
-	if (isObject(first)) {
-		setObject(state, first);
+	if (isProxyObject(isArray, first)) {
+		setObject(state, first as Value);
 
 		return;
 	}
 
-	const property = isProperty(first);
+	const property = isArray ? typeof first === 'number' : isKey(first);
 
-	if (array && property && Number.isNaN(first)) {
+	if (isArray && property && Number.isNaN(first)) {
 		return;
 	}
 
@@ -126,10 +158,10 @@ export function setProxyValue<Value, Item = Value>(
 					return;
 				}
 
-				if (!property && isObject(value) && state.promise === actual) {
+				if (!property && isProxyObject(isArray, value) && state.promise === actual) {
 					state.promise = undefined;
 
-					setObject(state, value);
+					setObject(state, value as Value);
 				}
 			})
 			.catch(() => {
@@ -141,8 +173,8 @@ export function setProxyValue<Value, Item = Value>(
 			});
 	} else if (property) {
 		setProperty(state, first, actual as Item);
-	} else if (isObject(actual)) {
-		setObject(state, actual);
+	} else if (isProxyObject(isArray, actual)) {
+		setObject(state, actual as Value);
 	}
 }
 
@@ -179,10 +211,8 @@ export function setValueInProxy<Value, Item = Value>(
 }
 
 export function updateProxyValue<Value, Item = Value>(
-	array: boolean,
+	isArray: boolean,
 	state: ReactiveState<Value, Item>,
-	isObject: IsObjectCallback<Value>,
-	isProperty: IsPropertyCallback,
 	setObject: SetObjectCallback<Value, Item>,
 	setProperty: SetPropertyCallback<Value, Item>,
 	callback: unknown,
@@ -191,7 +221,7 @@ export function updateProxyValue<Value, Item = Value>(
 		throw new TypeError('Callback must be a function');
 	}
 
-	setProxyValue(array, state, isObject, isProperty, setObject, setProperty, callback(state.value));
+	setProxyValue(isArray, state, setObject, setProperty, callback(state.value));
 }
 
 // #endregion

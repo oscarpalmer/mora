@@ -132,3 +132,33 @@ test('signal', () => {
 		(b as any).set(2);
 	}).toThrow();
 });
+
+test('subscriptions', () => {
+	function onSubscription() {
+		count += 1;
+	}
+
+	const value = signal(1);
+	const readonly = value.asReadonly();
+	const frozen = value.asReadonly(true);
+
+	let count = 0;
+
+	const valueSubscription = value.subscribe(onSubscription);
+	const readonlySubscription = readonly.subscribe(onSubscription);
+	const frozenSubscription = frozen.subscribe(onSubscription);
+
+	expect(count).toBe(3);
+
+	value.set(2);
+
+	expect(count).toBe(6);
+
+	valueSubscription.unsubscribe();
+	readonlySubscription.unsubscribe();
+	frozenSubscription.unsubscribe();
+
+	value.set(3);
+
+	expect(count).toBe(6);
+});

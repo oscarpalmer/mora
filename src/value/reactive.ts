@@ -13,7 +13,6 @@ export function reactive<Value, Item = Value>(
 			typeof options === 'object' && typeof options?.equal === 'function'
 				? options.equal
 				: Object.is,
-		subscriptions: new Map(),
 		value: value as Value,
 	};
 

@@ -1,4 +1,5 @@
 import type {GenericCallback, Key, PlainObject} from '@oscarpalmer/atoms/models';
+import type {Subscription, Subscriptions} from '@oscarpalmer/atoms/subscription';
 import type {PROPERTY_LENGTH} from './constants';
 
 // #region Types
@@ -11,7 +12,7 @@ export type Active = {
 export type Batch = {
 	depth: number;
 	flushing: boolean;
-	handlers: Set<EffectState | Subscription>;
+	handlers: Map<EffectState | Subscription, EffectState | StoredSubscription>;
 };
 
 export type Computed<Value> = Reactive<Value> & SimpleReactive<Value>;
@@ -230,18 +231,24 @@ export type ReactiveArray<Item> = {
 	 * Subscribe to changes
 	 *
 	 * @param callback Callback for changes
-	 * @returns Unsubscribe callback
+	 * @param copy Copy the array? _(defaults to `false`)_
+	 * @returns Subscription
 	 */
-	subscribe(callback: (value: Item[]) => void): Unsubscribe;
+	subscribe(callback: (value: Item[]) => void, copy?: boolean): Subscription;
 
 	/**
 	 * Subscribe to changes at a specific index
 	 *
 	 * @param index Index of item to subscribe to
 	 * @param callback Callback for changes
-	 * @returns Unsubscribe callback
+	 * @param copy If the item is an array or record, should it be copied? _(defaults to `false`)_
+	 * @returns Subscription
 	 */
-	subscribe(index: number, callback: (value: Item | undefined) => void): Unsubscribe;
+	subscribe(
+		index: number,
+		callback: (value: Item | undefined) => void,
+		copy?: boolean,
+	): Subscription;
 
 	/**
 	 * Add items to the beginning of the array
@@ -249,21 +256,6 @@ export type ReactiveArray<Item> = {
 	 * @returns New array length
 	 */
 	unshift(...items: Item[]): number;
-
-	/**
-	 * Unsubscribe from changes for a specific index
-	 *
-	 * @param index Index of the value to unsubscribe from
-	 * @param callback Callback to unsubscribe
-	 */
-	unsubscribe(index: number, callback: (item: Item | undefined) => void): void;
-
-	/**
-	 * Unsubscribe from changes
-	 *
-	 * @param callback Callback to unsubscribe
-	 */
-	unsubscribe(callback: (array: Item[]) => void): void;
 
 	/**
 	 * Update the value _(based on the current value)_
@@ -290,7 +282,7 @@ export type ReactiveState<Value, Item = Value> = {
 	equal: (first: Item, second: Item) => boolean;
 	promise?: Promise<Value>;
 	promises?: Map<Key, Promise<never>>;
-	subscriptions: Map<GenericCallback, Subscription>;
+	subscriptions?: Subscriptions<GenericCallback>;
 	value: Value;
 };
 
@@ -405,56 +397,34 @@ export type ReactiveStore<Store> = {
 	 * Subscribe to changes
 	 *
 	 * @param callback Callback for changes
-	 * @returns Unsubscribe callback
+	 * @param copy Copy the store? _(defaults to `false`)_
+	 * @returns Subscription
 	 */
-	subscribe(callback: (value: Store) => void): Unsubscribe;
+	subscribe(callback: (value: Store) => void, copy?: boolean): Subscription;
 
 	/**
 	 * Subscribe to changes for a specific key
 	 *
 	 * @param key Key of the value to subscribe to
 	 * @param callback Callback for changes
-	 * @returns Unsubscribe callback
+	 * @param copy If the value is an array or record, should it be copied? _(defaults to `false`)_
+	 * @returns Subscription
 	 */
 	subscribe<Key extends keyof Store>(
 		key: Key,
 		callback: (value: Store[Key] | undefined) => void,
-	): Unsubscribe;
+		copy?: boolean,
+	): Subscription;
 
 	/**
 	 * Subscribe to changes for a specific key
 	 *
 	 * @param key Key of the value to subscribe to
 	 * @param callback Callback for changes
-	 * @returns Unsubscribe callback
+	 * @param copy If the value is an array or record, should it be copied? _(defaults to `false`)_
+	 * @returns Subscription
 	 */
-	subscribe(key: Key, callback: (value: unknown) => void): Unsubscribe;
-
-	/**
-	 * Unsubscribe from changes for a specific key
-	 *
-	 * @param key Key of the value to unsubscribe from
-	 * @param callback Callback to unsubscribe
-	 */
-	unsubscribe<Key extends keyof Store>(
-		key: Key,
-		callback: (value: Store[Key] | undefined) => void,
-	): void;
-
-	/**
-	 * Unsubscribe from changes for a specific key
-	 *
-	 * @param key Key of the value to unsubscribe from
-	 * @param callback Callback to unsubscribe
-	 */
-	unsubscribe(key: Key, callback: (value: unknown | undefined) => void): void;
-
-	/**
-	 * Unsubscribe from changes
-	 *
-	 * @param callback Callback to unsubscribe
-	 */
-	unsubscribe(callback: (value: Store) => void): void;
+	subscribe(key: Key, callback: (value: unknown) => void, copy?: boolean): Subscription;
 
 	/**
 	 * Update the value _(based on the current value)_
@@ -531,36 +501,28 @@ type SimpleReactive<Value> = {
 	/**
 	 * Get the value _(without reactivity)_
 	 *
+	 * @param copy If the value is an array or record, should it be copied? _(defaults to `false`)_
 	 * @returns Current value
 	 */
-	peek(): Value;
+	peek(copy?: boolean): Value;
 
 	/**
 	 * Subscribe to changes
 	 *
 	 * @param callback Callback for changes
-	 * @returns Unsubscribe callback
+	 * @param copy If the value is an array or record, should it be copied? _(defaults to `false`)_
+	 * @returns Subscription
 	 */
-	subscribe(callback: (value: Value) => void): Unsubscribe;
-
-	/**
-	 * Unsubscribe from changes
-	 *
-	 * @param callback Callback to unsubscribe
-	 */
-	unsubscribe(callback: (value: Value) => void): void;
+	subscribe(callback: (value: Value) => void, copy?: boolean): Subscription;
 };
 
-export type Subscription = {
+export type StoredSubscription = {
 	callback: GenericCallback;
+	copy: boolean;
+	frozen: boolean;
 	state: ReactiveState<unknown, never>;
-
-	destroy(): void;
 };
 
-/**
- * Unsubscribe from changes
- */
-export type Unsubscribe = () => void;
+export type SubscriptionType = 'copy' | 'frozen' | 'original' | 'readonly';
 
 // #endregion

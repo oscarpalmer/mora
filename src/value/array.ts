@@ -1,8 +1,5 @@
 import {select} from '@oscarpalmer/atoms/array';
 import {filter} from '@oscarpalmer/atoms/array/filter';
-import {noop} from '@oscarpalmer/atoms/function';
-import {isPlainObject} from '@oscarpalmer/atoms/is';
-import type {Key} from '@oscarpalmer/atoms/models';
 import {
 	METHODS_AFFECTING_LENGTH,
 	METHODS_UPDATE,
@@ -12,12 +9,14 @@ import {
 } from '../constants';
 import {
 	emitProxyValues,
-	getReactiveValueInProxy,
+	getValueInProxy,
+	peekValueInProxy,
 	setProxyValue,
 	setValueInProxy,
 	updateProxyValue,
 } from '../helpers/proxy';
-import {emitValue, equalArrays, getSimpleValue} from '../helpers/value';
+import {subscribeToProxy} from '../helpers/subscription';
+import {emitValue, equalArrays} from '../helpers/value';
 import type {
 	Computed,
 	ComputedEffect,
@@ -27,7 +26,6 @@ import type {
 	ReadonlyInstances,
 	Signal,
 } from '../models';
-import {subscribe, unsubscribe} from '../subscription';
 import {computed} from './computed';
 import {reactive} from './reactive';
 import {getReadonlyInstance} from './readonly';
@@ -74,12 +72,10 @@ export function array<Item>(
 ): ReactiveArray<Item> {
 	const [rx, state] = reactive<Item[], Item>([], options);
 
-	const indiced = new Map<number, [Computed<unknown>, ComputedEffect]>();
 	const isArray = true;
 	const length = signal(0);
+	const mapped = new Map<number, [Computed<unknown>, ComputedEffect]>();
 	const readonlies: ReadonlyInstances<Item[]> = {};
-
-	let instance: Record<string, unknown> = {};
 
 	state.value = new Proxy([], {
 		get: (target: Item[], property: PropertyKey) =>
@@ -96,60 +92,27 @@ export function array<Item>(
 	function get(value?: unknown): number | Item | Item[] | undefined;
 
 	function get(value?: unknown): unknown {
-		return getArrayValue(instance as never, indiced, state, length, value);
+		return value === PROPERTY_LENGTH
+			? length.get()
+			: getValueInProxy(isArray, instance as never, state, mapped, value);
 	}
 
 	function set(first?: never, second?: never): void {
-		setProxyValue<Item[], Item>(
-			true,
-			state,
-			isArrayValue,
-			isArrayIndex,
-			setArrayValue,
-			setAtIndex,
-			first,
-			second,
-		);
+		setProxyValue<Item[], Item>(true, state, setArrayValue, setAtIndex, first, second);
 	}
 
-	const handlers = {
+	const instance = {
 		...rx,
-		get: (value?: never) => get(value),
-		peek: (first?: never, second?: never) => peekArrayValue(state, length, first, second),
-		subscribe: (first: never, second?: never) => {
-			if (typeof first === 'number' && typeof second === 'function') {
-				return getReactiveValueInProxy(
-					instance as ReactiveArray<Item>,
-					indiced,
-					first,
-					true,
-				).subscribe(second);
-			}
-
-			return typeof first === 'function' ? subscribe(state, first) : noop;
-		},
-		unsubscribe: (first: never, second?: never) => {
-			if (typeof first === 'number' && typeof second === 'function') {
-				getReactiveValueInProxy(instance as ReactiveArray<Item>, indiced, first, true)?.unsubscribe(
-					second,
-				);
-			} else if (typeof first === 'function') {
-				unsubscribe(state, first);
-			}
-		},
-	};
-
-	instance = {
-		...handlers,
-		asReadonly: (frozen?: never) =>
-			getReadonlyInstance(state, readonlies, handlers, frozen === true),
+		asReadonly: (frozen?: never) => getReadonlyInstance(state, readonlies, frozen === true),
 		at: (index: never) => get(index),
 		clear: () => {
 			state.value.length = 0;
 		},
 		filter: (callback: never) => computed(() => filter(get(), callback)),
+		get: (value?: never) => get(value),
 		map: (callback: never) => computed(() => get().map(callback)),
-		notify: () => emitProxyValues(state, indiced),
+		notify: () => emitProxyValues(state, mapped),
+		peek: (first?: never, second?: never) => peekArrayValue(state, length, first, second),
 		pop: () => state.value.pop(),
 		push: (...items: Item[]) => state.value.push(...items),
 		select: (filter: never, map: never) => computed(() => select(get(), filter, map)),
@@ -157,17 +120,10 @@ export function array<Item>(
 		shift: () => state.value.shift(),
 		splice: (from: never, to?: never, ...items: Item[]) =>
 			state.value.splice(from, to ?? state.value.length, ...items),
+		subscribe: (first: never, second?: never, third?: never) =>
+			subscribeToProxy(isArray, instance as never, state, mapped, first, second, third),
 		unshift: (...items: Item[]) => state.value.unshift(...items),
-		update: (callback: never) =>
-			updateProxyValue(
-				true,
-				state,
-				isArrayValue,
-				isArrayIndex,
-				setArrayValue,
-				setAtIndex,
-				callback,
-			),
+		update: (callback: never) => updateProxyValue(true, state, setArrayValue, setAtIndex, callback),
 	};
 
 	Object.defineProperties(instance, {
@@ -183,29 +139,7 @@ export function array<Item>(
 
 	set(value as never);
 
-	return Object.freeze(instance) as ReactiveArray<Item>;
-}
-
-function getArrayValue<Item>(
-	instance: ReactiveArray<Item>,
-	indiced: Map<number, [Computed<unknown>, ComputedEffect]>,
-	state: ReactiveState<Item[], Item>,
-	length: Signal<number>,
-	first?: unknown,
-): unknown {
-	if (typeof first === 'number') {
-		return getReactiveValueInProxy(instance, indiced, first, true).get();
-	}
-
-	return first === PROPERTY_LENGTH ? length.get() : getSimpleValue(state);
-}
-
-function isArrayIndex(value: unknown): value is Key {
-	return typeof value === 'number';
-}
-
-function isArrayValue<Item>(value: unknown): value is Item[] {
-	return value == null || Array.isArray(value);
+	return Object.freeze(instance) as never;
 }
 
 function peekArrayValue<Item>(
@@ -213,36 +147,17 @@ function peekArrayValue<Item>(
 	length: Signal<number>,
 	first?: unknown,
 	second?: boolean,
-): number | Item | Item[] | undefined {
-	if (first === PROPERTY_LENGTH) {
-		return length.peek();
-	}
-
-	let value: Item | Item[] | undefined;
-
-	if (typeof first === 'number') {
-		value = state.value.at(first);
-	} else {
-		value = state.value;
-	}
-
-	if (!(first === true || second === true)) {
-		return value;
-	}
-
-	if (Array.isArray(value)) {
-		return value.slice();
-	}
-
-	if (isPlainObject(value)) {
-		return {...value};
-	}
-
-	return value;
+): unknown {
+	return first === PROPERTY_LENGTH ? length.peek() : peekValueInProxy(true, state, first, second);
 }
 
 function setArrayLength<Item>(state: ReactiveState<Item[], Item>, value: number): void {
-	if (typeof value === 'number' && value >= 0 && value !== state.value.length) {
+	if (
+		typeof value === 'number' &&
+		!Number.isNaN(value) &&
+		value >= 0 &&
+		value !== state.value.length
+	) {
 		state.value.length = value;
 	}
 }

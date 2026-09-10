@@ -1,6 +1,7 @@
 import {BATCH} from './constants';
 import {runEffect} from './effect';
-import type {EffectState, Subscription} from './models';
+import {getFrozenValue, peekSimpleValue} from './helpers/value';
+import type {EffectState, StoredSubscription} from './models';
 
 // #region Functions
 
@@ -19,10 +20,15 @@ export function flushHandlers(): void {
 			BATCH.handlers.clear();
 
 			for (let index = 0; index < length; index += 1) {
-				const handler = handlers[index];
+				const [, handler] = handlers[index];
+				const subscription = handler as StoredSubscription;
 
-				if (typeof (handler as Subscription).destroy === 'function') {
-					(handler as Subscription).callback((handler as Subscription).state.value);
+				if (typeof subscription.frozen === 'boolean') {
+					subscription.callback(
+						subscription.frozen
+							? getFrozenValue(subscription.state.value)
+							: peekSimpleValue(subscription.state.value, subscription.copy),
+					);
 				} else {
 					runEffect(handler as EffectState);
 				}

@@ -1,5 +1,5 @@
 import type {GenericCallback} from '@oscarpalmer/atoms/models';
-import {ACTIVE, NAME_EFFECT} from './constants';
+import {ACTIVE, NAME_EFFECT, NAME_MORA} from './constants';
 import type {Effect, EffectState} from './models';
 
 // #region Functions
@@ -24,7 +24,7 @@ function getEffect(callback: GenericCallback): [Effect, EffectState] {
 	};
 
 	const instance = Object.freeze({
-		$mora: NAME_EFFECT,
+		[NAME_MORA]: NAME_EFFECT,
 	});
 
 	runEffect(state);

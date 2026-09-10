@@ -553,15 +553,15 @@ test('subscription', () => {
 		item: [0, 0],
 	};
 
-	a.subscribe(onArray);
+	const arraySubscriptionOne = a.subscribe(onArray);
 
-	const unsubscribeArray = a.subscribe(() => {
+	const arraySubscriptionTwo = a.subscribe(() => {
 		counts.array[0] += 1;
 	});
 
-	a.subscribe(0, onFirst);
+	const firstSubscriptionOne = a.subscribe(0, onFirst);
 
-	const unsubscribeFirst = a.subscribe(0, () => {
+	const firstSubscriptionTwo = a.subscribe(0, () => {
 		counts.item[0] += 1;
 	});
 
@@ -578,19 +578,19 @@ test('subscription', () => {
 	expect(counts.array).toEqual([3, 3]);
 	expect(counts.item).toEqual([2, 2]);
 
-	unsubscribeArray();
-	unsubscribeFirst();
+	arraySubscriptionTwo.unsubscribe();
+	firstSubscriptionTwo.unsubscribe();
 
-	a.unsubscribe(onArray);
-	a.unsubscribe(0, onFirst);
-	a.unsubscribe('blah' as never);
+	arraySubscriptionOne.unsubscribe();
+	firstSubscriptionOne.unsubscribe();
 
 	a.set([1, 2, 3]);
 
 	expect(counts.array).toEqual([3, 3]);
 	expect(counts.item).toEqual([2, 2]);
 
-	expect(a.subscribe('blah' as never, () => {})).toBeTypeOf('function');
+	expect(() => a.subscribe('blah' as never)).toThrow();
+	expect(() => a.subscribe('blah' as never, 123 as never)).toThrow();
 });
 
 test('unshift', () => {

@@ -1,6 +1,5 @@
 import {expect, test} from 'vitest';
 import {effect, store} from '../src';
-import {noop} from '../src/subscription';
 
 test('basic', () => {
 	const a = store({a: 1, b: 2, c: 3});
@@ -419,29 +418,29 @@ test('subscribe', () => {
 		counts.store[1] += 1;
 	}
 
-	const obj = store({a: 1, b: 2, c: 3});
+	const stored = store({a: 1, b: 2, c: 3});
 
 	const counts = {
 		a: [0, 0],
 		store: [0, 0],
 	};
 
-	obj.subscribe(onStore);
+	const storeSubscriptionOne = stored.subscribe(onStore);
 
-	const unsubscribeStore = obj.subscribe(() => {
+	const storeSubscriptionTwo = stored.subscribe(() => {
 		counts.store[0] += 1;
 	});
 
-	obj.subscribe('a', onA);
+	const aSubscriptionOne = stored.subscribe('a', onA);
 
-	const unsubscribeA = obj.subscribe('a', () => {
+	const aSubscriptionTwo = stored.subscribe('a', () => {
 		counts.a[0] += 1;
 	});
 
 	expect(counts.store).toEqual([1, 1]);
 	expect(counts.a).toEqual([1, 1]);
 
-	obj.update(value => ({
+	stored.update(value => ({
 		...value,
 		c: 99,
 		d: 4,
@@ -450,37 +449,34 @@ test('subscribe', () => {
 	expect(counts.store).toEqual([2, 2]);
 	expect(counts.a).toEqual([1, 1]);
 
-	obj.set('a', 123);
+	stored.set('a', 123);
 
 	expect(counts.store).toEqual([3, 3]);
 	expect(counts.a).toEqual([2, 2]);
 
-	obj.update(() => 'blah' as never);
+	stored.update(() => 'blah' as never);
 
 	expect(counts.store).toEqual([3, 3]);
 	expect(counts.a).toEqual([2, 2]);
 
-	obj.unsubscribe(onStore);
-	obj.unsubscribe('a', onA);
+	aSubscriptionOne.unsubscribe();
+	storeSubscriptionOne.unsubscribe();
 
-	unsubscribeStore();
-	unsubscribeA();
+	storeSubscriptionTwo.unsubscribe();
+	aSubscriptionTwo.unsubscribe();
 
-	obj.set('a', 456);
-
-	expect(counts.store).toEqual([3, 3]);
-	expect(counts.a).toEqual([2, 2]);
-
-	obj.update(() => null as never);
+	stored.set('a', 456);
 
 	expect(counts.store).toEqual([3, 3]);
 	expect(counts.a).toEqual([2, 2]);
 
-	expect(obj.subscribe('blah' as never)).toEqual(noop);
-	expect(obj.subscribe('blah', 123 as never)).toEqual(noop);
+	stored.update(() => null as never);
 
-	obj.unsubscribe('blah' as never);
-	obj.unsubscribe('blah' as never, 123 as never);
+	expect(counts.store).toEqual([3, 3]);
+	expect(counts.a).toEqual([2, 2]);
 
-	expect(() => obj.update(undefined as never)).toThrow();
+	expect(() => stored.subscribe('blah' as never)).toThrow();
+	expect(() => stored.subscribe('blah', 123 as never)).toThrow();
+
+	expect(() => stored.update(undefined as never)).toThrow();
 });

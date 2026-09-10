@@ -1,5 +1,15 @@
+import {isPlainObject} from '@oscarpalmer/atoms/is';
 import {flushHandlers} from '../batch';
-import {ACTIVE, ARRAY_OFFSET, ARRAY_PEEK, ARRAY_THRESHOLD, BATCH} from '../constants';
+import {
+	ACTIVE,
+	ARRAY_OFFSET,
+	ARRAY_PEEK,
+	ARRAY_THRESHOLD,
+	BATCH,
+	SUBSCRIPTION_TYPES_COPY,
+	SUBSCRIPTION_TYPE_FROZEN,
+	SUBSCRIPTION_TYPES,
+} from '../constants';
 import type {ReactiveState} from '../models';
 
 // #region Functions
@@ -10,11 +20,22 @@ export function emitValue<Value>(state: ReactiveState<Value, never>): void {
 	}
 
 	for (const effect of state.effects) {
-		BATCH.handlers.add(effect);
+		BATCH.handlers.set(effect, effect);
 	}
 
-	for (const [, subscription] of state.subscriptions) {
-		BATCH.handlers.add(subscription);
+	for (const type of SUBSCRIPTION_TYPES) {
+		const subscriptions = state.subscriptions?.values.to.keyed?.get(type);
+
+		if (subscriptions != null) {
+			for (const [subscription, callback] of subscriptions) {
+				BATCH.handlers.set(subscription, {
+					callback,
+					state,
+					frozen: type === SUBSCRIPTION_TYPE_FROZEN,
+					copy: SUBSCRIPTION_TYPES_COPY.has(type),
+				});
+			}
+		}
 	}
 
 	if (BATCH.depth === 0) {
@@ -55,6 +76,18 @@ export function equalArrays<Value>(
 	}
 
 	return true;
+}
+
+export function getFrozenValue(value: unknown): unknown {
+	let frozen = value;
+
+	if (Array.isArray(frozen)) {
+		frozen = Object.freeze(frozen.slice());
+	} else if (isPlainObject(frozen)) {
+		frozen = Object.freeze({...frozen});
+	}
+
+	return frozen;
 }
 
 export function getSimpleValue<Value>(state: ReactiveState<Value, never>): Value {
@@ -102,6 +135,22 @@ export function handleSimpleValue<Value>(
 	} finally {
 		onAfter?.();
 	}
+}
+
+export function peekSimpleValue(value: unknown, copy: boolean): unknown {
+	let peeked: unknown = value;
+
+	if (!copy) {
+		return peeked;
+	}
+
+	if (Array.isArray(peeked)) {
+		peeked = peeked.slice();
+	} else if (isPlainObject(peeked)) {
+		peeked = {...peeked};
+	}
+
+	return peeked;
 }
 
 export function updateSimpleValue<Value>(

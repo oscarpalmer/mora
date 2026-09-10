@@ -1,13 +1,16 @@
-import {isPlainObject} from '@oscarpalmer/atoms/is';
-import type {GenericCallback} from '@oscarpalmer/atoms/models';
-import {NAME_MORA, NAME_READONLY} from '../constants';
-import {getSimpleValue} from '../helpers/value';
+import {
+	NAME_MORA,
+	NAME_READONLY,
+	SUBSCRIPTION_TYPE_FROZEN,
+	SUBSCRIPTION_TYPE_READONLY,
+} from '../constants';
+import {subscribeToReactive} from '../helpers/subscription';
+import {getFrozenValue, getSimpleValue, peekSimpleValue} from '../helpers/value';
 import type {
 	ReactiveState,
 	ReadonlyFrozenSignal,
 	ReadonlyInstances,
 	ReadonlySignal,
-	ReadonlySignalValue,
 } from '../models';
 
 // #region Functions
@@ -15,25 +18,25 @@ import type {
 export function getReadonlyInstance<Value>(
 	state: ReactiveState<Value, never>,
 	instances: ReadonlyInstances<Value>,
-	handlers: Record<string, GenericCallback>,
 	frozen: boolean,
 ): ReadonlySignal<Value> {
 	const key = frozen ? 'frozen' : 'original';
 
-	instances[key] ??= getReadonlySignal(state, handlers, frozen) as never;
+	instances[key] ??= getReadonlySignal(state, frozen) as never;
 
-	return instances[key] as ReadonlySignal<Value>;
+	return instances[key] as never;
 }
 
 export function getReadonlySignal<Value>(
 	state: ReactiveState<Value, never>,
-	handlers: Record<string, GenericCallback>,
 	frozen: boolean,
 ): ReadonlySignal<Value> | ReadonlyFrozenSignal<Value> {
+	const type = frozen ? SUBSCRIPTION_TYPE_FROZEN : SUBSCRIPTION_TYPE_READONLY;
+
 	const instance = {
-		...handlers,
 		get: () => getReadonlyValue(state, false, frozen),
-		peek: () => getReadonlyValue(state, true, frozen),
+		peek: (copy?: boolean) => getReadonlyValue(state, true, frozen, copy),
+		subscribe: (callback: never) => subscribeToReactive(type, state, callback),
 	};
 
 	Object.defineProperties(instance, {
@@ -46,29 +49,24 @@ export function getReadonlySignal<Value>(
 		},
 	});
 
-	return Object.freeze(instance) as ReadonlySignal<Value>;
+	return Object.freeze(instance) as never;
 }
 
 function getReadonlyValue<Value>(
 	state: ReactiveState<Value, never>,
 	peek: boolean,
 	frozen: boolean,
-): Value | ReadonlySignalValue<Value> {
-	let value = peek ? state.value : getSimpleValue(state);
+	copy?: boolean,
+): unknown {
+	let value: unknown;
 
-	if (!frozen) {
-		return value;
-	}
-
-	if (Array.isArray(state.value)) {
-		value = [...state.value] as Value;
-	} else if (isPlainObject(state.value)) {
-		value = {...state.value} as Value;
+	if (peek) {
+		value = peekSimpleValue(state.value, copy === true);
 	} else {
-		value = state.value;
+		value = getSimpleValue(state);
 	}
 
-	return Object.freeze(value);
+	return frozen ? getFrozenValue(value) : value;
 }
 
 // #endregion

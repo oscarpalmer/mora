@@ -2,16 +2,13 @@ import type {ReactiveOptions, ReactiveState} from '../models';
 
 // #region Functions
 
-export function getState<Value, Item = Value>(
-	value: Value,
-	options?: ReactiveOptions<Item>,
-): ReactiveState<Value, Item> {
+export function getState(value: unknown, options?: ReactiveOptions<unknown>): ReactiveState {
 	return {
+		value,
 		equal:
 			typeof options === 'object' && typeof options?.equal === 'function'
 				? options.equal
-				: Object.is,
-		value: value as Value,
+				: undefined,
 	};
 }
 

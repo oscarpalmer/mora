@@ -1,4 +1,4 @@
-import type {GenericCallback} from '@oscarpalmer/atoms/models';
+import type {GenericAsyncCallback, GenericCallback} from '@oscarpalmer/atoms/models';
 import {flushHandlers} from '../batch';
 import {
 	ACTIVE,
@@ -14,37 +14,32 @@ import {
 import {internalEffect, runEffect} from '../effect';
 import {getState} from '../helpers/misc';
 import {subscribeToSignal} from '../helpers/subscription';
-import {getStringValue, handleSimpleValue, peekSimpleValue} from '../helpers/value';
-import type {Computed, ComputedEffect, ReactiveOptions, ReactiveState} from '../models';
+import {getStringValue, handleSignalValue, peekSignalValue} from '../helpers/value';
+import type {
+	Computed,
+	ComputedEffect,
+	ReactiveOptions,
+	InternalComputed,
+	InternalSignal,
+} from '../models';
 
 // #region Instance
 
-function Computed<Value>(this: any, callback: GenericCallback, options?: ReactiveOptions<Value>) {
-	this[SYMBOL_STATE] = getState<Value, Value>(undefined as never, options);
+function Computed(this: any, callback: GenericCallback, options?: ReactiveOptions<unknown>) {
+	this[SYMBOL_STATE] = getState(undefined, options);
 
-	this[SYMBOL_EFFECT] = getComputedEffect(this[SYMBOL_STATE], callback);
+	this[SYMBOL_EFFECT] = getComputedEffect(this, callback);
 }
 
 Computed.prototype[NAME_MORA] = NAME_COMPUTED;
 
-Computed.prototype.get = function () {
-	return getValue(this[SYMBOL_STATE], this[SYMBOL_EFFECT]);
-};
-
-Computed.prototype.peek = function (copy?: never) {
-	return peekSimpleValue(this[SYMBOL_STATE].value, copy === true);
-};
-
-Computed.prototype.subscribe = function (subscriber: never, copy?: never) {
-	return subscribeToSignal(this[SYMBOL_STATE], subscriber, copy === true);
-};
+Computed.prototype.get = getComputedValue;
+Computed.prototype.peek = peekSignalValue;
+Computed.prototype.subscribe = subscribeToSignal;
+Computed.prototype.toString = getStringValue;
 
 Computed.prototype.toJSON = function () {
 	return this[SYMBOL_STATE].value;
-};
-
-Computed.prototype.toString = function (json?: boolean) {
-	return getStringValue(this[SYMBOL_STATE], json);
 };
 
 // #endregion
@@ -66,7 +61,7 @@ export function computed<Value>(
 }
 
 function getComputed<Value>(
-	callback: () => Value | Promise<Value>,
+	callback: GenericCallback,
 	options?: ReactiveOptions<Value>,
 ): [Computed<Value>, ComputedEffect] {
 	if (typeof callback !== 'function') {
@@ -79,9 +74,9 @@ function getComputed<Value>(
 	return [instance as never, instance[SYMBOL_EFFECT]];
 }
 
-function getComputedEffect<Value>(
-	state: ReactiveState<Value, Value>,
-	callback: () => Value | Promise<Value>,
+function getComputedEffect(
+	instance: InternalSignal,
+	callback: GenericAsyncCallback,
 ): ComputedEffect {
 	const fx: ComputedEffect = {
 		dirty: true,
@@ -94,7 +89,7 @@ function getComputedEffect<Value>(
 
 			ACTIVE.computed = fx;
 
-			handleSimpleValue(state, callback, setAndEmit, () => {
+			handleSignalValue(instance, callback, setAndEmit, () => {
 				ACTIVE.computed = previousComputed;
 			});
 
@@ -105,7 +100,10 @@ function getComputedEffect<Value>(
 	return fx;
 }
 
-function getValue<Value>(state: ReactiveState<Value, Value>, fx: ComputedEffect): Value {
+function getComputedValue(this: InternalComputed): unknown {
+	const fx = this[SYMBOL_EFFECT];
+	const state = this[SYMBOL_STATE];
+
 	if (ACTIVE.computed != null && fx !== ACTIVE.computed) {
 		state.computeds ??= new Set();
 
@@ -125,27 +123,29 @@ function getValue<Value>(state: ReactiveState<Value, Value>, fx: ComputedEffect)
 	return state.value;
 }
 
-export function internalComputed<Value>(
-	callback: () => Value | Promise<Value>,
-	options?: ReactiveOptions<Value>,
-): [Computed<Value>, ComputedEffect] {
+export function internalComputed(
+	callback: GenericCallback,
+	options?: ReactiveOptions<unknown>,
+): [Computed<unknown>, ComputedEffect] {
 	return getComputed(callback, options);
 }
 
-function setAndEmit<Value>(state: ReactiveState<Value, Value>, value: Value): void {
-	if (state.equal(state.value, value)) {
+function setAndEmit(instance: InternalSignal, value: unknown): void {
+	const state = instance[SYMBOL_STATE];
+
+	if ((state.equal ?? Object.is)(state.value as never, value as never)) {
 		return;
 	}
 
 	state.value = value;
 
-	if (state.computeds != null) {
+	if (state.computeds != null && state.computeds.size > 0) {
 		for (const computed of state.computeds) {
 			computed.dirty = true;
 		}
 	}
 
-	if (state.effects != null) {
+	if (state.effects != null && state.effects.size > 0) {
 		for (const effect of state.effects) {
 			BATCH.handlers.set(effect, effect);
 		}
@@ -156,12 +156,13 @@ function setAndEmit<Value>(state: ReactiveState<Value, Value>, value: Value): vo
 			continue;
 		}
 
-		const copy = SUBSCRIPTION_TYPES_COPY.has(type);
 		const subscriptions = state.subscriptions?.values.to.keyed?.get(type);
 
-		if (subscriptions != null) {
+		if (subscriptions != null && subscriptions.size > 0) {
+			const copy = SUBSCRIPTION_TYPES_COPY.has(type);
+
 			for (const [, callback] of subscriptions) {
-				callback(peekSimpleValue(state.value, copy));
+				callback(peekSignalValue.call(instance, copy));
 			}
 		}
 	}

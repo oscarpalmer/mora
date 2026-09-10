@@ -1,6 +1,6 @@
 import type {GenericCallback, Key, PlainObject} from '@oscarpalmer/atoms/models';
 import type {Subscription, Subscriptions} from '@oscarpalmer/atoms/subscription';
-import type {PROPERTY_LENGTH} from './constants';
+import {SYMBOL_EFFECT, SYMBOL_STATE, type PROPERTY_LENGTH} from './constants';
 
 // #region Types
 
@@ -26,6 +26,22 @@ export type Effect = {};
 
 export type EffectState = {
 	callback: GenericCallback;
+};
+
+export type InternalComputed = {
+	[SYMBOL_EFFECT]: ComputedEffect;
+} & InternalSignal;
+
+export type InternalProxy = {
+	[SYMBOL_STATE]: ReactiveProxyState;
+};
+
+export type InternalReadonly = {
+	frozen: boolean;
+} & InternalSignal;
+
+export type InternalSignal = {
+	[SYMBOL_STATE]: SignalState;
 };
 
 export type Reactive<Value> = {
@@ -273,20 +289,20 @@ export type ReactiveOptions<Value> = {
 	equal?: (first: Value, second: Value) => boolean;
 };
 
-export type ReactiveProxyState<Value, Item = Value> = {
+export type ReactiveProxyState = {
 	isArray: boolean;
 	length?: Signal<number>;
 	mapped?: Map<string, [Computed<unknown>, ComputedEffect]>;
-} & SignalState<Value, Item>;
+} & SignalState;
 
-export type ReactiveState<Value, Item = Value> = {
+export type ReactiveState = {
 	computeds?: Set<ComputedEffect>;
 	effects?: Set<EffectState>;
-	equal: (first: Item, second: Item) => boolean;
-	promise?: Promise<Value>;
+	equal?: (first: unknown, second: unknown) => boolean;
+	promise?: Promise<unknown>;
 	promises?: Map<Key, Promise<never>>;
 	subscriptions?: Subscriptions<GenericCallback>;
-	value: Value;
+	value: unknown;
 };
 
 export type ReactiveStore<Store> = {
@@ -493,9 +509,9 @@ export type Signal<Value> = {
 } & Reactive<Value> &
 	SimpleReactive<Value>;
 
-export type SignalState<Value, Item = Value> = {
-	readonlies?: ReadonlyInstances<Value>;
-} & ReactiveState<Value, Item>;
+export type SignalState = {
+	readonlies?: ReadonlyInstances<unknown>;
+} & ReactiveState;
 
 type SimpleReactive<Value> = {
 	/**
@@ -527,7 +543,8 @@ export type StoredSubscription = {
 	callback: GenericCallback;
 	copy: boolean;
 	frozen: boolean;
-	state: ReactiveState<unknown, never>;
+	instance: InternalSignal;
+	state: SignalState;
 };
 
 export type Subscriber<Value> = (value: Value, subscription: Subscription) => void;

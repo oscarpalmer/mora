@@ -1,6 +1,6 @@
 import {BATCH} from './constants';
 import {runEffect} from './effect';
-import {getFrozenValue, peekSimpleValue} from './helpers/value';
+import {getFrozenValue, peekSignalValue} from './helpers/value';
 import type {EffectState, StoredSubscription} from './models';
 
 // #region Functions
@@ -27,7 +27,7 @@ export function flushHandlers(): void {
 					subscription.callback(
 						subscription.frozen
 							? getFrozenValue(subscription.state.value)
-							: peekSimpleValue(subscription.state.value, subscription.copy),
+							: peekSignalValue.call(subscription.instance, subscription.copy),
 					);
 				} else {
 					runEffect(handler as EffectState);

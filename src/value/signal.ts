@@ -3,66 +3,54 @@ import {getState} from '../helpers/misc';
 import {subscribeToSignal} from '../helpers/subscription';
 import {
 	emitValue,
-	getSimpleValue,
+	getSignalValue,
 	getStringValue,
-	handleSimpleValue,
-	peekSimpleValue,
-	updateSimpleValue,
+	handleSignalValue,
+	peekSignalValue,
+	updateSignalValue,
 } from '../helpers/value';
-import type {ReactiveOptions, ReactiveState, Signal} from '../models';
+import type {ReactiveOptions, Signal, InternalSignal} from '../models';
 import {getReadonlyInstance} from './readonly';
 
 // #region Instance
 
-function Signal<Value>(this: any, value: never, options?: ReactiveOptions<Value>) {
-	this[SYMBOL_STATE] = getState<Value, Value>(undefined as never, options);
+function Signal(this: any, value: unknown, options?: ReactiveOptions<unknown>) {
+	this[SYMBOL_STATE] = getState(undefined, options);
 
-	handleSimpleValue(this[SYMBOL_STATE], value, setAndEmit);
+	handleSignalValue(this, value, setAndEmit);
 }
 
 Signal.prototype[NAME_MORA] = NAME_SIGNAL;
 
-Signal.prototype.asReadonly = function (frozen?: never) {
-	return getReadonlyInstance(this[SYMBOL_STATE], frozen === true);
-};
-
-Signal.prototype.get = function () {
-	return getSimpleValue(this[SYMBOL_STATE]);
-};
-
-Signal.prototype.peek = function (copy?: boolean) {
-	return peekSimpleValue(this[SYMBOL_STATE].value, copy === true);
-};
+Signal.prototype.asReadonly = getReadonlyInstance;
+Signal.prototype.get = getSignalValue;
+Signal.prototype.peek = peekSignalValue;
+Signal.prototype.subscribe = subscribeToSignal;
+Signal.prototype.toString = getStringValue;
 
 Signal.prototype.set = function (value: never) {
-	return handleSimpleValue(this[SYMBOL_STATE], value, setAndEmit);
-};
-
-Signal.prototype.subscribe = function (subscriber: never, copy?: never) {
-	return subscribeToSignal(this[SYMBOL_STATE], subscriber, copy === true);
+	return handleSignalValue(this, value, setAndEmit);
 };
 
 Signal.prototype.toJSON = function () {
 	return this[SYMBOL_STATE].value;
 };
 
-Signal.prototype.toString = function (json?: boolean) {
-	return getStringValue(this[SYMBOL_STATE], json);
-};
-
 Signal.prototype.update = function (callback: never) {
-	return updateSimpleValue(this[SYMBOL_STATE], callback, setAndEmit);
+	return updateSignalValue(this, callback, setAndEmit);
 };
 
 // #endregion
 
 // #region Functions
 
-function setAndEmit<Value>(state: ReactiveState<Value, Value>, value: Value): void {
-	if (!state.equal(state.value, value)) {
+function setAndEmit(instance: InternalSignal, value: unknown): void {
+	const state = instance[SYMBOL_STATE];
+
+	if (!(state.equal ?? Object.is)(state.value as never, value as never)) {
 		state.value = value;
 
-		emitValue(state);
+		emitValue(instance);
 	}
 }
 
@@ -99,7 +87,7 @@ export function signal<Value>(
  */
 export function signal<Value>(value: Value, options?: ReactiveOptions<Value>): Signal<Value>;
 
-export function signal<Value>(value: unknown, options?: ReactiveOptions<Value>): Signal<Value> {
+export function signal(value: unknown, options?: ReactiveOptions<unknown>): Signal<unknown> {
 	// @ts-expect-error All good, no worries :-)
 	return new Signal(value, options);
 }

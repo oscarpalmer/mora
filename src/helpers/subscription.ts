@@ -6,57 +6,56 @@ import {
 	SUBSCRIPTION_TYPE_COPY,
 	SUBSCRIPTION_TYPE_FROZEN,
 	SUBSCRIPTION_TYPE_ORIGINAL,
+	SUBSCRIPTION_TYPE_READONLY,
 	SUBSCRIPTION_TYPES,
 	SUBSCRIPTION_TYPES_COPY,
+	SYMBOL_STATE,
 } from '../constants';
 import type {
-	ReactiveArray,
-	ReactiveProxyState,
-	ReactiveState,
-	ReactiveStore,
+	InternalProxy,
+	InternalReadonly,
+	InternalSignal,
 	Subscriber,
 	SubscriptionType,
 } from '../models';
 import {getReactiveValueInProxy} from './proxy';
-import {getFrozenValue, peekSimpleValue} from './value';
+import {getFrozenValue, peekSignalValue} from './value';
 
-export function subscribeToProxy<Value, Item = Value>(
-	instance: ReactiveArray<Value> | ReactiveStore<Value>,
-	state: ReactiveProxyState<Value, Item>,
+// #region Functions
+
+export function subscribeToProxy(
+	this: InternalProxy,
 	first: Key | Subscriber<unknown>,
 	second?: Subscriber<unknown> | boolean,
 	third?: boolean,
 ): Subscription {
 	if (isKey(first)) {
-		return getReactiveValueInProxy(instance as never, state, first).subscribe(
-			second as never,
-			third as never,
-		);
+		return getReactiveValueInProxy(this as never, first).subscribe(second as never, third as never);
 	}
 
-	return subscribeToSignal(state, first, second === true);
+	return subscribeToSignal.call(this, first, second);
 }
 
-export function subscribeToReactive<Value, Item = Value>(
+function subscribeToReactive(
+	this: InternalSignal,
 	type: SubscriptionType,
-	state: ReactiveState<Value, Item>,
-	callback: Subscriber<unknown>,
+	subscriber: Subscriber<unknown>,
 ): Subscription {
-	state.subscriptions ??= subscriptions({
+	this[SYMBOL_STATE].subscriptions ??= subscriptions({
 		keys: SUBSCRIPTION_TYPES,
 		property: SUBSCRIPTION_PROPERTY,
 	});
 
-	const [subscription, existing] = state.subscriptions.create({
+	const [subscription, existing] = this[SYMBOL_STATE].subscriptions.create({
 		key: type,
-		value: callback,
+		value: subscriber,
 	});
 
 	if (!existing) {
-		callback(
+		subscriber(
 			type === SUBSCRIPTION_TYPE_FROZEN
-				? getFrozenValue(state.value)
-				: peekSimpleValue(state.value, SUBSCRIPTION_TYPES_COPY.has(type)),
+				? getFrozenValue(this[SYMBOL_STATE].value)
+				: peekSignalValue.call(this, SUBSCRIPTION_TYPES_COPY.has(type)),
 			subscription,
 		);
 	}
@@ -64,14 +63,27 @@ export function subscribeToReactive<Value, Item = Value>(
 	return subscription;
 }
 
-export function subscribeToSignal<Value, Item = Value>(
-	state: ReactiveState<Value, Item>,
+export function subscribeToReadonly(
+	this: InternalReadonly,
 	subscriber: Subscriber<unknown>,
-	copy: boolean,
 ): Subscription {
-	return subscribeToReactive(
-		copy ? SUBSCRIPTION_TYPE_COPY : SUBSCRIPTION_TYPE_ORIGINAL,
-		state,
+	return subscribeToReactive.call(
+		this,
+		this.frozen ? SUBSCRIPTION_TYPE_FROZEN : SUBSCRIPTION_TYPE_READONLY,
 		subscriber,
 	);
 }
+
+export function subscribeToSignal(
+	this: InternalSignal,
+	subscriber: Subscriber<unknown>,
+	copy?: unknown,
+): Subscription {
+	return subscribeToReactive.call(
+		this,
+		copy === true ? SUBSCRIPTION_TYPE_COPY : SUBSCRIPTION_TYPE_ORIGINAL,
+		subscriber,
+	);
+}
+
+// #endregion

@@ -1,34 +1,22 @@
 import {isKey, isPlainObject} from '@oscarpalmer/atoms/is';
 import type {ArrayOrPlainObject, Key, PlainObject} from '@oscarpalmer/atoms/models';
-import {PROPERTY_LENGTH} from '../constants';
+import {startBatch, stopBatch} from '../batch';
+import {PROPERTY_LENGTH, SYMBOL_STATE} from '../constants';
 import type {
 	Computed,
 	ReactiveArray,
 	ReactiveProxyState,
-	ReactiveState,
 	ReactiveStore,
+	InternalProxy,
 } from '../models';
 import {internalComputed} from '../value/computed';
-import {emitValue, getSimpleValue, peekSimpleValue} from './value';
-
-// #region Types
-
-type SetObjectCallback<Value, Item> = (
-	state: ReactiveState<Value, Item>,
-	value: Value | undefined,
-) => void;
-
-type SetPropertyCallback<Value, Item> = (
-	state: ReactiveState<Value, Item>,
-	property: unknown,
-	value: Item,
-) => void;
-
-// #endregion
+import {emitValue, getSignalValue, peekSignalValue} from './value';
 
 // #region Functions
 
-export function emitProxyValues<Value, Item = Value>(state: ReactiveProxyState<Value, Item>): void {
+export function emitProxyValues(this: InternalProxy): void {
+	const state = this[SYMBOL_STATE];
+
 	state.mapped ??= new Map();
 
 	const values = [...state.mapped.values()];
@@ -38,14 +26,15 @@ export function emitProxyValues<Value, Item = Value>(state: ReactiveProxyState<V
 		values[index][1].dirty = true;
 	}
 
-	emitValue(state);
+	emitValue(this);
 }
 
-export function getReactiveValueInProxy<Value, Item = Value>(
-	reactive: ReactiveArray<Value> | ReactiveStore<Value>,
-	state: ReactiveProxyState<Value, Item>,
+export function getReactiveValueInProxy(
+	instance: ReactiveArray<unknown> | ReactiveStore<unknown>,
 	key: Key,
 ): Computed<unknown> {
+	const state = (instance as unknown as InternalProxy)[SYMBOL_STATE];
+
 	state.mapped ??= new Map();
 
 	const mapKey = String(key);
@@ -55,8 +44,8 @@ export function getReactiveValueInProxy<Value, Item = Value>(
 	if (item == null) {
 		item = internalComputed(() =>
 			state.isArray
-				? (reactive.get() as unknown[]).at(key as number)
-				: (reactive.get() as PlainObject)[key],
+				? (instance.get() as unknown[]).at(key as number)
+				: (instance.get() as PlainObject)[key],
 		);
 
 		state.mapped.set(mapKey, item);
@@ -65,27 +54,21 @@ export function getReactiveValueInProxy<Value, Item = Value>(
 	return item[0];
 }
 
-export function getValueInProxy<Value, Item = Value>(
-	instance: ReactiveArray<Value> | ReactiveStore<Value>,
-	state: ReactiveProxyState<Value, Item>,
-	first?: unknown,
-): unknown {
-	if (state.isArray ? typeof first === 'number' : isKey(first)) {
-		return getReactiveValueInProxy(instance, state, first as Key).get();
+export function getValueInProxy(this: InternalProxy, first?: unknown): unknown {
+	if (this[SYMBOL_STATE].isArray ? typeof first === 'number' : isKey(first)) {
+		return getReactiveValueInProxy(this as never, first as Key).get();
 	}
 
-	return getSimpleValue(state);
+	return getSignalValue.call(this);
 }
 
 function isProxyObject(isArray: boolean, value: unknown): value is ArrayOrPlainObject {
 	return value == null || (isArray ? Array.isArray(value) : isPlainObject(value));
 }
 
-export function peekValueInProxy<Value, Item = Value>(
-	state: ReactiveProxyState<Value, Item>,
-	first?: unknown,
-	second?: boolean,
-): unknown {
+export function peekValueInProxy(this: InternalProxy, first?: unknown, second?: boolean): unknown {
+	const state = this[SYMBOL_STATE];
+
 	let value: unknown;
 
 	if (state.isArray ? typeof first === 'number' : isKey(first)) {
@@ -96,16 +79,71 @@ export function peekValueInProxy<Value, Item = Value>(
 		value = state.value;
 	}
 
-	return peekSimpleValue(value, first === true || second === true);
+	return peekSignalValue.call([this, value], first === true || second === true);
 }
 
-export function setProxyValue<Value, Item = Value>(
-	state: ReactiveProxyState<Value, Item>,
-	setObject: SetObjectCallback<Value, Item>,
-	setProperty: SetPropertyCallback<Value, Item>,
-	first?: unknown,
-	second?: unknown,
-): void {
+function setProxyObject(state: ReactiveProxyState, value: unknown): void {
+	if (state.isArray) {
+		(state.value as unknown[]).splice(
+			0,
+			(state.value as unknown[]).length,
+			...((value ?? []) as unknown[]),
+		);
+
+		return;
+	}
+
+	startBatch();
+
+	const actual = (value as Record<string, unknown>) ?? {};
+	const proxy = state.value as PlainObject;
+
+	const proxyKeys = Object.keys(proxy);
+	const actualKeys = Object.keys(actual);
+
+	let {length} = proxyKeys;
+
+	for (let index = 0; index < length; index += 1) {
+		const key = proxyKeys[index];
+
+		proxy[key] = actualKeys.includes(key) ? actual[key] : undefined;
+	}
+
+	length = actualKeys.length;
+
+	for (let index = 0; index < length; index += 1) {
+		const key = actualKeys[index];
+
+		if (!proxyKeys.includes(key)) {
+			const keyedValue = actual[key];
+
+			proxy[key] = keyedValue;
+		}
+	}
+
+	stopBatch();
+}
+
+function setProxyProperty(state: ReactiveProxyState, property: unknown, value: unknown): void {
+	if (!state.isArray) {
+		(state.value as PlainObject)[property as Key] = value;
+
+		return;
+	}
+
+	const actual =
+		(property as number) < 0
+			? (state.value as unknown[]).length + (property as number)
+			: (property as number);
+
+	if (actual > -1) {
+		(state.value as unknown[])[actual] = value;
+	}
+}
+
+export function setProxyValue(this: InternalProxy, first?: unknown, second?: unknown): void {
+	const state = this[SYMBOL_STATE] as ReactiveProxyState;
+
 	if (state.isArray && first === PROPERTY_LENGTH) {
 		(state.value as unknown[]).length = second as number;
 
@@ -113,7 +151,7 @@ export function setProxyValue<Value, Item = Value>(
 	}
 
 	if (isProxyObject(state.isArray, first)) {
-		setObject(state, first as Value);
+		setProxyObject(state, first);
 
 		return;
 	}
@@ -148,7 +186,7 @@ export function setProxyValue<Value, Item = Value>(
 				if (property && state.promises!.get(first as Key) === actual) {
 					state.promises!.delete(first as Key);
 
-					setProperty(state, first, value);
+					setProxyProperty(state, first, value);
 
 					return;
 				}
@@ -156,7 +194,7 @@ export function setProxyValue<Value, Item = Value>(
 				if (!property && isProxyObject(state.isArray, value) && state.promise === actual) {
 					state.promise = undefined;
 
-					setObject(state, value as Value);
+					setProxyObject(state, value);
 				}
 			})
 			.catch(() => {
@@ -167,18 +205,20 @@ export function setProxyValue<Value, Item = Value>(
 				}
 			});
 	} else if (property) {
-		setProperty(state, first, actual as Item);
+		setProxyProperty(state, first, actual);
 	} else if (isProxyObject(state.isArray, actual)) {
-		setObject(state, actual as Value);
+		setProxyObject(state, actual);
 	}
 }
 
-export function setValueInProxy<Value, Item = Value>(
-	state: ReactiveProxyState<Value, Item>,
+export function setValueInProxy(
+	instance: InternalProxy,
 	target: object,
 	property: PropertyKey,
 	value: unknown,
 ): boolean {
+	const state = instance[SYMBOL_STATE];
+
 	if (state.isArray) {
 		const isIndex = !Number.isNaN(Number(property));
 		const isLength = property === PROPERTY_LENGTH;
@@ -190,10 +230,10 @@ export function setValueInProxy<Value, Item = Value>(
 
 	const previous = Reflect.get(target as object, property);
 
-	if (!state.equal(previous as never, value as never)) {
+	if (!(state.equal ?? Object.is)(previous as never, value as never)) {
 		Reflect.set(target, property, value);
 
-		emitValue(state);
+		emitValue(instance);
 
 		if (state.isArray) {
 			state.length?.set((target as unknown[]).length);
@@ -203,17 +243,12 @@ export function setValueInProxy<Value, Item = Value>(
 	return true;
 }
 
-export function updateProxyValue<Value, Item = Value>(
-	state: ReactiveProxyState<Value, Item>,
-	setObject: SetObjectCallback<Value, Item>,
-	setProperty: SetPropertyCallback<Value, Item>,
-	callback: unknown,
-): void {
+export function updateProxyValue(this: InternalProxy, callback: unknown): void {
 	if (typeof callback !== 'function') {
 		throw new TypeError('Callback must be a function');
 	}
 
-	setProxyValue(state, setObject, setProperty, callback(state.value));
+	setProxyValue.call(this, callback(this[SYMBOL_STATE].value));
 }
 
 // #endregion

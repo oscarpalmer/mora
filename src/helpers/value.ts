@@ -9,19 +9,22 @@ import {
 	SUBSCRIPTION_TYPES_COPY,
 	SUBSCRIPTION_TYPE_FROZEN,
 	SUBSCRIPTION_TYPES,
+	SYMBOL_STATE,
 } from '../constants';
-import type {ReactiveState} from '../models';
+import type {ReactiveState, InternalSignal} from '../models';
 
 // #region Functions
 
-export function emitValue<Value>(state: ReactiveState<Value, never>): void {
-	if (state.computeds != null) {
+export function emitValue(instance: InternalSignal): void {
+	const state = instance[SYMBOL_STATE];
+
+	if (state.computeds != null && state.computeds.size > 0) {
 		for (const computed of state.computeds) {
 			computed.dirty = true;
 		}
 	}
 
-	if (state.effects != null) {
+	if (state.effects != null && state.effects.size > 0) {
 		for (const effect of state.effects) {
 			BATCH.handlers.set(effect, effect);
 		}
@@ -30,10 +33,11 @@ export function emitValue<Value>(state: ReactiveState<Value, never>): void {
 	for (const type of SUBSCRIPTION_TYPES) {
 		const subscriptions = state.subscriptions?.values.to.keyed?.get(type);
 
-		if (subscriptions != null) {
+		if (subscriptions != null && subscriptions.size > 0) {
 			for (const [subscription, callback] of subscriptions) {
 				BATCH.handlers.set(subscription, {
 					callback,
+					instance,
 					state,
 					frozen: type === SUBSCRIPTION_TYPE_FROZEN,
 					copy: SUBSCRIPTION_TYPES_COPY.has(type),
@@ -47,16 +51,14 @@ export function emitValue<Value>(state: ReactiveState<Value, never>): void {
 	}
 }
 
-export function equalArrays<Value>(
-	state: ReactiveState<Value[], Value>,
-	first: Value[],
-	second: Value[],
-): boolean {
-	let {length} = first;
+export function equalArrays(state: ReactiveState, first: unknown[], second: unknown[]): boolean {
+	const {length} = first;
 
 	if (length !== second.length) {
 		return false;
 	}
+
+	const eq = state.equal ?? Object.is;
 
 	let offset = 0;
 
@@ -65,16 +67,21 @@ export function equalArrays<Value>(
 		offset = offset > ARRAY_OFFSET ? ARRAY_OFFSET : offset;
 
 		for (let index = 0; index < offset; index += 1) {
-			if (!state.equal(first[index], second[index])) {
+			if (
+				!(
+					eq(first[index], second[index]) &&
+					eq(first[length - index - 1], second[length - index - 1])
+				)
+			) {
 				return false;
 			}
 		}
 	}
 
-	length -= offset;
+	const end = length - offset;
 
-	for (let index = offset; index < length; index += 1) {
-		if (!state.equal(first[index], second[index])) {
+	for (let index = offset; index < end; index += 1) {
+		if (!eq(first[index], second[index])) {
 			return false;
 		}
 	}
@@ -94,35 +101,36 @@ export function getFrozenValue(value: unknown): unknown {
 	return frozen;
 }
 
-export function getSimpleValue<Value>(state: ReactiveState<Value, never>): Value {
+export function getSignalValue(this: InternalSignal): unknown {
 	if (ACTIVE.computed != null) {
-		state.computeds ??= new Set();
+		this[SYMBOL_STATE].computeds ??= new Set();
 
-		state.computeds.add(ACTIVE.computed);
+		this[SYMBOL_STATE].computeds.add(ACTIVE.computed);
 	}
 
 	if (ACTIVE.effect != null) {
-		state.effects ??= new Set();
+		this[SYMBOL_STATE].effects ??= new Set();
 
-		state.effects.add(ACTIVE.effect);
+		this[SYMBOL_STATE].effects.add(ACTIVE.effect);
 	}
 
-	return state.value;
+	return this[SYMBOL_STATE].value;
 }
 
-export function getStringValue<Value, Item = Value>(
-	state: ReactiveState<Value, Item>,
-	json?: boolean,
-): string {
-	return json === true ? JSON.stringify(state.value) : String(state.value);
+export function getStringValue(this: InternalSignal, json?: boolean): string {
+	return json === true
+		? JSON.stringify(this[SYMBOL_STATE].value)
+		: String(this[SYMBOL_STATE].value);
 }
 
-export function handleSimpleValue<Value>(
-	state: ReactiveState<Value, Value>,
-	origin: Value | (() => Value | Promise<Value>) | Promise<Value>,
-	setValue: (state: ReactiveState<Value, Value>, value: Value) => void,
+export function handleSignalValue(
+	instance: InternalSignal,
+	origin: unknown,
+	setValue: (instance: InternalSignal, value: unknown) => void,
 	onAfter?: () => void,
 ): void {
+	const state = instance[SYMBOL_STATE];
+
 	try {
 		let actual = typeof origin === 'function' ? (origin as () => unknown)() : origin;
 
@@ -134,7 +142,7 @@ export function handleSimpleValue<Value>(
 					if (actual === state.promise) {
 						state.promise = undefined;
 
-						setValue(state, value);
+						setValue(instance, value);
 					}
 				})
 				.catch(() => {
@@ -143,7 +151,7 @@ export function handleSimpleValue<Value>(
 					}
 				});
 		} else {
-			setValue(state, actual as Value);
+			setValue(instance, actual);
 		}
 	} catch {
 		// ?
@@ -152,10 +160,13 @@ export function handleSimpleValue<Value>(
 	}
 }
 
-export function peekSimpleValue(value: unknown, copy: boolean): unknown {
-	let peeked: unknown = value;
+export function peekSignalValue(
+	this: InternalSignal | [InternalSignal, unknown],
+	copy?: boolean,
+): unknown {
+	let peeked: unknown = Array.isArray(this) ? this[1] : this[SYMBOL_STATE].value;
 
-	if (!copy) {
+	if (copy !== true) {
 		return peeked;
 	}
 
@@ -168,16 +179,16 @@ export function peekSimpleValue(value: unknown, copy: boolean): unknown {
 	return peeked;
 }
 
-export function updateSimpleValue<Value>(
-	state: ReactiveState<Value, Value>,
-	callback: (value: Value) => Value,
-	setValue: (state: ReactiveState<Value, Value>, value: Value) => void,
+export function updateSignalValue(
+	instance: InternalSignal,
+	callback: (value: unknown) => unknown,
+	setValue: (instance: InternalSignal, value: unknown) => void,
 ): void {
 	if (typeof callback !== 'function') {
 		throw new TypeError('Callback must be a function');
 	}
 
-	handleSimpleValue(state, callback(state.value), setValue);
+	handleSignalValue(instance, callback(instance[SYMBOL_STATE].value), setValue);
 }
 
 // #endregion

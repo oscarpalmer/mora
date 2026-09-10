@@ -97,40 +97,45 @@ test('copies', () =>
 		const numbers = array([1, 2, 3]);
 		const object = store({a: [1, 1, 1], b: [2, 2, 2], c: [3, 3, 3]});
 
-		const onNumbersOne = numbers.subscribe(value => {
+		numbers.subscribe((value, subscription) => {
 			originals.array = value;
+
+			subscription.unsubscribe();
 		});
 
-		const onNumbersTwo = numbers.subscribe(value => {
+		numbers.subscribe((value, subscription) => {
 			copied.array = value;
+
+			subscription.unsubscribe();
 		}, true);
 
-		const onObjectOne = object.subscribe(value => {
+		object.subscribe((value, subscription) => {
 			originals.object = value;
+
+			subscription.unsubscribe();
 		});
 
-		const onObjectTwo = object.subscribe(value => {
+		object.subscribe((value, subscription) => {
 			copied.object = value;
+
+			subscription.unsubscribe();
 		}, true);
 
-		const onNestedOne = object.subscribe('b', value => {
+		object.subscribe('b', (value, subscription) => {
 			originals.nested = value;
+
+			subscription.unsubscribe();
 		});
 
-		const onNestedTwo = object.subscribe(
+		object.subscribe(
 			'b',
-			value => {
+			(value, subscription) => {
 				copied.nested = value;
+
+				subscription.unsubscribe();
 			},
 			true,
 		);
-
-		onNumbersOne.unsubscribe();
-		onNumbersTwo.unsubscribe();
-		onObjectOne.unsubscribe();
-		onObjectTwo.unsubscribe();
-		onNestedOne.unsubscribe();
-		onNestedTwo.unsubscribe();
 
 		expect(originals.array).toEqual(copied.array);
 		expect(originals.array).not.toBe(copied.array);

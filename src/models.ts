@@ -230,25 +230,21 @@ export type ReactiveArray<Item> = {
 	/**
 	 * Subscribe to changes
 	 *
-	 * @param callback Callback for changes
+	 * @param subscriber Callback for changes
 	 * @param copy Copy the array? _(defaults to `false`)_
 	 * @returns Subscription
 	 */
-	subscribe(callback: (value: Item[]) => void, copy?: boolean): Subscription;
+	subscribe(subscriber: Subscriber<Item[]>, copy?: boolean): Subscription;
 
 	/**
 	 * Subscribe to changes at a specific index
 	 *
 	 * @param index Index of item to subscribe to
-	 * @param callback Callback for changes
+	 * @param subscriber Callback for changes
 	 * @param copy If the item is an array or record, should it be copied? _(defaults to `false`)_
 	 * @returns Subscription
 	 */
-	subscribe(
-		index: number,
-		callback: (value: Item | undefined) => void,
-		copy?: boolean,
-	): Subscription;
+	subscribe(index: number, subscriber: Subscriber<Item | undefined>, copy?: boolean): Subscription;
 
 	/**
 	 * Add items to the beginning of the array
@@ -396,23 +392,23 @@ export type ReactiveStore<Store> = {
 	/**
 	 * Subscribe to changes
 	 *
-	 * @param callback Callback for changes
+	 * @param subscriber Callback for changes
 	 * @param copy Copy the store? _(defaults to `false`)_
 	 * @returns Subscription
 	 */
-	subscribe(callback: (value: Store) => void, copy?: boolean): Subscription;
+	subscribe(subscriber: Subscriber<Store>, copy?: boolean): Subscription;
 
 	/**
 	 * Subscribe to changes for a specific key
 	 *
 	 * @param key Key of the value to subscribe to
-	 * @param callback Callback for changes
+	 * @param subscriber Callback for changes
 	 * @param copy If the value is an array or record, should it be copied? _(defaults to `false`)_
 	 * @returns Subscription
 	 */
 	subscribe<Key extends keyof Store>(
 		key: Key,
-		callback: (value: Store[Key] | undefined) => void,
+		subscriber: Subscriber<Store[Key] | undefined>,
 		copy?: boolean,
 	): Subscription;
 
@@ -420,11 +416,11 @@ export type ReactiveStore<Store> = {
 	 * Subscribe to changes for a specific key
 	 *
 	 * @param key Key of the value to subscribe to
-	 * @param callback Callback for changes
+	 * @param subscriber Callback for changes
 	 * @param copy If the value is an array or record, should it be copied? _(defaults to `false`)_
 	 * @returns Subscription
 	 */
-	subscribe(key: Key, callback: (value: unknown) => void, copy?: boolean): Subscription;
+	subscribe(key: Key, subscriber: Subscriber<unknown>, copy?: boolean): Subscription;
 
 	/**
 	 * Update the value _(based on the current value)_
@@ -509,11 +505,11 @@ type SimpleReactive<Value> = {
 	/**
 	 * Subscribe to changes
 	 *
-	 * @param callback Callback for changes
+	 * @param subscriber Callback for changes
 	 * @param copy If the value is an array or record, should it be copied? _(defaults to `false`)_
 	 * @returns Subscription
 	 */
-	subscribe(callback: (value: Value) => void, copy?: boolean): Subscription;
+	subscribe(subscriber: Subscriber<Value>, copy?: boolean): Subscription;
 };
 
 export type StoredSubscription = {
@@ -522,6 +518,8 @@ export type StoredSubscription = {
 	frozen: boolean;
 	state: ReactiveState<unknown, never>;
 };
+
+export type Subscriber<Value> = (value: Value, subscription: Subscription) => void;
 
 export type SubscriptionType = 'copy' | 'frozen' | 'original' | 'readonly';
 

@@ -68,7 +68,8 @@ export function signal<Value>(
 		get: () => getSimpleValue(state),
 		peek: (copy?: boolean) => peekSimpleValue(state.value, copy === true),
 		set: (value: never) => handleSimpleValue(state, value, setAndEmit),
-		subscribe: (callback: never, copy?: never) => subscribeToSignal(state, callback, copy === true),
+		subscribe: (subscriber: never, copy?: never) =>
+			subscribeToSignal(state, subscriber, copy === true),
 		update: (callback: never) => updateSimpleValue(state, callback, setAndEmit),
 	};
 

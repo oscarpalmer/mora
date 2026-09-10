@@ -15,6 +15,7 @@ import type {
 	ReactiveArray,
 	ReactiveState,
 	ReactiveStore,
+	Subscriber,
 	SubscriptionType,
 } from '../models';
 import {getReactiveValueInProxy} from './proxy';
@@ -25,8 +26,8 @@ export function subscribeToProxy<Value, Item = Value>(
 	instance: ReactiveArray<Value> | ReactiveStore<Value>,
 	state: ReactiveState<Value, Item>,
 	mapped: Map<Key, [Computed<unknown>, ComputedEffect]>,
-	first: Key | ((value: unknown) => unknown),
-	second?: ((value: unknown) => unknown) | boolean,
+	first: Key | Subscriber<unknown>,
+	second?: Subscriber<unknown> | boolean,
 	third?: boolean,
 ): Subscription {
 	if (isKey(first)) {
@@ -42,7 +43,7 @@ export function subscribeToProxy<Value, Item = Value>(
 export function subscribeToReactive<Value, Item = Value>(
 	type: SubscriptionType,
 	state: ReactiveState<Value, Item>,
-	callback: (value: unknown) => unknown,
+	callback: Subscriber<unknown>,
 ): Subscription {
 	state.subscriptions ??= subscriptions({
 		keys: SUBSCRIPTION_TYPES,
@@ -59,6 +60,7 @@ export function subscribeToReactive<Value, Item = Value>(
 			type === SUBSCRIPTION_TYPE_FROZEN
 				? getFrozenValue(state.value)
 				: peekSimpleValue(state.value, SUBSCRIPTION_TYPES_COPY.has(type)),
+			subscription,
 		);
 	}
 
@@ -67,12 +69,12 @@ export function subscribeToReactive<Value, Item = Value>(
 
 export function subscribeToSignal<Value, Item = Value>(
 	state: ReactiveState<Value, Item>,
-	callback: (value: unknown) => unknown,
+	subscriber: Subscriber<unknown>,
 	copy: boolean,
 ): Subscription {
 	return subscribeToReactive(
 		copy ? SUBSCRIPTION_TYPE_COPY : SUBSCRIPTION_TYPE_ORIGINAL,
 		state,
-		callback,
+		subscriber,
 	);
 }

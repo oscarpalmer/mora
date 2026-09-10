@@ -4,9 +4,9 @@ import {
 	BATCH,
 	NAME_COMPUTED,
 	NAME_MORA,
-	SUBSCRIPTION_TYPES_COPY,
 	SUBSCRIPTION_TYPE_FROZEN,
 	SUBSCRIPTION_TYPES,
+	SUBSCRIPTION_TYPES_COPY,
 } from '../constants';
 import {internalEffect, runEffect} from '../effect';
 import {subscribeToSignal} from '../helpers/subscription';
@@ -46,7 +46,8 @@ function getComputed<Value>(
 		...rx,
 		get: () => getValue(state, fx),
 		peek: (copy?: never) => peekSimpleValue(state.value, copy === true),
-		subscribe: (callback: never, copy?: never) => subscribeToSignal(state, callback, copy === true),
+		subscribe: (subscriber: never, copy?: never) =>
+			subscribeToSignal(state, subscriber, copy === true),
 	};
 
 	Object.defineProperty(instance, NAME_MORA, {

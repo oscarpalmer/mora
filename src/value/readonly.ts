@@ -36,7 +36,7 @@ export function getReadonlySignal<Value>(
 	const instance = {
 		get: () => getReadonlyValue(state, false, frozen),
 		peek: (copy?: boolean) => getReadonlyValue(state, true, frozen, copy),
-		subscribe: (callback: never) => subscribeToReactive(type, state, callback),
+		subscribe: (subscriber: never) => subscribeToReactive(type, state, subscriber),
 	};
 
 	Object.defineProperties(instance, {

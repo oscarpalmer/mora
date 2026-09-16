@@ -14,20 +14,19 @@ import {
 import {internalEffect, runEffect} from '../effect';
 import {getState} from '../helpers/misc';
 import {subscribeToSignal} from '../helpers/subscription';
-import {getStringValue, handleSignalValue, peekSignalValue} from '../helpers/value';
+import {getJsonValue, getStringValue, handleSignal, peekSignalValue} from '../helpers/value';
 import type {
 	Computed,
 	ComputedEffect,
-	ReactiveOptions,
 	InternalComputed,
-	InternalSignal,
+	InternalStateful,
+	ReactiveOptions,
 } from '../models';
 
 // #region Instance
 
 function Computed(this: any, callback: GenericCallback, options?: ReactiveOptions<unknown>) {
 	this[SYMBOL_STATE] = getState(undefined, options);
-
 	this[SYMBOL_EFFECT] = getComputedEffect(this, callback);
 }
 
@@ -36,11 +35,8 @@ Computed.prototype[NAME_MORA] = NAME_COMPUTED;
 Computed.prototype.get = getComputedValue;
 Computed.prototype.peek = peekSignalValue;
 Computed.prototype.subscribe = subscribeToSignal;
+Computed.prototype.toJSON = getJsonValue;
 Computed.prototype.toString = getStringValue;
-
-Computed.prototype.toJSON = function () {
-	return this[SYMBOL_STATE].value;
-};
 
 // #endregion
 
@@ -57,13 +53,13 @@ export function computed<Value>(
 	callback: () => Value | Promise<Value>,
 	options?: ReactiveOptions<Value>,
 ): Computed<Value> {
-	return getComputed(callback, options)[0];
+	return getComputed(callback, options)[0] as Computed<Value>;
 }
 
 function getComputed<Value>(
 	callback: GenericCallback,
 	options?: ReactiveOptions<Value>,
-): [Computed<Value>, ComputedEffect] {
+): [InternalComputed, ComputedEffect] {
 	if (typeof callback !== 'function') {
 		throw new TypeError('Computed callback must be a function');
 	}
@@ -71,11 +67,11 @@ function getComputed<Value>(
 	// @ts-expect-error All good, no worries :-)
 	const instance = new Computed(callback, options);
 
-	return [instance as never, instance[SYMBOL_EFFECT]];
+	return [instance, instance[SYMBOL_EFFECT]];
 }
 
 function getComputedEffect(
-	instance: InternalSignal,
+	instance: InternalStateful,
 	callback: GenericAsyncCallback,
 ): ComputedEffect {
 	const fx: ComputedEffect = {
@@ -89,7 +85,7 @@ function getComputedEffect(
 
 			ACTIVE.computed = fx;
 
-			handleSignalValue(instance, callback, setAndEmit, () => {
+			handleSignal(instance, callback, setAndEmit, () => {
 				ACTIVE.computed = previousComputed;
 			});
 
@@ -126,14 +122,14 @@ function getComputedValue(this: InternalComputed): unknown {
 export function internalComputed(
 	callback: GenericCallback,
 	options?: ReactiveOptions<unknown>,
-): [Computed<unknown>, ComputedEffect] {
+): [InternalComputed, ComputedEffect] {
 	return getComputed(callback, options);
 }
 
-function setAndEmit(instance: InternalSignal, value: unknown): void {
+function setAndEmit(instance: InternalStateful, value: unknown): void {
 	const state = instance[SYMBOL_STATE];
 
-	if ((state.equal ?? Object.is)(state.value as never, value as never)) {
+	if ((state.equal ?? Object.is)(state.value, value)) {
 		return;
 	}
 

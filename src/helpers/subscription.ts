@@ -12,9 +12,10 @@ import {
 	SYMBOL_STATE,
 } from '../constants';
 import type {
-	InternalProxy,
+	InternalArray,
 	InternalReadonly,
-	InternalSignal,
+	InternalStateful,
+	InternalStore,
 	Subscriber,
 	SubscriptionType,
 } from '../models';
@@ -24,20 +25,20 @@ import {getFrozenValue, peekSignalValue} from './value';
 // #region Functions
 
 export function subscribeToProxy(
-	this: InternalProxy,
+	this: InternalArray | InternalStore,
 	first: Key | Subscriber<unknown>,
 	second?: Subscriber<unknown> | boolean,
 	third?: boolean,
 ): Subscription {
 	if (isKey(first)) {
-		return getReactiveValueInProxy(this as never, first).subscribe(second as never, third as never);
+		return getReactiveValueInProxy(this, first).subscribe(second as Subscriber<unknown>, third);
 	}
 
 	return subscribeToSignal.call(this, first, second);
 }
 
 function subscribeToReactive(
-	this: InternalSignal,
+	this: InternalStateful,
 	type: SubscriptionType,
 	subscriber: Subscriber<unknown>,
 ): Subscription {
@@ -75,7 +76,7 @@ export function subscribeToReadonly(
 }
 
 export function subscribeToSignal(
-	this: InternalSignal,
+	this: InternalStateful,
 	subscriber: Subscriber<unknown>,
 	copy?: unknown,
 ): Subscription {

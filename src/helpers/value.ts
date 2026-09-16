@@ -6,16 +6,16 @@ import {
 	ARRAY_PEEK,
 	ARRAY_THRESHOLD,
 	BATCH,
-	SUBSCRIPTION_TYPES_COPY,
 	SUBSCRIPTION_TYPE_FROZEN,
 	SUBSCRIPTION_TYPES,
+	SUBSCRIPTION_TYPES_COPY,
 	SYMBOL_STATE,
 } from '../constants';
-import type {ReactiveState, InternalSignal} from '../models';
+import type {InternalStateful} from '../models';
 
 // #region Functions
 
-export function emitValue(instance: InternalSignal): void {
+export function emitValue(instance: InternalStateful): void {
 	const state = instance[SYMBOL_STATE];
 
 	if (state.computeds != null && state.computeds.size > 0) {
@@ -51,14 +51,18 @@ export function emitValue(instance: InternalSignal): void {
 	}
 }
 
-export function equalArrays(state: ReactiveState, first: unknown[], second: unknown[]): boolean {
+export function equalArrays(
+	first: unknown[],
+	second: unknown[],
+	equal?: (first: unknown, second: unknown) => boolean,
+): boolean {
 	const {length} = first;
 
 	if (length !== second.length) {
 		return false;
 	}
 
-	const eq = state.equal ?? Object.is;
+	const eq = equal ?? Object.is;
 
 	let offset = 0;
 
@@ -101,32 +105,38 @@ export function getFrozenValue(value: unknown): unknown {
 	return frozen;
 }
 
-export function getSignalValue(this: InternalSignal): unknown {
-	if (ACTIVE.computed != null) {
-		this[SYMBOL_STATE].computeds ??= new Set();
-
-		this[SYMBOL_STATE].computeds.add(ACTIVE.computed);
-	}
-
-	if (ACTIVE.effect != null) {
-		this[SYMBOL_STATE].effects ??= new Set();
-
-		this[SYMBOL_STATE].effects.add(ACTIVE.effect);
-	}
-
+export function getJsonValue(this: InternalStateful): unknown {
 	return this[SYMBOL_STATE].value;
 }
 
-export function getStringValue(this: InternalSignal, json?: boolean): string {
+export function getSignalValue(this: InternalStateful): unknown {
+	const state = this[SYMBOL_STATE];
+
+	if (ACTIVE.computed != null) {
+		state.computeds ??= new Set();
+
+		state.computeds.add(ACTIVE.computed);
+	}
+
+	if (ACTIVE.effect != null) {
+		state.effects ??= new Set();
+
+		state.effects.add(ACTIVE.effect);
+	}
+
+	return state.value;
+}
+
+export function getStringValue(this: InternalStateful, json?: boolean): string {
 	return json === true
 		? JSON.stringify(this[SYMBOL_STATE].value)
 		: String(this[SYMBOL_STATE].value);
 }
 
-export function handleSignalValue(
-	instance: InternalSignal,
+export function handleSignal(
+	instance: InternalStateful,
 	origin: unknown,
-	setValue: (instance: InternalSignal, value: unknown) => void,
+	setValue: (instance: InternalStateful, value: unknown) => void,
 	onAfter?: () => void,
 ): void {
 	const state = instance[SYMBOL_STATE];
@@ -161,7 +171,7 @@ export function handleSignalValue(
 }
 
 export function peekSignalValue(
-	this: InternalSignal | [InternalSignal, unknown],
+	this: InternalStateful | [InternalStateful, unknown],
 	copy?: boolean,
 ): unknown {
 	let peeked: unknown = Array.isArray(this) ? this[1] : this[SYMBOL_STATE].value;
@@ -179,16 +189,16 @@ export function peekSignalValue(
 	return peeked;
 }
 
-export function updateSignalValue(
-	instance: InternalSignal,
+export function updateSignal(
+	instance: InternalStateful,
 	callback: (value: unknown) => unknown,
-	setValue: (instance: InternalSignal, value: unknown) => void,
+	setValue: (instance: InternalStateful, value: unknown) => void,
 ): void {
 	if (typeof callback !== 'function') {
 		throw new TypeError('Callback must be a function');
 	}
 
-	handleSignalValue(instance, callback(instance[SYMBOL_STATE].value), setValue);
+	handleSignal(instance, callback(instance[SYMBOL_STATE].value), setValue);
 }
 
 // #endregion

@@ -3,55 +3,51 @@ import {getState} from '../helpers/misc';
 import {subscribeToSignal} from '../helpers/subscription';
 import {
 	emitValue,
+	getJsonValue,
 	getSignalValue,
 	getStringValue,
-	handleSignalValue,
+	handleSignal,
 	peekSignalValue,
-	updateSignalValue,
+	updateSignal,
 } from '../helpers/value';
-import type {ReactiveOptions, Signal, InternalSignal} from '../models';
-import {getReadonlyInstance} from './readonly';
+import type {InternalSignal, InternalStateful, ReactiveOptions, Signal} from '../models';
+import {getReadonlySignal} from './readonly';
 
 // #region Instance
 
 function Signal(this: any, value: unknown, options?: ReactiveOptions<unknown>) {
 	this[SYMBOL_STATE] = getState(undefined, options);
 
-	handleSignalValue(this, value, setAndEmit);
+	handleSignal(this, value, setAndEmit);
 }
 
 Signal.prototype[NAME_MORA] = NAME_SIGNAL;
 
-Signal.prototype.asReadonly = getReadonlyInstance;
+Signal.prototype.asReadonly = getReadonlySignal;
 Signal.prototype.get = getSignalValue;
 Signal.prototype.peek = peekSignalValue;
+Signal.prototype.set = setSignalValue;
 Signal.prototype.subscribe = subscribeToSignal;
 Signal.prototype.toString = getStringValue;
-
-Signal.prototype.set = function (value: never) {
-	return handleSignalValue(this, value, setAndEmit);
-};
-
-Signal.prototype.toJSON = function () {
-	return this[SYMBOL_STATE].value;
-};
-
-Signal.prototype.update = function (callback: never) {
-	return updateSignalValue(this, callback, setAndEmit);
-};
+Signal.prototype.toJSON = getJsonValue;
+Signal.prototype.update = updateSignalValue;
 
 // #endregion
 
 // #region Functions
 
-function setAndEmit(instance: InternalSignal, value: unknown): void {
+function setAndEmit(instance: InternalStateful, value: unknown): void {
 	const state = instance[SYMBOL_STATE];
 
-	if (!(state.equal ?? Object.is)(state.value as never, value as never)) {
+	if (!(state.equal ?? Object.is)(state.value, value)) {
 		state.value = value;
 
 		emitValue(instance);
 	}
+}
+
+function setSignalValue(this: InternalSignal, value: unknown): void {
+	handleSignal(this, value, setAndEmit);
 }
 
 /**
@@ -90,6 +86,10 @@ export function signal<Value>(value: Value, options?: ReactiveOptions<Value>): S
 export function signal(value: unknown, options?: ReactiveOptions<unknown>): Signal<unknown> {
 	// @ts-expect-error All good, no worries :-)
 	return new Signal(value, options);
+}
+
+function updateSignalValue(this: InternalSignal, callback: never): void {
+	updateSignal(this, callback, setAndEmit);
 }
 
 // #endregion

@@ -16,9 +16,14 @@ export const BATCH: Batch = {
 	handlers: new Map(),
 };
 
-export const METHODS_AFFECTING_LENGTH = new Set<string>(['pop', 'push', 'shift', 'unshift']);
+export const METHODS_AFFECTING_LENGTH = new Set<string | symbol>([
+	'pop',
+	'push',
+	'shift',
+	'unshift',
+]);
 
-export const METHODS_UPDATE = new Set<string>([
+export const METHODS_UPDATE = new Set<string | symbol>([
 	...METHODS_AFFECTING_LENGTH,
 	'copyWithin',
 	'fill',

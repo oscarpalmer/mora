@@ -15,7 +15,7 @@ export type Batch = {
 	handlers: Map<EffectState | Subscription, EffectState | StoredSubscription>;
 };
 
-export type Computed<Value> = Reactive<Value> & SimpleReactive<Value>;
+export type Computed<Value> = Reactive<Value>;
 
 export type ComputedEffect = {
 	dirty: boolean;
@@ -28,23 +28,46 @@ export type EffectState = {
 	callback: GenericCallback;
 };
 
+export type InternalArray = {
+	[SYMBOL_STATE]: ReactiveProxyState;
+} & ReactiveArray<unknown>;
+
 export type InternalComputed = {
 	[SYMBOL_EFFECT]: ComputedEffect;
-} & InternalSignal;
-
-export type InternalProxy = {
-	[SYMBOL_STATE]: ReactiveProxyState;
-};
+	[SYMBOL_STATE]: SignalState;
+} & Computed<unknown>;
 
 export type InternalReadonly = {
 	frozen: boolean;
-} & InternalSignal;
+} & InternalStateful &
+	ReadonlySignal<unknown>;
 
-export type InternalSignal = {
+export type InternalSignal = InternalStateful & Signal<unknown>;
+
+export type InternalStateful = {
 	[SYMBOL_STATE]: SignalState;
 };
 
+export type InternalStore = {
+	[SYMBOL_STATE]: ReactiveProxyState;
+} & ReactiveStore<PlainObject>;
+
 export type Reactive<Value> = {
+	/**
+	 * Get the value
+	 *
+	 * @returns Current value
+	 */
+	get(): Value;
+
+	/**
+	 * Get the value _(without reactivity)_
+	 *
+	 * @param copy If the value is an array or record, should it be copied? _(defaults to `false`)_
+	 * @returns Current value
+	 */
+	peek(copy?: boolean): Value;
+
 	/**
 	 * _JSON_ representation of the value
 	 *
@@ -59,6 +82,15 @@ export type Reactive<Value> = {
 	 * @returns Value as string
 	 */
 	toString(json?: boolean): string;
+
+	/**
+	 * Subscribe to changes
+	 *
+	 * @param subscriber Callback for changes
+	 * @param copy If the value is an array or record, should it be copied? _(defaults to `false`)_
+	 * @returns Subscription
+	 */
+	subscribe(subscriber: Subscriber<Value>, copy?: boolean): Subscription;
 };
 
 export type ReactiveArray<Item> = {
@@ -292,17 +324,17 @@ export type ReactiveOptions<Value> = {
 export type ReactiveProxyState = {
 	isArray: boolean;
 	length?: Signal<number>;
-	mapped?: Map<string, [Computed<unknown>, ComputedEffect]>;
+	mapped?: Map<string, [InternalComputed, ComputedEffect]>;
 } & SignalState;
 
-export type ReactiveState = {
+export type ReactiveState<Value = unknown, Item = Value> = {
 	computeds?: Set<ComputedEffect>;
 	effects?: Set<EffectState>;
-	equal?: (first: unknown, second: unknown) => boolean;
+	equal?: (first: Item, second: Item) => boolean;
 	promise?: Promise<unknown>;
 	promises?: Map<Key, Promise<never>>;
 	subscriptions?: Subscriptions<GenericCallback>;
-	value: unknown;
+	value: Value;
 };
 
 export type ReactiveStore<Store> = {
@@ -465,8 +497,7 @@ export type ReadonlySignal<Value> = {
 	 * Is the signal frozen?
 	 */
 	get frozen(): boolean;
-} & Reactive<Value> &
-	SimpleReactive<Value>;
+} & Reactive<Value>;
 
 export type ReadonlySignalValue<Value> = Value extends unknown[]
 	? Readonly<Value>
@@ -506,44 +537,17 @@ export type Signal<Value> = {
 	 * @param callback Callback to update the value
 	 */
 	update(callback: (value: Value) => Value): void;
-} & Reactive<Value> &
-	SimpleReactive<Value>;
+} & Reactive<Value>;
 
 export type SignalState = {
 	readonlies?: ReadonlyInstances<unknown>;
 } & ReactiveState;
 
-type SimpleReactive<Value> = {
-	/**
-	 * Get the value
-	 *
-	 * @returns Current value
-	 */
-	get(): Value;
-
-	/**
-	 * Get the value _(without reactivity)_
-	 *
-	 * @param copy If the value is an array or record, should it be copied? _(defaults to `false`)_
-	 * @returns Current value
-	 */
-	peek(copy?: boolean): Value;
-
-	/**
-	 * Subscribe to changes
-	 *
-	 * @param subscriber Callback for changes
-	 * @param copy If the value is an array or record, should it be copied? _(defaults to `false`)_
-	 * @returns Subscription
-	 */
-	subscribe(subscriber: Subscriber<Value>, copy?: boolean): Subscription;
-};
-
 export type StoredSubscription = {
 	callback: GenericCallback;
 	copy: boolean;
 	frozen: boolean;
-	instance: InternalSignal;
+	instance: InternalStateful;
 	state: SignalState;
 };
 

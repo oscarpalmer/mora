@@ -46,9 +46,7 @@ function isMora<Instance>(value: unknown, name: string | Set<string>): value is 
 		typeof value === 'object' &&
 		value != null &&
 		NAME_MORA in value &&
-		(typeof name === 'string'
-			? (value as PlainObject)[NAME_MORA] === name
-			: name.has((value as PlainObject)[NAME_MORA] as never))
+		(typeof name === 'string' ? value[NAME_MORA] === name : name.has(value[NAME_MORA] as never))
 	);
 }
 

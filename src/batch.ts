@@ -1,7 +1,7 @@
 import {BATCH} from './constants';
 import {runEffect} from './effect';
 import {getFrozenValue, peekSignalValue} from './helpers/value';
-import type {EffectState, StoredSubscription} from './models';
+import type {StoredSubscription} from './models';
 
 // #region Functions
 
@@ -30,7 +30,7 @@ export function flushHandlers(): void {
 							: peekSignalValue.call(subscription.instance, subscription.copy),
 					);
 				} else {
-					runEffect(handler as EffectState);
+					runEffect(handler);
 				}
 			}
 		}

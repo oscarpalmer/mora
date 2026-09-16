@@ -18,10 +18,10 @@ import {
 	updateProxyValue,
 } from '../helpers/proxy';
 import {subscribeToProxy} from '../helpers/subscription';
-import {emitValue, equalArrays, getStringValue} from '../helpers/value';
-import type {InternalProxy, ReactiveArray, ReactiveOptions, ReactiveState} from '../models';
+import {emitValue, equalArrays, getJsonValue, getStringValue} from '../helpers/value';
+import type {Computed, InternalArray, ReactiveArray, ReactiveOptions} from '../models';
 import {computed} from './computed';
-import {getReadonlyInstance} from './readonly';
+import {getReadonlySignal} from './readonly';
 import {signal} from './signal';
 
 // #region Instance
@@ -35,16 +35,10 @@ function ReactiveArray(this: any, value: unknown, options?: ReactiveOptions<unkn
 
 	this[SYMBOL_STATE].value = new Proxy([], {
 		get: (target, property) =>
-			METHODS_UPDATE.has(property as string)
-				? updateArray(this, property as string, target)
+			METHODS_UPDATE.has(property)
+				? updateArray(this, property, target)
 				: Reflect.get(target, property),
 		set: (target, property, value) => setValueInProxy(this, target, property, value),
-	});
-
-	Object.defineProperty(this, PROPERTY_LENGTH, {
-		enumerable: true,
-		get: () => this[SYMBOL_STATE].length.get(),
-		set: (value: number) => setArrayLength(this[SYMBOL_STATE], value),
 	});
 
 	setProxyValue.call(this, value);
@@ -52,55 +46,31 @@ function ReactiveArray(this: any, value: unknown, options?: ReactiveOptions<unkn
 
 ReactiveArray.prototype[NAME_MORA] = NAME_ARRAY;
 
-ReactiveArray.prototype.asReadonly = getReadonlyInstance;
+Object.defineProperty(ReactiveArray.prototype, PROPERTY_LENGTH, {
+	enumerable: true,
+	get: getArrayLength,
+	set: setArrayLength,
+});
+
+ReactiveArray.prototype.asReadonly = getReadonlySignal;
 ReactiveArray.prototype.at = getArrayValues;
+ReactiveArray.prototype.clear = clearArrayValues;
+ReactiveArray.prototype.filter = filterArrayValues;
 ReactiveArray.prototype.get = getArrayValues;
+ReactiveArray.prototype.map = mapArrayValues;
 ReactiveArray.prototype.notify = emitProxyValues;
 ReactiveArray.prototype.peek = peekArrayValue;
+ReactiveArray.prototype.pop = popArrayValue;
+ReactiveArray.prototype.push = pushArrayValues;
+ReactiveArray.prototype.select = selectArrayValues;
+ReactiveArray.prototype.shift = shiftArrayValue;
 ReactiveArray.prototype.set = setProxyValue;
+ReactiveArray.prototype.splice = spliceArrayValues;
 ReactiveArray.prototype.subscribe = subscribeToProxy;
 ReactiveArray.prototype.toString = getStringValue;
+ReactiveArray.prototype.toJSON = getJsonValue;
+ReactiveArray.prototype.unshift = unshiftArrayValues;
 ReactiveArray.prototype.update = updateProxyValue;
-
-ReactiveArray.prototype.clear = function () {
-	this[SYMBOL_STATE].value.length = 0;
-};
-
-ReactiveArray.prototype.filter = function (callback: never) {
-	return computed(() => filter(getArrayValues.call(this) as never, callback) as never);
-};
-
-ReactiveArray.prototype.map = function (callback: never) {
-	return computed(() => (getArrayValues.call(this) as unknown[]).map(callback));
-};
-
-ReactiveArray.prototype.pop = function () {
-	return this[SYMBOL_STATE].value.pop();
-};
-
-ReactiveArray.prototype.push = function (...items: unknown[]) {
-	return this[SYMBOL_STATE].value.push(...items);
-};
-
-ReactiveArray.prototype.select = function (filter: never, map: never) {
-	return computed(() => select(getArrayValues.call(this) as unknown[], filter, map));
-};
-
-ReactiveArray.prototype.shift = function () {
-	return this[SYMBOL_STATE].value.shift();
-};
-
-ReactiveArray.prototype.splice = function (from: never, to?: never, ...items: unknown[]) {
-	return this[SYMBOL_STATE].value.splice(from, to ?? this[SYMBOL_STATE].value.length, ...items);
-};
-
-ReactiveArray.prototype.toJSON = function () {
-	return this[SYMBOL_STATE].value;
-};
-
-ReactiveArray.prototype.unshift = function (...items: unknown[]) {
-	return this[SYMBOL_STATE].value.unshift(...items);
-};
 
 // #endregion
 
@@ -144,30 +114,75 @@ export function array(value: unknown, options?: ReactiveOptions<unknown>): React
 	return new ReactiveArray(value, options);
 }
 
-function getArrayValues(this: InternalProxy, value?: unknown): unknown {
+function clearArrayValues(this: InternalArray): void {
+	(this[SYMBOL_STATE].value as unknown[]).length = 0;
+}
+
+function filterArrayValues(this: InternalArray, callback: never): Computed<unknown[]> {
+	return computed(() => filter(getArrayValues.call(this) as never, callback) as never);
+}
+
+function getArrayLength(this: InternalArray): number {
+	return this[SYMBOL_STATE].length!.get();
+}
+
+function getArrayValues(this: InternalArray, value?: unknown): unknown {
 	return value === PROPERTY_LENGTH
 		? this[SYMBOL_STATE].length!.get()
 		: getValueInProxy.call(this, value);
 }
 
-function peekArrayValue(this: InternalProxy, first?: unknown, second?: boolean): unknown {
+function mapArrayValues(this: InternalArray, callback: never): Computed<unknown[]> {
+	return computed(() => (getArrayValues.call(this) as unknown[]).map(callback));
+}
+
+function peekArrayValue(this: InternalArray, first?: unknown, second?: boolean): unknown {
 	return first === PROPERTY_LENGTH
 		? this[SYMBOL_STATE].length!.peek()
 		: peekValueInProxy.call(this, first, second);
 }
 
-function setArrayLength(state: ReactiveState, value: number): void {
-	if (
-		typeof value === 'number' &&
-		!Number.isNaN(value) &&
-		value >= 0 &&
-		value !== (state.value as unknown[]).length
-	) {
-		(state.value as unknown[]).length = value;
+function popArrayValue(this: InternalArray): unknown {
+	return (this[SYMBOL_STATE].value as unknown[]).pop();
+}
+
+function pushArrayValues(this: InternalArray, ...items: unknown[]): number {
+	return (this[SYMBOL_STATE].value as unknown[]).push(...items);
+}
+
+function selectArrayValues(this: InternalArray, filter: never, map: never): Computed<unknown[]> {
+	return computed(() => select(getArrayValues.call(this) as unknown[], filter, map));
+}
+
+function setArrayLength(this: InternalArray, value: number): void {
+	const state = this[SYMBOL_STATE];
+	const values = state.value as unknown[];
+
+	if (typeof value === 'number' && !Number.isNaN(value) && value >= 0 && value !== values.length) {
+		values.length = value;
 	}
 }
 
-function updateArray(instance: InternalProxy, type: string, array: unknown[]): unknown {
+function shiftArrayValue(this: InternalArray): unknown {
+	return (this[SYMBOL_STATE].value as unknown[]).shift();
+}
+
+function spliceArrayValues(
+	this: InternalArray,
+	from: never,
+	to?: never,
+	...items: unknown[]
+): unknown[] {
+	const values = this[SYMBOL_STATE].value as unknown[];
+
+	return values.splice(from, to ?? values.length, ...items);
+}
+
+function unshiftArrayValues(this: InternalArray, ...items: unknown[]): number {
+	return (this[SYMBOL_STATE].value as unknown[]).unshift(...items);
+}
+
+function updateArray(instance: InternalArray, type: string | symbol, array: unknown[]): unknown {
 	const state = instance[SYMBOL_STATE];
 
 	const affectsLength = METHODS_AFFECTING_LENGTH.has(type);
@@ -178,7 +193,9 @@ function updateArray(instance: InternalProxy, type: string, array: unknown[]): u
 		const result = (array[type as never] as (...args: unknown[]) => unknown)(...args);
 
 		if (
-			affectsLength ? array.length !== previousLength : !equalArrays(state, previousArray, array)
+			affectsLength
+				? array.length !== previousLength
+				: !equalArrays(previousArray, array, state.equal)
 		) {
 			emitValue(instance);
 

@@ -1,20 +1,19 @@
 import {isKey, isPlainObject} from '@oscarpalmer/atoms/is';
-import type {ArrayOrPlainObject, Key, PlainObject} from '@oscarpalmer/atoms/models';
+import type {
+	ArrayOrPlainObject,
+	GenericCallback,
+	Key,
+	PlainObject,
+} from '@oscarpalmer/atoms/models';
 import {startBatch, stopBatch} from '../batch';
 import {PROPERTY_LENGTH, SYMBOL_STATE} from '../constants';
-import type {
-	Computed,
-	ReactiveArray,
-	ReactiveProxyState,
-	ReactiveStore,
-	InternalProxy,
-} from '../models';
+import type {InternalArray, InternalComputed, InternalStore, ReactiveProxyState} from '../models';
 import {internalComputed} from '../value/computed';
 import {emitValue, getSignalValue, peekSignalValue} from './value';
 
 // #region Functions
 
-export function emitProxyValues(this: InternalProxy): void {
+export function emitProxyValues(this: InternalArray | InternalStore): void {
 	const state = this[SYMBOL_STATE];
 
 	state.mapped ??= new Map();
@@ -30,10 +29,10 @@ export function emitProxyValues(this: InternalProxy): void {
 }
 
 export function getReactiveValueInProxy(
-	instance: ReactiveArray<unknown> | ReactiveStore<unknown>,
+	instance: InternalArray | InternalStore,
 	key: Key,
-): Computed<unknown> {
-	const state = (instance as unknown as InternalProxy)[SYMBOL_STATE];
+): InternalComputed {
+	const state = instance[SYMBOL_STATE];
 
 	state.mapped ??= new Map();
 
@@ -54,19 +53,29 @@ export function getReactiveValueInProxy(
 	return item[0];
 }
 
-export function getValueInProxy(this: InternalProxy, first?: unknown): unknown {
+export function getValueInProxy(this: InternalArray | InternalStore, first?: unknown): unknown {
+	let signal: InternalComputed | undefined;
+
 	if (this[SYMBOL_STATE].isArray ? typeof first === 'number' : isKey(first)) {
-		return getReactiveValueInProxy(this as never, first as Key).get();
+		signal = getReactiveValueInProxy(this, first as Key);
 	}
 
-	return getSignalValue.call(this);
+	return getSignalValue.call(signal ?? this);
+}
+
+function isProxyKey(isArray: boolean, value: unknown): value is Key {
+	return isArray ? typeof value === 'number' : isKey(value);
 }
 
 function isProxyObject(isArray: boolean, value: unknown): value is ArrayOrPlainObject {
 	return value == null || (isArray ? Array.isArray(value) : isPlainObject(value));
 }
 
-export function peekValueInProxy(this: InternalProxy, first?: unknown, second?: boolean): unknown {
+export function peekValueInProxy(
+	this: InternalArray | InternalStore,
+	first?: unknown,
+	second?: boolean,
+): unknown {
 	const state = this[SYMBOL_STATE];
 
 	let value: unknown;
@@ -84,40 +93,38 @@ export function peekValueInProxy(this: InternalProxy, first?: unknown, second?: 
 
 function setProxyObject(state: ReactiveProxyState, value: unknown): void {
 	if (state.isArray) {
-		(state.value as unknown[]).splice(
-			0,
-			(state.value as unknown[]).length,
-			...((value ?? []) as unknown[]),
-		);
+		const values = state.value as unknown[];
+
+		values.splice(0, values.length, ...((value ?? []) as unknown[]));
 
 		return;
 	}
 
 	startBatch();
 
-	const actual = (value as Record<string, unknown>) ?? {};
-	const proxy = state.value as PlainObject;
+	const current = state.value as PlainObject;
+	const next = (value as Record<string, unknown>) ?? {};
 
-	const proxyKeys = Object.keys(proxy);
-	const actualKeys = Object.keys(actual);
+	const currentKeys = Object.keys(current);
+	const nextKeys = Object.keys(next);
 
-	let {length} = proxyKeys;
+	let {length} = currentKeys;
 
 	for (let index = 0; index < length; index += 1) {
-		const key = proxyKeys[index];
+		const key = currentKeys[index];
 
-		proxy[key] = actualKeys.includes(key) ? actual[key] : undefined;
+		current[key] = nextKeys.includes(key) ? next[key] : undefined;
 	}
 
-	length = actualKeys.length;
+	length = nextKeys.length;
 
 	for (let index = 0; index < length; index += 1) {
-		const key = actualKeys[index];
+		const key = nextKeys[index];
 
-		if (!proxyKeys.includes(key)) {
-			const keyedValue = actual[key];
+		if (!currentKeys.includes(key)) {
+			const keyedValue = next[key];
 
-			proxy[key] = keyedValue;
+			current[key] = keyedValue;
 		}
 	}
 
@@ -131,18 +138,22 @@ function setProxyProperty(state: ReactiveProxyState, property: unknown, value: u
 		return;
 	}
 
-	const actual =
-		(property as number) < 0
-			? (state.value as unknown[]).length + (property as number)
-			: (property as number);
+	const array = state.value as unknown[];
+	const index = property as number;
+
+	const actual = index < 0 ? array.length + index : index;
 
 	if (actual > -1) {
-		(state.value as unknown[])[actual] = value;
+		array[actual] = value;
 	}
 }
 
-export function setProxyValue(this: InternalProxy, first?: unknown, second?: unknown): void {
-	const state = this[SYMBOL_STATE] as ReactiveProxyState;
+export function setProxyValue(
+	this: InternalArray | InternalStore,
+	first?: unknown,
+	second?: unknown,
+): void {
+	const state = this[SYMBOL_STATE];
 
 	if (state.isArray && first === PROPERTY_LENGTH) {
 		(state.value as unknown[]).length = second as number;
@@ -156,55 +167,55 @@ export function setProxyValue(this: InternalProxy, first?: unknown, second?: unk
 		return;
 	}
 
-	const property = state.isArray ? typeof first === 'number' : isKey(first);
+	const keyed = isProxyKey(state.isArray, first);
 
-	if (state.isArray && property && Number.isNaN(first)) {
+	if (state.isArray && keyed && Number.isNaN(first)) {
 		return;
 	}
 
-	let actual = property ? second : first;
+	let actual = keyed ? second : first;
 
 	if (typeof actual === 'function') {
 		try {
-			actual = (actual as Function)();
+			actual = (actual as GenericCallback)();
 		} catch {
 			return;
 		}
 	}
 
 	if (actual instanceof Promise) {
-		if (property) {
+		if (keyed) {
 			state.promises ??= new Map();
 
-			state.promises.set(first as Key, actual as Promise<never>);
+			state.promises.set(first, actual as Promise<never>);
 		} else {
 			state.promise = actual as Promise<never>;
 		}
 
 		void actual
 			.then(value => {
-				if (property && state.promises!.get(first as Key) === actual) {
-					state.promises!.delete(first as Key);
+				if (keyed && state.promises?.get(first) === actual) {
+					state.promises?.delete(first);
 
 					setProxyProperty(state, first, value);
 
 					return;
 				}
 
-				if (!property && isProxyObject(state.isArray, value) && state.promise === actual) {
+				if (!keyed && isProxyObject(state.isArray, value) && state.promise === actual) {
 					state.promise = undefined;
 
 					setProxyObject(state, value);
 				}
 			})
 			.catch(() => {
-				if (property && state.promises!.get(first as Key) === actual) {
-					state.promises!.delete(first as Key);
-				} else if (!property && state.promise === actual) {
+				if (keyed && state.promises?.get(first) === actual) {
+					state.promises?.delete(first);
+				} else if (!keyed && state.promise === actual) {
 					state.promise = undefined;
 				}
 			});
-	} else if (property) {
+	} else if (keyed) {
 		setProxyProperty(state, first, actual);
 	} else if (isProxyObject(state.isArray, actual)) {
 		setProxyObject(state, actual);
@@ -212,7 +223,7 @@ export function setProxyValue(this: InternalProxy, first?: unknown, second?: unk
 }
 
 export function setValueInProxy(
-	instance: InternalProxy,
+	instance: InternalArray | InternalStore,
 	target: object,
 	property: PropertyKey,
 	value: unknown,
@@ -228,9 +239,9 @@ export function setValueInProxy(
 		}
 	}
 
-	const previous = Reflect.get(target as object, property);
+	const previous = Reflect.get(target, property);
 
-	if (!(state.equal ?? Object.is)(previous as never, value as never)) {
+	if (!(state.equal ?? Object.is)(previous, value)) {
 		Reflect.set(target, property, value);
 
 		emitValue(instance);
@@ -243,7 +254,7 @@ export function setValueInProxy(
 	return true;
 }
 
-export function updateProxyValue(this: InternalProxy, callback: unknown): void {
+export function updateProxyValue(this: InternalArray | InternalStore, callback: unknown): void {
 	if (typeof callback !== 'function') {
 		throw new TypeError('Callback must be a function');
 	}

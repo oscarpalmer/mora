@@ -10,9 +10,9 @@ import {
 	updateProxyValue,
 } from '../helpers/proxy';
 import {subscribeToProxy} from '../helpers/subscription';
-import {getStringValue} from '../helpers/value';
+import {getJsonValue, getStringValue} from '../helpers/value';
 import type {ReactiveOptions, ReactiveStore} from '../models';
-import {getReadonlyInstance} from './readonly';
+import {getReadonlySignal} from './readonly';
 
 // #region Instance
 
@@ -34,18 +34,15 @@ function ReactiveStore(this: any, value: never, options?: ReactiveOptions<unknow
 
 ReactiveStore.prototype[NAME_MORA] = NAME_STORE;
 
-ReactiveStore.prototype.asReadonly = getReadonlyInstance;
+ReactiveStore.prototype.asReadonly = getReadonlySignal;
 ReactiveStore.prototype.get = getValueInProxy;
 ReactiveStore.prototype.notify = emitProxyValues;
 ReactiveStore.prototype.peek = peekValueInProxy;
 ReactiveStore.prototype.set = setProxyValue;
 ReactiveStore.prototype.subscribe = subscribeToProxy;
+ReactiveStore.prototype.toJSON = getJsonValue;
 ReactiveStore.prototype.toString = getStringValue;
 ReactiveStore.prototype.update = updateProxyValue;
-
-ReactiveStore.prototype.toJSON = function () {
-	return this[SYMBOL_STATE].value;
-};
 
 // #endregion
 

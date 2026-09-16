@@ -1,6 +1,6 @@
 {
 	"name": "@oscarpalmer/mora",
-	"version": "0.33.0",
+	"version": "0.34.0",
 	"description": "Signals and stuff…",
 	"keywords": [
 		"reactive",
@@ -39,7 +39,7 @@
 		"test:leak": "vpx vp test run --detect-async-leaks --coverage"
 	},
 	"dependencies": {
-		"@oscarpalmer/atoms": "^0.202"
+		"@oscarpalmer/atoms": "^0.203"
 	},
 	"devDependencies": {
 		"@types/node": "^26.5",

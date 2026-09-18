@@ -260,8 +260,8 @@ test('notify', () => {
 	objs.notify();
 
 	expect(strings.peek().join(', ')).toBe('#1 Banana');
-	expect(name).toBe('Apple');
-	expect(value).toBe(123);
+	expect(name).toBe('Banana');
+	expect(value).toBe(456);
 });
 
 test('peek', () => {

@@ -10,7 +10,7 @@ import {
 } from '../constants';
 import {getState} from '../helpers/misc';
 import {
-	emitProxyValues,
+	notifyProxyValue,
 	getValueInProxy,
 	peekValueInProxy,
 	setProxyValue,
@@ -58,7 +58,7 @@ ReactiveArray.prototype.clear = clearArrayValues;
 ReactiveArray.prototype.filter = filterArrayValues;
 ReactiveArray.prototype.get = getArrayValues;
 ReactiveArray.prototype.map = mapArrayValues;
-ReactiveArray.prototype.notify = emitProxyValues;
+ReactiveArray.prototype.notify = notifyProxyValue;
 ReactiveArray.prototype.peek = peekArrayValue;
 ReactiveArray.prototype.pop = popArrayValue;
 ReactiveArray.prototype.push = pushArrayValues;

@@ -20,6 +20,7 @@ export type Computed<Value> = Reactive<Value>;
 export type ComputedEffect = {
 	dirty: boolean;
 	instance: EffectState;
+	notify: boolean;
 };
 
 export type Effect = {};
@@ -324,7 +325,7 @@ export type ReactiveOptions<Value> = {
 export type ReactiveProxyState = {
 	isArray: boolean;
 	length?: Signal<number>;
-	mapped?: Map<string, [InternalComputed, ComputedEffect]>;
+	mapped?: Map<string, InternalComputed>;
 } & SignalState;
 
 export type ReactiveState<Value = unknown, Item = Value> = {

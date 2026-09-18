@@ -2,7 +2,7 @@ import type {PlainObject} from '@oscarpalmer/atoms/models';
 import {NAME_MORA, NAME_STORE, SYMBOL_STATE} from '../constants';
 import {getState} from '../helpers/misc';
 import {
-	emitProxyValues,
+	notifyProxyValue,
 	getValueInProxy,
 	peekValueInProxy,
 	setProxyValue,
@@ -36,7 +36,7 @@ ReactiveStore.prototype[NAME_MORA] = NAME_STORE;
 
 ReactiveStore.prototype.asReadonly = getReadonlySignal;
 ReactiveStore.prototype.get = getValueInProxy;
-ReactiveStore.prototype.notify = emitProxyValues;
+ReactiveStore.prototype.notify = notifyProxyValue;
 ReactiveStore.prototype.peek = peekValueInProxy;
 ReactiveStore.prototype.set = setProxyValue;
 ReactiveStore.prototype.subscribe = subscribeToProxy;

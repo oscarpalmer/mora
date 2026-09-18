@@ -53,21 +53,19 @@ export function computed<Value>(
 	callback: () => Value | Promise<Value>,
 	options?: ReactiveOptions<Value>,
 ): Computed<Value> {
-	return getComputed(callback, options)[0] as Computed<Value>;
+	return getComputed(callback, options) as Computed<Value>;
 }
 
 function getComputed<Value>(
 	callback: GenericCallback,
 	options?: ReactiveOptions<Value>,
-): [InternalComputed, ComputedEffect] {
+): InternalComputed {
 	if (typeof callback !== 'function') {
 		throw new TypeError('Computed callback must be a function');
 	}
 
 	// @ts-expect-error All good, no worries :-)
-	const instance = new Computed(callback, options);
-
-	return [instance, instance[SYMBOL_EFFECT]];
+	return new Computed(callback, options);
 }
 
 function getComputedEffect(
@@ -77,6 +75,7 @@ function getComputedEffect(
 	const fx: ComputedEffect = {
 		dirty: true,
 		instance: undefined as never,
+		notify: false,
 	};
 
 	fx.instance = internalEffect(() => {
@@ -85,9 +84,17 @@ function getComputedEffect(
 
 			ACTIVE.computed = fx;
 
-			handleSignal(instance, callback, setAndEmit, () => {
-				ACTIVE.computed = previousComputed;
-			});
+			handleSignal(
+				instance,
+				callback,
+				setAndEmit,
+				() => {
+					ACTIVE.computed = previousComputed;
+
+					fx.notify = false;
+				},
+				fx.notify,
+			);
 
 			fx.dirty = false;
 		}
@@ -122,14 +129,14 @@ function getComputedValue(this: InternalComputed): unknown {
 export function internalComputed(
 	callback: GenericCallback,
 	options?: ReactiveOptions<unknown>,
-): [InternalComputed, ComputedEffect] {
+): InternalComputed {
 	return getComputed(callback, options);
 }
 
-function setAndEmit(instance: InternalStateful, value: unknown): void {
+function setAndEmit(instance: InternalStateful, value: unknown, notify: boolean): void {
 	const state = instance[SYMBOL_STATE];
 
-	if ((state.equal ?? Object.is)(state.value, value)) {
+	if (!notify && (state.equal ?? Object.is)(state.value, value)) {
 		return;
 	}
 

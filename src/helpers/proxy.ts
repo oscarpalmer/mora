@@ -6,27 +6,12 @@ import type {
 	PlainObject,
 } from '@oscarpalmer/atoms/models';
 import {startBatch, stopBatch} from '../batch';
-import {PROPERTY_LENGTH, SYMBOL_STATE} from '../constants';
+import {PROPERTY_LENGTH, SYMBOL_EFFECT, SYMBOL_STATE} from '../constants';
 import type {InternalArray, InternalComputed, InternalStore, ReactiveProxyState} from '../models';
 import {internalComputed} from '../value/computed';
 import {emitValue, getSignalValue, peekSignalValue} from './value';
 
 // #region Functions
-
-export function emitProxyValues(this: InternalArray | InternalStore): void {
-	const state = this[SYMBOL_STATE];
-
-	state.mapped ??= new Map();
-
-	const values = [...state.mapped.values()];
-	const {length} = values;
-
-	for (let index = 0; index < length; index += 1) {
-		values[index][1].dirty = true;
-	}
-
-	emitValue(this);
-}
 
 export function getReactiveValueInProxy(
 	instance: InternalArray | InternalStore,
@@ -50,7 +35,7 @@ export function getReactiveValueInProxy(
 		state.mapped.set(mapKey, item);
 	}
 
-	return item[0];
+	return item;
 }
 
 export function getValueInProxy(this: InternalArray | InternalStore, first?: unknown): unknown {
@@ -69,6 +54,22 @@ function isProxyKey(isArray: boolean, value: unknown): value is Key {
 
 function isProxyObject(isArray: boolean, value: unknown): value is ArrayOrPlainObject {
 	return value == null || (isArray ? Array.isArray(value) : isPlainObject(value));
+}
+
+export function notifyProxyValue(this: InternalArray | InternalStore): void {
+	const state = this[SYMBOL_STATE];
+
+	state.mapped ??= new Map();
+
+	const values = [...state.mapped.values()];
+	const {length} = values;
+
+	for (let index = 0; index < length; index += 1) {
+		values[index][SYMBOL_EFFECT].dirty = true;
+		values[index][SYMBOL_EFFECT].notify = true;
+	}
+
+	emitValue(this, true);
 }
 
 export function peekValueInProxy(

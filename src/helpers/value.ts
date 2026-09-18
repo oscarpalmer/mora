@@ -9,13 +9,20 @@ import {
 	SUBSCRIPTION_TYPE_FROZEN,
 	SUBSCRIPTION_TYPES,
 	SUBSCRIPTION_TYPES_COPY,
+	SYMBOL_EFFECT,
 	SYMBOL_STATE,
 } from '../constants';
-import type {InternalStateful} from '../models';
+import type {InternalArray, InternalComputed, InternalStateful, InternalStore} from '../models';
+
+// #region Types
+
+type SetValue = (instance: InternalStateful, value: unknown, notify: boolean) => void;
+
+// #endregion
 
 // #region Functions
 
-export function emitValue(instance: InternalStateful): void {
+export function emitValue(instance: InternalStateful, notify?: boolean): void {
 	const state = instance[SYMBOL_STATE];
 
 	if (state.computeds != null && state.computeds.size > 0) {
@@ -27,6 +34,18 @@ export function emitValue(instance: InternalStateful): void {
 	if (state.effects != null && state.effects.size > 0) {
 		for (const effect of state.effects) {
 			BATCH.handlers.set(effect, effect);
+		}
+	}
+
+	if (notify ?? false) {
+		const proxy = instance as InternalArray | InternalStore;
+		const state = proxy[SYMBOL_STATE];
+		const mapped = state.mapped as Map<unknown, InternalComputed>;
+
+		for (const [, item] of mapped) {
+			const fx = item[SYMBOL_EFFECT];
+
+			BATCH.handlers.set(fx.instance, fx.instance);
 		}
 	}
 
@@ -136,8 +155,9 @@ export function getStringValue(this: InternalStateful, json?: boolean): string {
 export function handleSignal(
 	instance: InternalStateful,
 	origin: unknown,
-	setValue: (instance: InternalStateful, value: unknown) => void,
+	setValue: SetValue,
 	onAfter?: () => void,
+	notify?: boolean,
 ): void {
 	const state = instance[SYMBOL_STATE];
 
@@ -152,7 +172,7 @@ export function handleSignal(
 					if (actual === state.promise) {
 						state.promise = undefined;
 
-						setValue(instance, value);
+						setValue(instance, value, notify ?? false);
 					}
 				})
 				.catch(() => {
@@ -161,7 +181,7 @@ export function handleSignal(
 					}
 				});
 		} else {
-			setValue(instance, actual);
+			setValue(instance, actual, notify ?? false);
 		}
 	} catch {
 		// ?

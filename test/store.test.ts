@@ -190,8 +190,8 @@ test('notify', () => {
 
 	stored.notify();
 
-	expect(count).toBe(1);
-	expect(value).toBe(123);
+	expect(count).toBe(2);
+	expect(value).toBe(456);
 });
 
 test('peek', () => {

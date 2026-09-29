@@ -1,10 +1,11 @@
 import type {GenericCallback} from '@oscarpalmer/atoms/models';
+import {attempt} from '@oscarpalmer/atoms/result';
 import {ACTIVE, NAME_EFFECT, NAME_MORA, SYMBOL_STATE} from './constants';
 import type {Effect, EffectState} from './models';
 
 // #region Instance
 
-function Effect(this: any, callback: GenericCallback) {
+function Effect(this: any, callback: GenericCallback): void {
 	this[SYMBOL_STATE] = {callback};
 
 	runEffect(this[SYMBOL_STATE]);

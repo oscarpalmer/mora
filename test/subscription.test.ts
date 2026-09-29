@@ -1,4 +1,4 @@
-import {expect, test} from 'vitest';
+import {expect, test} from 'vite-plus/test';
 import {array, computed, signal, startBatch, stopBatch, store} from '../src';
 
 test('basic', () => {

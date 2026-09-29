@@ -15,7 +15,7 @@ import {getReadonlySignal} from './readonly';
 
 // #region Instance
 
-function Signal(this: any, value: unknown, options?: ReactiveOptions<unknown>) {
+function Signal(this: any, value: unknown, options?: ReactiveOptions<unknown>): void {
 	this[SYMBOL_STATE] = getState(undefined, options);
 
 	handleSignal(this, value, setAndEmit);

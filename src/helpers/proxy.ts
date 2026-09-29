@@ -5,6 +5,7 @@ import type {
 	Key,
 	PlainObject,
 } from '@oscarpalmer/atoms/models';
+import {attempt} from '@oscarpalmer/atoms/result';
 import {startBatch, stopBatch} from '../batch';
 import {PROPERTY_LENGTH, SYMBOL_EFFECT, SYMBOL_STATE} from '../constants';
 import type {InternalArray, InternalComputed, InternalStore, ReactiveProxyState} from '../models';

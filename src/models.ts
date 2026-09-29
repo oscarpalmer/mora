@@ -35,8 +35,8 @@ export type InternalArray = {
 
 export type InternalComputed = {
 	[SYMBOL_EFFECT]: ComputedEffect;
-	[SYMBOL_STATE]: SignalState;
-} & Computed<unknown>;
+} & Computed<unknown> &
+	InternalStateful;
 
 export type InternalReadonly = {
 	frozen: boolean;

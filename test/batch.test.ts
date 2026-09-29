@@ -1,4 +1,4 @@
-import {expect, test} from 'vitest';
+import {expect, test} from 'vite-plus/test';
 import {computed, effect, signal, startBatch, stopBatch} from '../src';
 import {BATCH} from '../src/constants';
 

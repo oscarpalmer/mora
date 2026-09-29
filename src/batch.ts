@@ -1,3 +1,4 @@
+import {attempt} from '@oscarpalmer/atoms/result';
 import {BATCH} from './constants';
 import {runEffect} from './effect';
 import {getFrozenValue, peekSignalValue} from './helpers/value';

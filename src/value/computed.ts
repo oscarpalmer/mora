@@ -25,7 +25,7 @@ import type {
 
 // #region Instance
 
-function Computed(this: any, callback: GenericCallback, options?: ReactiveOptions<unknown>) {
+function Computed(this: any, callback: GenericCallback, options?: ReactiveOptions<unknown>): void {
 	this[SYMBOL_STATE] = getState(undefined, options);
 	this[SYMBOL_EFFECT] = getComputedEffect(this, callback);
 }

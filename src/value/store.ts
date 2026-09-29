@@ -2,8 +2,8 @@ import type {PlainObject} from '@oscarpalmer/atoms/models';
 import {NAME_MORA, NAME_STORE, SYMBOL_STATE} from '../constants';
 import {getState} from '../helpers/misc';
 import {
-	notifyProxyValue,
 	getValueInProxy,
+	notifyProxyValue,
 	peekValueInProxy,
 	setProxyValue,
 	setValueInProxy,
@@ -16,7 +16,7 @@ import {getReadonlySignal} from './readonly';
 
 // #region Instance
 
-function ReactiveStore(this: any, value: never, options?: ReactiveOptions<unknown>) {
+function ReactiveStore(this: any, value: never, options?: ReactiveOptions<unknown>): void {
 	this[SYMBOL_STATE] = {
 		...getState(undefined, options),
 		isArray: false,

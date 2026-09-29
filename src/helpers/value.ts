@@ -1,4 +1,6 @@
 import {isPlainObject} from '@oscarpalmer/atoms/is';
+import {round} from '@oscarpalmer/atoms/math';
+import {attempt} from '@oscarpalmer/atoms/result';
 import {flushHandlers} from '../batch';
 import {
 	ACTIVE,
@@ -86,7 +88,7 @@ export function equalArrays(
 	let offset = 0;
 
 	if (length >= ARRAY_THRESHOLD) {
-		offset = Math.round(length / ARRAY_PEEK);
+		offset = round(length / ARRAY_PEEK);
 		offset = offset > ARRAY_OFFSET ? ARRAY_OFFSET : offset;
 
 		for (let index = 0; index < offset; index += 1) {

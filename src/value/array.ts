@@ -1,5 +1,5 @@
-import {select} from '@oscarpalmer/atoms/array';
 import {filter} from '@oscarpalmer/atoms/array/filter';
+import {select} from '@oscarpalmer/atoms/array/select';
 import {
 	METHODS_AFFECTING_LENGTH,
 	METHODS_UPDATE,
@@ -10,8 +10,8 @@ import {
 } from '../constants';
 import {getState} from '../helpers/misc';
 import {
-	notifyProxyValue,
 	getValueInProxy,
+	notifyProxyValue,
 	peekValueInProxy,
 	setProxyValue,
 	setValueInProxy,
@@ -26,7 +26,7 @@ import {signal} from './signal';
 
 // #region Instance
 
-function ReactiveArray(this: any, value: unknown, options?: ReactiveOptions<unknown>) {
+function ReactiveArray(this: any, value: unknown, options?: ReactiveOptions<unknown>): void {
 	this[SYMBOL_STATE] = {
 		...getState(undefined, options),
 		isArray: true,

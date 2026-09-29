@@ -25,7 +25,7 @@ type InternalReadonly = {
 
 // #region Instance
 
-function Readonly(this: any, state: SignalState, frozen: boolean) {
+function Readonly(this: any, state: SignalState, frozen: boolean): void {
 	this[SUBSCRIPTION_TYPE_FROZEN] = frozen;
 	this[SYMBOL_STATE] = state;
 }

@@ -1,5 +1,5 @@
 import {equal} from '@oscarpalmer/atoms/value/equal';
-import {expect, test} from 'vitest';
+import {expect, test} from 'vite-plus/test';
 import {array, signal} from '../src';
 
 test('equal: basic', () => {

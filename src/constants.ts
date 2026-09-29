@@ -1,3 +1,4 @@
+import type {SubscriptionProperty} from '@oscarpalmer/atoms/subscription';
 import type {Active, Batch, SubscriptionType} from './models';
 
 // #region Variables
@@ -16,14 +17,14 @@ export const BATCH: Batch = {
 	handlers: new Map(),
 };
 
-export const METHODS_AFFECTING_LENGTH = new Set<string | symbol>([
+export const METHODS_AFFECTING_LENGTH: Set<string | symbol> = new Set([
 	'pop',
 	'push',
 	'shift',
 	'unshift',
 ]);
 
-export const METHODS_UPDATE = new Set<string | symbol>([
+export const METHODS_UPDATE: Set<string | symbol> = new Set([
 	...METHODS_AFFECTING_LENGTH,
 	'copyWithin',
 	'fill',
@@ -48,7 +49,7 @@ export const NAME_STORE = 'store';
 
 export const NAME_SUBSCRIPTION = 'subscription';
 
-export const NAME_ALL = new Set([
+export const NAME_ALL: Set<string> = new Set([
 	NAME_ARRAY,
 	NAME_COMPUTED,
 	NAME_READONLY,
@@ -58,11 +59,11 @@ export const NAME_ALL = new Set([
 
 export const PROPERTY_LENGTH = 'length';
 
-export const SYMBOL_EFFECT = Symbol('effect');
+export const SYMBOL_EFFECT: symbol = Symbol('effect');
 
-export const SYMBOL_STATE = Symbol('state');
+export const SYMBOL_STATE: symbol = Symbol('state');
 
-export const SUBSCRIPTION_PROPERTY = {
+export const SUBSCRIPTION_PROPERTY: SubscriptionProperty = {
 	key: NAME_MORA,
 	value: NAME_SUBSCRIPTION,
 };
@@ -75,7 +76,7 @@ export const SUBSCRIPTION_TYPE_ORIGINAL: SubscriptionType = 'original';
 
 export const SUBSCRIPTION_TYPE_READONLY: SubscriptionType = 'readonly';
 
-export const SUBSCRIPTION_TYPES_COPY = new Set<SubscriptionType>([
+export const SUBSCRIPTION_TYPES_COPY: Set<SubscriptionType> = new Set([
 	SUBSCRIPTION_TYPE_COPY,
 	SUBSCRIPTION_TYPE_READONLY,
 ]);

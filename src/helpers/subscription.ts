@@ -2,6 +2,7 @@ import {isKey} from '@oscarpalmer/atoms/is';
 import type {Key} from '@oscarpalmer/atoms/models';
 import {subscriptions, type Subscription} from '@oscarpalmer/atoms/subscription';
 import {
+	MESSAGE_DEACTIVATED_SUBSCRIPTION,
 	SUBSCRIPTION_PROPERTY,
 	SUBSCRIPTION_TYPE_COPY,
 	SUBSCRIPTION_TYPE_FROZEN,
@@ -42,12 +43,18 @@ function subscribeToReactive(
 	type: SubscriptionType,
 	subscriber: Subscriber<unknown>,
 ): Subscription {
-	this[SYMBOL_STATE].subscriptions ??= subscriptions({
+	const state = this[SYMBOL_STATE];
+
+	if (!state.active) {
+		throw new Error(MESSAGE_DEACTIVATED_SUBSCRIPTION);
+	}
+
+	state.subscriptions ??= subscriptions({
 		keys: SUBSCRIPTION_TYPES,
 		property: SUBSCRIPTION_PROPERTY,
 	});
 
-	const [subscription, existing] = this[SYMBOL_STATE].subscriptions.create({
+	const [subscription, existing] = state.subscriptions.create({
 		key: type,
 		value: subscriber,
 	});
@@ -55,7 +62,7 @@ function subscribeToReactive(
 	if (!existing) {
 		subscriber(
 			type === SUBSCRIPTION_TYPE_FROZEN
-				? getFrozenValue(this[SYMBOL_STATE].value)
+				? getFrozenValue(state.value)
 				: peekSignalValue.call(this, SUBSCRIPTION_TYPES_COPY.has(type)),
 			subscription,
 		);

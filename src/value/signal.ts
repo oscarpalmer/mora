@@ -1,5 +1,5 @@
-import {NAME_MORA, NAME_SIGNAL, SYMBOL_STATE} from '../constants';
-import {getState} from '../helpers/misc';
+import {NAME_SIGNAL, SYMBOL_STATE} from '../constants';
+import {deactivateReactive, getReactiveActive, getState} from '../helpers/misc';
 import {subscribeToSignal} from '../helpers/subscription';
 import {
 	emitValue,
@@ -16,14 +16,13 @@ import {getReadonlySignal} from './readonly';
 // #region Instance
 
 function Signal(this: any, value: unknown, options?: ReactiveOptions<unknown>): void {
-	this[SYMBOL_STATE] = getState(undefined, options);
+	this[SYMBOL_STATE] = getState(NAME_SIGNAL, undefined, options);
 
 	handleSignal(this, value, setAndEmit);
 }
 
-Signal.prototype[NAME_MORA] = NAME_SIGNAL;
-
 Signal.prototype.asReadonly = getReadonlySignal;
+Signal.prototype.deactivate = deactivateReactive;
 Signal.prototype.get = getSignalValue;
 Signal.prototype.peek = peekSignalValue;
 Signal.prototype.set = setSignalValue;
@@ -31,6 +30,13 @@ Signal.prototype.subscribe = subscribeToSignal;
 Signal.prototype.toString = getStringValue;
 Signal.prototype.toJSON = getJsonValue;
 Signal.prototype.update = updateSignalValue;
+
+Object.defineProperties(Signal.prototype, {
+	active: {
+		enumerable: true,
+		get: getReactiveActive,
+	},
+});
 
 // #endregion
 

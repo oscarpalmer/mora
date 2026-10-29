@@ -4,10 +4,11 @@ import {
 	NAME_ARRAY,
 	NAME_COMPUTED,
 	NAME_EFFECT,
-	NAME_MORA,
 	NAME_READONLY,
 	NAME_SIGNAL,
 	NAME_STORE,
+	SYMBOL_READONLY,
+	SYMBOL_STATE,
 } from '../constants';
 import type {
 	Computed,
@@ -41,13 +42,22 @@ export function isEffect(value: unknown): value is Effect {
 	return isMora<Effect>(value, NAME_EFFECT);
 }
 
-function isMora<Instance>(value: unknown, name: string | Set<string>): value is Instance {
-	return (
-		typeof value === 'object' &&
-		value != null &&
-		NAME_MORA in value &&
-		(typeof name === 'string' ? value[NAME_MORA] === name : name.has(value[NAME_MORA] as never))
-	);
+function isMora<Instance>(input: unknown, value: string | Set<string>): input is Instance {
+	if (typeof input !== 'object' || input === null) {
+		return false;
+	}
+
+	if (value === NAME_READONLY) {
+		return SYMBOL_READONLY in input;
+	}
+
+	if (!(SYMBOL_STATE in input)) {
+		return false;
+	}
+
+	const state = (input as PlainObject)[SYMBOL_STATE] as PlainObject;
+
+	return typeof value === 'string' ? state.name === value : value.has(state.name as never);
 }
 
 /**

@@ -53,6 +53,9 @@ test('basic', () => {
 		count += 1;
 	});
 
+	expect(a.active).toBe(true);
+	expect(b.active).toBe(true);
+
 	expect(count).toBe(1);
 	expect(a.peek('length')).toBe(5);
 
@@ -60,6 +63,19 @@ test('basic', () => {
 
 	expect(a.toString()).toBe('1,2,3,4,5');
 	expect(a.toJSON()).toEqual([1, 2, 3, 4, 5]);
+
+	a.deactivate();
+	a.deactivate();
+	b.deactivate();
+
+	expect(a.active).toBe(false);
+	expect(b.active).toBe(false);
+
+	a.set([9, 9, 9]);
+	b.set([9, 9, 9]);
+
+	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
+	expect(b.peek()).toEqual([]);
 });
 
 test('clear', () => {
@@ -72,6 +88,17 @@ test('clear', () => {
 
 	expect(a.peek()).toEqual([]);
 	expect(b.peek()).toEqual([]);
+
+	a.set([1, 2, 3, 4, 5]);
+
+	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
+	expect(b.peek()).toEqual([2, 4, 6, 8, 10]);
+
+	a.deactivate();
+	a.clear();
+
+	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
+	expect(b.peek()).toEqual([2, 4, 6, 8, 10]);
 });
 
 test('copyWith', () => {
@@ -82,6 +109,12 @@ test('copyWith', () => {
 	expect(a.peek()).toEqual([3, 4, 5, 4, 5]);
 
 	a.get().copyWithin(1, 3, 4);
+
+	expect(a.peek()).toEqual([3, 4, 5, 4, 5]);
+
+	a.deactivate();
+
+	a.get().copyWithin(0, 2);
 
 	expect(a.peek()).toEqual([3, 4, 5, 4, 5]);
 });
@@ -145,6 +178,12 @@ test('fill', () => {
 	a.get().fill(101, 1, 3);
 
 	expect(a.peek()).toEqual([99, 101, 101, 100, 100]);
+
+	a.deactivate();
+
+	a.get().fill(102);
+
+	expect(a.peek()).toEqual([99, 101, 101, 100, 100]);
 });
 
 test('filter', () => {
@@ -160,6 +199,13 @@ test('filter', () => {
 	a.set([]);
 
 	expect(b.peek()).toEqual([]);
+
+	a.deactivate();
+	a.push(1);
+
+	expect(b.peek()).toEqual([]);
+
+	expect(() => a.filter(() => true)).toThrow();
 });
 
 test('length', () => {
@@ -196,6 +242,13 @@ test('length', () => {
 
 	expect(a.peek('length')).toBe(10);
 	expect(count).toEqual([2, 2]);
+
+	a.deactivate();
+
+	a.length = 20;
+
+	expect(a.peek('length')).toBe(10);
+	expect(count).toEqual([2, 2]);
 });
 
 test('map', () => {
@@ -211,6 +264,14 @@ test('map', () => {
 	a.set([]);
 
 	expect(b.peek()).toEqual([]);
+
+	a.deactivate();
+
+	a.push(1);
+
+	expect(b.peek()).toEqual([]);
+
+	expect(() => a.map(() => {})).toThrow();
 });
 
 test('notify', () => {
@@ -371,6 +432,10 @@ test('pop', () => {
 
 	expect(a.pop()).toBe(5);
 	expect(a.peek()).toEqual([1, 2, 3, 4]);
+
+	a.deactivate();
+
+	expect(a.pop()).toBeUndefined();
 });
 
 test('push', () => {
@@ -379,6 +444,10 @@ test('push', () => {
 	expect(a.push(6)).toBe(6);
 	expect(a.peek()).toEqual([1, 2, 3, 4, 5, 6]);
 	expect(a.peek('length')).toBe(6);
+
+	a.deactivate();
+
+	expect(a.push(7)).toBe(6);
 });
 
 test('reverse', () => {
@@ -401,6 +470,7 @@ test('select', () => {
 		item => item.id % 2 === 0,
 		item => item.value,
 	);
+
 	const odd = all.select(
 		item => item.id % 2 !== 0,
 		item => item.value,
@@ -413,6 +483,20 @@ test('select', () => {
 
 	expect(even.peek()).toEqual(['Banana', 'Date']);
 	expect(odd.peek()).toEqual(['Apple', 'Cherry', 'Elderberry']);
+
+	all.deactivate();
+
+	all.push({id: 6, value: 'Fig'});
+
+	expect(even.peek()).toEqual(['Banana', 'Date']);
+	expect(odd.peek()).toEqual(['Apple', 'Cherry', 'Elderberry']);
+
+	expect(() =>
+		all.select(
+			item => item.id % 2 === 0,
+			item => item.value,
+		),
+	).toThrow();
 });
 
 test('set', () => {
@@ -487,6 +571,24 @@ test('set', () => {
 	a.get()['blah' as never] = 'Hello, world!' as never;
 
 	expect(a.get()['blah' as never]).toBe('Hello, world!');
+
+	a.deactivate();
+
+	a.set(0, 1234);
+
+	expect(a.peek(0)).toBe(6);
+
+	a.get()[0] = 1234;
+
+	expect(a.peek(0)).toBe(6);
+
+	a.set([1, 2, 3]);
+
+	expect(a.peek()).not.toEqual([1, 2, 3]);
+
+	a.set('length', 0);
+
+	expect(a.peek()).not.toEqual([]);
 });
 
 test('shift', () => {
@@ -495,12 +597,24 @@ test('shift', () => {
 	expect(a.shift()).toBe(1);
 	expect(a.peek()).toEqual([2, 3, 4, 5]);
 	expect(a.peek('length')).toBe(4);
+
+	a.deactivate();
+
+	expect(a.shift()).toBe(undefined);
+	expect(a.peek()).toEqual([2, 3, 4, 5]);
+	expect(a.peek('length')).toBe(4);
 });
 
 test('sort', () => {
 	const a = array([5, 4, 3, 2, 1]);
 
 	a.get().sort();
+
+	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
+
+	a.deactivate();
+
+	a.get().sort((a, b) => b - a);
 
 	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
 });
@@ -535,6 +649,14 @@ test('splice + (get)', () => {
 
 	expect(first).toBe(undefined);
 	expect(last).toBe(undefined);
+
+	a.set([1, 2, 3]);
+
+	expect(a.peek()).toEqual([1, 2, 3]);
+
+	a.deactivate();
+
+	expect(a.splice(0)).toEqual([]);
 });
 
 test('subscription', () => {
@@ -599,6 +721,10 @@ test('unshift', () => {
 	expect(a.unshift(0)).toBe(6);
 	expect(a.peek()).toEqual([0, 1, 2, 3, 4, 5]);
 	expect(a.peek('length')).toBe(6);
+
+	a.deactivate();
+
+	expect(a.unshift()).toBe(6);
 });
 
 test('update', () => {

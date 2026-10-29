@@ -1,8 +1,7 @@
-import {attempt} from '@oscarpalmer/atoms/result';
 import {BATCH} from './constants';
 import {runEffect} from './effect';
 import {getFrozenValue, peekSignalValue} from './helpers/value';
-import type {StoredSubscription} from './models';
+import type {EffectState, StoredSubscription} from './models';
 
 // #region Functions
 
@@ -31,7 +30,7 @@ export function flushHandlers(): void {
 							: peekSignalValue.call(subscription.instance, subscription.copy),
 					);
 				} else {
-					runEffect(handler);
+					runEffect(handler as EffectState);
 				}
 			}
 		}

@@ -8,6 +8,9 @@ test('basic', () => {
 	const c = computed(() => a.get() + b.get());
 	const d = computed(() => c.get() + 1);
 
+	expect(c.active).toBe(true);
+	expect(d.active).toBe(true);
+
 	expect(c.peek()).toBe(3);
 	expect(d.peek()).toBe(4);
 
@@ -26,6 +29,31 @@ test('basic', () => {
 
 	expect(c.toString()).toBe('7');
 	expect(d.toString()).toBe('8');
+
+	a.deactivate();
+
+	a.set(10);
+
+	expect(a.peek()).toBe(2);
+	expect(c.peek()).toBe(7);
+	expect(d.peek()).toBe(8);
+
+	b.set(100);
+
+	expect(b.peek()).toBe(100);
+	expect(c.peek()).toBe(102);
+	expect(d.peek()).toBe(103);
+
+	c.deactivate();
+	c.deactivate();
+
+	expect(c.active).toBe(false);
+
+	b.set(50);
+
+	expect(b.get()).toBe(50);
+	expect(c.get()).toBe(102);
+	expect(d.get()).toBe(103);
 
 	expect(() => computed(undefined as never)).toThrow();
 });

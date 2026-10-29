@@ -1,17 +1,28 @@
+import {noop} from '@oscarpalmer/atoms/function';
 import type {GenericCallback} from '@oscarpalmer/atoms/models';
-import {attempt} from '@oscarpalmer/atoms/result';
-import {ACTIVE, NAME_EFFECT, NAME_MORA, SYMBOL_STATE} from './constants';
-import type {Effect, EffectState} from './models';
+import {ACTIVE, BATCH, MESSAGE_EFFECT_CALLBACK, NAME_EFFECT, SYMBOL_STATE} from './constants';
+import type {Effect, EffectState, InternalEffect} from './models';
 
 // #region Instance
 
-function Effect(this: any, callback: GenericCallback): void {
-	this[SYMBOL_STATE] = {callback};
+function Effect(this: InternalEffect, callback: GenericCallback): void {
+	this[SYMBOL_STATE] = {
+		callback,
+		active: true,
+		name: NAME_EFFECT,
+	};
 
 	runEffect(this[SYMBOL_STATE]);
 }
 
-Effect.prototype[NAME_MORA] = NAME_EFFECT;
+Effect.prototype.stop = stopEffect;
+
+Object.defineProperties(Effect.prototype, {
+	active: {
+		enumerable: true,
+		get: getActive,
+	},
+});
 
 // #endregion
 
@@ -25,10 +36,14 @@ Effect.prototype[NAME_MORA] = NAME_EFFECT;
  */
 export function effect(callback: GenericCallback): Effect {
 	if (typeof callback !== 'function') {
-		throw new TypeError('Effect callback must be a function');
+		throw new TypeError(MESSAGE_EFFECT_CALLBACK);
 	}
 
 	return getEffect(callback)[0];
+}
+
+function getActive(this: InternalEffect): boolean {
+	return this[SYMBOL_STATE].active;
 }
 
 function getEffect(callback: GenericCallback): [Effect, EffectState] {
@@ -52,6 +67,19 @@ export function runEffect(state: EffectState): void {
 	} finally {
 		ACTIVE.effect = previousEffect;
 	}
+}
+
+function stopEffect(this: InternalEffect): void {
+	const state = this[SYMBOL_STATE];
+
+	if (!state.active) {
+		return;
+	}
+
+	BATCH.handlers.delete(state);
+
+	state.active = false;
+	state.callback = noop;
 }
 
 // #endregion

@@ -1,6 +1,6 @@
 import type {PlainObject} from '@oscarpalmer/atoms/models';
-import {NAME_MORA, NAME_STORE, SYMBOL_STATE} from '../constants';
-import {getState} from '../helpers/misc';
+import {NAME_STORE, SYMBOL_STATE} from '../constants';
+import {deactivateReactive, getReactiveActive, getState} from '../helpers/misc';
 import {
 	getValueInProxy,
 	notifyProxyValue,
@@ -18,7 +18,7 @@ import {getReadonlySignal} from './readonly';
 
 function ReactiveStore(this: any, value: never, options?: ReactiveOptions<unknown>): void {
 	this[SYMBOL_STATE] = {
-		...getState(undefined, options),
+		...getState(NAME_STORE, undefined, options),
 		isArray: false,
 	};
 
@@ -32,9 +32,8 @@ function ReactiveStore(this: any, value: never, options?: ReactiveOptions<unknow
 	setProxyValue.call(this, value);
 }
 
-ReactiveStore.prototype[NAME_MORA] = NAME_STORE;
-
 ReactiveStore.prototype.asReadonly = getReadonlySignal;
+ReactiveStore.prototype.deactivate = deactivateReactive;
 ReactiveStore.prototype.get = getValueInProxy;
 ReactiveStore.prototype.notify = notifyProxyValue;
 ReactiveStore.prototype.peek = peekValueInProxy;
@@ -43,6 +42,13 @@ ReactiveStore.prototype.subscribe = subscribeToProxy;
 ReactiveStore.prototype.toJSON = getJsonValue;
 ReactiveStore.prototype.toString = getStringValue;
 ReactiveStore.prototype.update = updateProxyValue;
+
+Object.defineProperties(ReactiveStore.prototype, {
+	active: {
+		enumerable: true,
+		get: getReactiveActive,
+	},
+});
 
 // #endregion
 

@@ -3,8 +3,8 @@ import {flushHandlers} from '../batch';
 import {
 	ACTIVE,
 	BATCH,
+	MESSAGE_COMPUTED_CALLBACK,
 	NAME_COMPUTED,
-	NAME_MORA,
 	SUBSCRIPTION_TYPE_FROZEN,
 	SUBSCRIPTION_TYPES,
 	SUBSCRIPTION_TYPES_COPY,
@@ -12,7 +12,7 @@ import {
 	SYMBOL_STATE,
 } from '../constants';
 import {internalEffect, runEffect} from '../effect';
-import {getState} from '../helpers/misc';
+import {deactivateComputed, getReactiveActive, getState} from '../helpers/misc';
 import {subscribeToSignal} from '../helpers/subscription';
 import {getJsonValue, getStringValue, handleSignal, peekSignalValue} from '../helpers/value';
 import type {
@@ -26,17 +26,23 @@ import type {
 // #region Instance
 
 function Computed(this: any, callback: GenericCallback, options?: ReactiveOptions<unknown>): void {
-	this[SYMBOL_STATE] = getState(undefined, options);
+	this[SYMBOL_STATE] = getState(NAME_COMPUTED, undefined, options);
 	this[SYMBOL_EFFECT] = getComputedEffect(this, callback);
 }
 
-Computed.prototype[NAME_MORA] = NAME_COMPUTED;
-
+Computed.prototype.deactivate = deactivateComputed;
 Computed.prototype.get = getComputedValue;
 Computed.prototype.peek = peekSignalValue;
 Computed.prototype.subscribe = subscribeToSignal;
 Computed.prototype.toJSON = getJsonValue;
 Computed.prototype.toString = getStringValue;
+
+Object.defineProperties(Computed.prototype, {
+	active: {
+		enumerable: true,
+		get: getReactiveActive,
+	},
+});
 
 // #endregion
 
@@ -61,7 +67,7 @@ function getComputed<Value>(
 	options?: ReactiveOptions<Value>,
 ): InternalComputed {
 	if (typeof callback !== 'function') {
-		throw new TypeError('Computed callback must be a function');
+		throw new TypeError(MESSAGE_COMPUTED_CALLBACK);
 	}
 
 	// @ts-expect-error All good, no worries :-)
@@ -104,8 +110,13 @@ function getComputedEffect(
 }
 
 function getComputedValue(this: InternalComputed): unknown {
-	const fx = this[SYMBOL_EFFECT];
 	const state = this[SYMBOL_STATE];
+
+	if (!state.active) {
+		return state.value;
+	}
+
+	const fx = this[SYMBOL_EFFECT];
 
 	if (ACTIVE.computed != null && fx !== ACTIVE.computed) {
 		state.computeds ??= new Set();

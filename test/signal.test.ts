@@ -10,6 +10,8 @@ test('basic', () => {
 		count += 1;
 	});
 
+	expect(value.active).toBe(true);
+
 	expect(value.peek()).toBe(1);
 	expect(count).toBe(1);
 
@@ -30,6 +32,16 @@ test('basic', () => {
 
 	expect(value.toJSON()).toEqual(3);
 	expect(value.toString()).toBe('3');
+
+	value.deactivate();
+	value.deactivate();
+
+	expect(value.active).toBe(false);
+
+	value.set(999);
+
+	expect(count).toBe(3);
+	expect(value.peek()).toBe(3);
 
 	expect(() => value.update(undefined as never)).toThrow();
 });

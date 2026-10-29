@@ -1,6 +1,6 @@
 import type {GenericCallback, Key, PlainObject} from '@oscarpalmer/atoms/models';
 import type {Subscription, Subscriptions} from '@oscarpalmer/atoms/subscription';
-import {SYMBOL_EFFECT, SYMBOL_STATE, type PROPERTY_LENGTH} from './constants';
+import {SYMBOL_EFFECT, SYMBOL_READONLY, SYMBOL_STATE, type PROPERTY_LENGTH} from './constants';
 
 // #region Types
 
@@ -23,10 +23,21 @@ export type ComputedEffect = {
 	notify: boolean;
 };
 
-export type Effect = {};
+export type Effect = {
+	/**
+	 * Is the effect active?
+	 */
+	get active(): boolean;
+	/**
+	 * Stop the effect
+	 */
+	stop(): void;
+};
 
 export type EffectState = {
+	active: boolean;
 	callback: GenericCallback;
+	name: string;
 };
 
 export type InternalArray = {
@@ -38,8 +49,16 @@ export type InternalComputed = {
 } & Computed<unknown> &
 	InternalStateful;
 
+export type InternalEffect = {
+	[SYMBOL_STATE]: EffectState;
+} & Effect;
+
+export type InternalReactive = {
+	[SYMBOL_STATE]: SignalState;
+} & Reactive<unknown>;
+
 export type InternalReadonly = {
-	frozen: boolean;
+	[SYMBOL_READONLY]: ReadonlyState;
 } & InternalStateful &
 	ReadonlySignal<unknown>;
 
@@ -54,6 +73,16 @@ export type InternalStore = {
 } & ReactiveStore<PlainObject>;
 
 export type Reactive<Value> = {
+	/**
+	 * Is the signal active?
+	 */
+	get active(): boolean;
+
+	/**
+	 * Deactivate the signal, preventing further updates
+	 */
+	deactivate(): void;
+
 	/**
 	 * Get the value
 	 *
@@ -329,9 +358,11 @@ export type ReactiveProxyState = {
 } & SignalState;
 
 export type ReactiveState<Value = unknown, Item = Value> = {
+	active: boolean;
 	computeds?: Set<ComputedEffect>;
 	effects?: Set<EffectState>;
 	equal?: (first: Item, second: Item) => boolean;
+	name: string;
 	promise?: Promise<unknown>;
 	promises?: Map<Key, Promise<never>>;
 	subscriptions?: Subscriptions<GenericCallback>;
@@ -505,6 +536,11 @@ export type ReadonlySignalValue<Value> = Value extends unknown[]
 	: Value extends PlainObject
 		? Readonly<Value>
 		: Value;
+
+export type ReadonlyState = {
+	active: boolean;
+	value?: unknown;
+};
 
 export type Signal<Value> = {
 	/**

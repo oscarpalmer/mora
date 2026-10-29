@@ -21,6 +21,7 @@ test('basic', () => {
 		counts.a += 1;
 	});
 
+	expect(stored.active).toBe(true);
 	expect(counts.obj).toBe(1);
 	expect(counts.a).toBe(1);
 	expect(stored.peek()).toEqual({a: 1, b: 2, c: 3});
@@ -66,6 +67,19 @@ test('basic', () => {
 	expect(stored.peek('a')).toBeUndefined();
 
 	stored.set([] as never);
+
+	expect(counts.obj).toBe(5);
+	expect(counts.a).toBe(3);
+	expect(stored.peek()).toEqual({});
+	expect(stored.peek('a')).toBeUndefined();
+
+	stored.deactivate();
+
+	expect(stored.active).toBe(false);
+
+	stored.set({
+		foo: 'bar',
+	} as never);
 
 	expect(counts.obj).toBe(5);
 	expect(counts.a).toBe(3);

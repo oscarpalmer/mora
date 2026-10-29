@@ -17,6 +17,20 @@ export const BATCH: Batch = {
 	handlers: new Map(),
 };
 
+export const MESSAGE_COMPUTED_CALLBACK = 'Computed callback must be a function';
+
+export const MESSAGE_DEACTIVATED_ARRAY_FILTER = 'Cannot filter an inactive reactive array';
+
+export const MESSAGE_DEACTIVATED_ARRAY_MAP = 'Cannot map an inactive reactive array';
+
+export const MESSAGE_DEACTIVATED_ARRAY_SELECT = 'Cannot select from an inactive reactive array';
+
+export const MESSAGE_DEACTIVATED_SUBSCRIPTION = 'Cannot subscribe to inactive signal';
+
+export const MESSAGE_EFFECT_CALLBACK = 'Effect callback must be a function';
+
+export const MESSAGE_UPDATE_CALLBACK = 'Update callback must be a function';
+
 export const METHODS_AFFECTING_LENGTH: Set<string | symbol> = new Set([
 	'pop',
 	'push',
@@ -39,8 +53,6 @@ export const NAME_COMPUTED = 'computed';
 
 export const NAME_EFFECT = 'effect';
 
-export const NAME_MORA = '$mora';
-
 export const NAME_READONLY = 'readonly';
 
 export const NAME_SIGNAL = 'signal';
@@ -49,22 +61,18 @@ export const NAME_STORE = 'store';
 
 export const NAME_SUBSCRIPTION = 'subscription';
 
-export const NAME_ALL: Set<string> = new Set([
-	NAME_ARRAY,
-	NAME_COMPUTED,
-	NAME_READONLY,
-	NAME_SIGNAL,
-	NAME_STORE,
-]);
+export const NAME_ALL: Set<string> = new Set([NAME_ARRAY, NAME_COMPUTED, NAME_SIGNAL, NAME_STORE]);
 
 export const PROPERTY_LENGTH = 'length';
 
-export const SYMBOL_EFFECT: symbol = Symbol('effect');
+export const SYMBOL_EFFECT: unique symbol = Symbol('effect');
 
-export const SYMBOL_STATE: symbol = Symbol('state');
+export const SYMBOL_READONLY: unique symbol = Symbol('readonly');
+
+export const SYMBOL_STATE: unique symbol = Symbol('state');
 
 export const SUBSCRIPTION_PROPERTY: SubscriptionProperty = {
-	key: NAME_MORA,
+	key: '$mora',
 	value: NAME_SUBSCRIPTION,
 };
 

@@ -1,6 +1,5 @@
 import {isPlainObject} from '@oscarpalmer/atoms/is';
-import {round} from '@oscarpalmer/atoms/math';
-import {attempt} from '@oscarpalmer/atoms/result';
+import {min, round} from '@oscarpalmer/atoms/math';
 import {flushHandlers} from '../batch';
 import {
 	ACTIVE,
@@ -8,6 +7,7 @@ import {
 	ARRAY_PEEK,
 	ARRAY_THRESHOLD,
 	BATCH,
+	MESSAGE_UPDATE_CALLBACK,
 	SUBSCRIPTION_TYPE_FROZEN,
 	SUBSCRIPTION_TYPES,
 	SUBSCRIPTION_TYPES_COPY,
@@ -89,7 +89,7 @@ export function equalArrays(
 
 	if (length >= ARRAY_THRESHOLD) {
 		offset = round(length / ARRAY_PEEK);
-		offset = offset > ARRAY_OFFSET ? ARRAY_OFFSET : offset;
+		offset = min([offset, ARRAY_OFFSET]);
 
 		for (let index = 0; index < offset; index += 1) {
 			if (
@@ -133,6 +133,10 @@ export function getJsonValue(this: InternalStateful): unknown {
 export function getSignalValue(this: InternalStateful): unknown {
 	const state = this[SYMBOL_STATE];
 
+	if (!state.active) {
+		return state.value;
+	}
+
 	if (ACTIVE.computed != null) {
 		state.computeds ??= new Set();
 
@@ -162,6 +166,10 @@ export function handleSignal(
 	notify?: boolean,
 ): void {
 	const state = instance[SYMBOL_STATE];
+
+	if (!state.active) {
+		return;
+	}
 
 	try {
 		let actual = typeof origin === 'function' ? (origin as () => unknown)() : origin;
@@ -217,7 +225,7 @@ export function updateSignal(
 	setValue: (instance: InternalStateful, value: unknown) => void,
 ): void {
 	if (typeof callback !== 'function') {
-		throw new TypeError('Callback must be a function');
+		throw new TypeError(MESSAGE_UPDATE_CALLBACK);
 	}
 
 	handleSignal(instance, callback(instance[SYMBOL_STATE].value), setValue);

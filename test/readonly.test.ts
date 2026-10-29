@@ -1,7 +1,7 @@
 import {expect, test} from 'vite-plus/test';
 import {array, effect, signal, store} from '../src';
 
-test('reactiveArray', () => {
+test('array', () => {
 	const a = array([1, 2, 3]);
 	const b = a.asReadonly();
 	const c = a.asReadonly(true);
@@ -68,7 +68,7 @@ test('reactiveArray', () => {
 	}).toThrow();
 });
 
-test('reactiveStore', () => {
+test('store', () => {
 	const a = store({x: 1, y: 2});
 	const b = a.asReadonly();
 	const c = a.asReadonly(true);
@@ -118,6 +118,9 @@ test('signal', () => {
 	expect(b.frozen).toBe(false);
 	expect(c.frozen).toBe(true);
 
+	expect(b.active).toBe(true);
+	expect(c.active).toBe(true);
+
 	expect(a.peek()).toBe(0);
 	expect(b.peek()).toBe(0);
 	expect(c.peek()).toBe(0);
@@ -135,6 +138,29 @@ test('signal', () => {
 	expect(a.toString()).toBe('1');
 	expect(b.toString()).toBe('1');
 	expect(c.toString()).toBe('1');
+
+	b.deactivate();
+	b.deactivate();
+
+	expect(b.active).toBe(false);
+	expect(c.active).toBe(true);
+
+	a.set(2);
+
+	expect(a.peek()).toBe(2);
+	expect(b.peek()).toBe(1);
+	expect(c.peek()).toBe(2);
+
+	c.deactivate();
+
+	expect(b.active).toBe(false);
+	expect(c.active).toBe(false);
+
+	a.set(3);
+
+	expect(a.peek()).toBe(3);
+	expect(b.peek()).toBe(1);
+	expect(c.peek()).toBe(2);
 
 	expect(() => {
 		(b as any).set(2);

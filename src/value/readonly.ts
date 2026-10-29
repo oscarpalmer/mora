@@ -1,10 +1,10 @@
 import {
-	NAME_MORA,
-	NAME_READONLY,
 	SUBSCRIPTION_TYPE_FROZEN,
 	SUBSCRIPTION_TYPE_ORIGINAL,
+	SYMBOL_READONLY,
 	SYMBOL_STATE,
 } from '../constants';
+import {deactivateReadonly, getReadonlyActive} from '../helpers/misc';
 import {subscribeToReadonly} from '../helpers/subscription';
 import {
 	getFrozenValue,
@@ -13,42 +13,39 @@ import {
 	getStringValue,
 	peekSignalValue,
 } from '../helpers/value';
-import type {InternalSignal, ReadonlyFrozenSignal, ReadonlySignal, SignalState} from '../models';
-
-// #region Types
-
-type InternalReadonly = {
-	[SUBSCRIPTION_TYPE_FROZEN]: boolean;
-} & InternalSignal;
-
-// #endregion
+import type {InternalReadonly, InternalSignal, ReadonlySignal, SignalState} from '../models';
 
 // #region Instance
 
 function Readonly(this: any, state: SignalState, frozen: boolean): void {
-	this[SUBSCRIPTION_TYPE_FROZEN] = frozen;
 	this[SYMBOL_STATE] = state;
+
+	this[SYMBOL_READONLY] = {
+		active: true,
+	};
+
+	Object.defineProperty(this, SUBSCRIPTION_TYPE_FROZEN, {
+		value: frozen,
+	});
 }
 
-Readonly.prototype[NAME_MORA] = NAME_READONLY;
-
+Readonly.prototype.deactivate = deactivateReadonly;
 Readonly.prototype.get = getReadonlyValue;
 Readonly.prototype.peek = peekReadonlyValue;
 Readonly.prototype.subscribe = subscribeToReadonly;
 Readonly.prototype.toJSON = getJsonValue;
 Readonly.prototype.toString = getStringValue;
 
+Object.defineProperties(Readonly.prototype, {
+	active: {
+		enumerable: true,
+		get: getReadonlyActive,
+	},
+});
+
 // #endregion
 
 // #region Functions
-
-export function getReadonlyInstance(
-	state: SignalState,
-	frozen: boolean,
-): ReadonlySignal<unknown> | ReadonlyFrozenSignal<unknown> {
-	// @ts-expect-error All good, no worries :-)
-	return new Readonly(state, frozen);
-}
 
 export function getReadonlySignal<Value>(
 	this: InternalSignal,
@@ -58,16 +55,14 @@ export function getReadonlySignal<Value>(
 
 	this[SYMBOL_STATE].readonlies ??= {};
 
-	this[SYMBOL_STATE].readonlies[key] ??= getReadonlyInstance(
-		this[SYMBOL_STATE],
-		frozen === true,
-	) as never;
+	// @ts-expect-error All good, no worries :-)
+	this[SYMBOL_STATE].readonlies[key] ??= new Readonly(this[SYMBOL_STATE], frozen === true);
 
 	return this[SYMBOL_STATE].readonlies[key] as never;
 }
 
 function getReadonlyValue(this: InternalReadonly) {
-	return handleReadonlyValue(this, false, this[SUBSCRIPTION_TYPE_FROZEN]);
+	return handleReadonlyValue(this, false, this.frozen);
 }
 
 function handleReadonlyValue(
@@ -76,6 +71,12 @@ function handleReadonlyValue(
 	frozen: boolean,
 	copy?: boolean,
 ): unknown {
+	const state = instance[SYMBOL_READONLY];
+
+	if (!state.active) {
+		return frozen ? getFrozenValue(state.value) : state.value;
+	}
+
 	let value: unknown;
 
 	if (peek) {
@@ -88,7 +89,7 @@ function handleReadonlyValue(
 }
 
 function peekReadonlyValue(this: InternalReadonly, copy?: boolean) {
-	return handleReadonlyValue(this, true, this[SUBSCRIPTION_TYPE_FROZEN], copy);
+	return handleReadonlyValue(this, true, this.frozen, copy);
 }
 
 // #endregion

@@ -50,10 +50,21 @@ test('basic', () => {
 
 	value.set(1234);
 
+	expect(value.peek()).toBe(1234);
 	expect(counts).toEqual([2, 4]);
 	expect(totals).toEqual([124, 789]);
 
 	expect(() => value.subscribe('blah' as never)).toThrow();
+
+	value.deactivate();
+
+	value.set(999);
+
+	expect(value.peek()).toBe(1234);
+	expect(counts).toEqual([2, 4]);
+	expect(totals).toEqual([124, 789]);
+
+	expect(() => value.subscribe(() => {})).toThrow();
 });
 
 test('batched', () => {

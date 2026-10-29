@@ -5,9 +5,10 @@ import type {
 	Key,
 	PlainObject,
 } from '@oscarpalmer/atoms/models';
-import {attempt} from '@oscarpalmer/atoms/result';
+import {getNumber} from '@oscarpalmer/atoms/number';
+import {getString} from '@oscarpalmer/atoms/string';
 import {startBatch, stopBatch} from '../batch';
-import {PROPERTY_LENGTH, SYMBOL_EFFECT, SYMBOL_STATE} from '../constants';
+import {MESSAGE_UPDATE_CALLBACK, PROPERTY_LENGTH, SYMBOL_EFFECT, SYMBOL_STATE} from '../constants';
 import type {InternalArray, InternalComputed, InternalStore, ReactiveProxyState} from '../models';
 import {internalComputed} from '../value/computed';
 import {emitValue, getSignalValue, peekSignalValue} from './value';
@@ -22,7 +23,7 @@ export function getReactiveValueInProxy(
 
 	state.mapped ??= new Map();
 
-	const mapKey = String(key);
+	const mapKey = getString(key);
 
 	let item = state.mapped.get(mapKey);
 
@@ -50,7 +51,7 @@ export function getValueInProxy(this: InternalArray | InternalStore, first?: unk
 }
 
 function isProxyKey(isArray: boolean, value: unknown): value is Key {
-	return isArray ? typeof value === 'number' : isKey(value);
+	return (isArray && typeof value === 'number') || isKey(value);
 }
 
 function isProxyObject(isArray: boolean, value: unknown): value is ArrayOrPlainObject {
@@ -157,6 +158,10 @@ export function setProxyValue(
 ): void {
 	const state = this[SYMBOL_STATE];
 
+	if (!state.active) {
+		return;
+	}
+
 	if (state.isArray && first === PROPERTY_LENGTH) {
 		(state.value as unknown[]).length = second as number;
 
@@ -232,8 +237,12 @@ export function setValueInProxy(
 ): boolean {
 	const state = instance[SYMBOL_STATE];
 
+	if (!state.active) {
+		return true;
+	}
+
 	if (state.isArray) {
-		const isIndex = !Number.isNaN(Number(property));
+		const isIndex = !Number.isNaN(getNumber(property));
 		const isLength = property === PROPERTY_LENGTH;
 
 		if (!(isIndex || isLength)) {
@@ -258,7 +267,7 @@ export function setValueInProxy(
 
 export function updateProxyValue(this: InternalArray | InternalStore, callback: unknown): void {
 	if (typeof callback !== 'function') {
-		throw new TypeError('Callback must be a function');
+		throw new TypeError(MESSAGE_UPDATE_CALLBACK);
 	}
 
 	setProxyValue.call(this, callback(this[SYMBOL_STATE].value));

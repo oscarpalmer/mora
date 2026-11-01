@@ -1,5 +1,14 @@
 import {expect, test} from 'vite-plus/test';
-import {array, type Computed, computed, type Effect, effect, signal, store} from '../src';
+import {
+	array,
+	type Computed,
+	computed,
+	type Effect,
+	effect,
+	scope,
+	signal,
+	store,
+} from '../src';
 import {SYMBOL_STATE} from '../src/constants';
 
 function getState(value: unknown): any {
@@ -287,6 +296,90 @@ test('dynamic: effect', () => {
 	b.set(20);
 
 	expect(count).toBe(3);
+});
+
+test('scope: disposes everything created inside', () => {
+	const a = signal(1);
+
+	let count = 0;
+	let doubled: Computed<number> | undefined;
+
+	const dispose = scope(() => {
+		effect(() => {
+			a.get();
+
+			count += 1;
+		});
+
+		doubled = computed(() => a.get() * 2);
+	});
+
+	a.set(2);
+
+	expect(count).toBe(2);
+	expect(doubled!.get()).toBe(4);
+
+	dispose();
+	dispose();
+
+	a.set(3);
+
+	expect(count).toBe(2);
+	expect(doubled!.active).toBe(false);
+
+	expect(() => scope(123 as never)).toThrow(TypeError);
+});
+
+test('scope: inside an effect', () => {
+	const a = signal(1);
+	const b = signal(1);
+
+	let count = 0;
+	let inner: Effect | undefined;
+
+	const outer = effect(() => {
+		a.get();
+
+		if (inner == null) {
+			scope(() => {
+				inner = effect(() => {
+					b.get();
+
+					count += 1;
+				});
+			});
+		}
+	});
+
+	a.set(2);
+
+	expect(inner!.active).toBe(true);
+
+	outer.stop();
+
+	b.set(2);
+
+	expect(inner!.active).toBe(true);
+	expect(count).toBe(2);
+});
+
+test('scope: not tracked', () => {
+	const a = signal(1);
+
+	let count = 0;
+
+	effect(() => {
+		count += 1;
+
+		scope(() => {
+			a.get();
+		});
+	});
+
+	a.set(2);
+
+	expect(count).toBe(1);
+	expect(getState(a).observers).toBeUndefined();
 });
 
 test('single recompute', () => {

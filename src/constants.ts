@@ -15,6 +15,7 @@ export const BATCH: Batch = {
 	depth: 0,
 	flushing: false,
 	handlers: new Map(),
+	queue: new Map(),
 };
 
 export const MESSAGE_COMPUTED_CALLBACK = 'Computed callback must be a function';
@@ -30,6 +31,8 @@ export const MESSAGE_DEACTIVATED_READONLY = 'Cannot create readonly variant of i
 export const MESSAGE_DEACTIVATED_SUBSCRIPTION = 'Cannot subscribe to inactive signal';
 
 export const MESSAGE_EFFECT_CALLBACK = 'Effect callback must be a function';
+
+export const MESSAGE_SCOPE_CALLBACK = 'Scope callback must be a function';
 
 export const MESSAGE_UPDATE_CALLBACK = 'Update callback must be a function';
 

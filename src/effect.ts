@@ -1,31 +1,25 @@
 import {noop} from '@oscarpalmer/atoms/function';
 import type {GenericCallback} from '@oscarpalmer/atoms/models';
-import {ACTIVE, BATCH, MESSAGE_EFFECT_CALLBACK, NAME_EFFECT, SYMBOL_STATE} from './constants';
-import type {
-	Child,
-	ComputedEffect,
-	Effect,
-	EffectState,
-	InternalEffect,
-	Parent,
-	ReactiveState,
-} from './models';
+import {
+	ACTIVE,
+	BATCH,
+	MESSAGE_EFFECT_CALLBACK,
+	MESSAGE_SCOPE_CALLBACK,
+	NAME_EFFECT,
+	SYMBOL_STATE,
+} from './constants';
+import type {Child, ComputedEffect, Effect, EffectState, InternalEffect, Parent} from './models';
 
 // #region Instance
 
-function Effect(this: InternalEffect, callback: GenericCallback, computed?: ComputedEffect): void {
-	this[SYMBOL_STATE] = {
-		callback,
-		computed,
-		active: true,
-		name: NAME_EFFECT,
-	};
+function Effect(this: InternalEffect, callback: GenericCallback): void {
+	const state = getEffectState(callback);
 
-	if (computed == null) {
-		setParent(this, this[SYMBOL_STATE], ACTIVE.effect);
-	}
+	this[SYMBOL_STATE] = state;
 
-	runEffect(this[SYMBOL_STATE]);
+	setParent(this, state, ACTIVE.parent);
+
+	runEffect(state);
 }
 
 Effect.prototype.stop = stopEffect;
@@ -50,7 +44,7 @@ export function deactivateEffect(state: EffectState): void {
 	BATCH.handlers.delete(state);
 
 	if (state.sources != null) {
-		for (const source of state.sources) {
+		for (const [source] of state.sources) {
 			source.observers?.delete(state);
 		}
 
@@ -89,22 +83,33 @@ export function effect(callback: GenericCallback): Effect {
 		throw new TypeError(MESSAGE_EFFECT_CALLBACK);
 	}
 
-	return getEffect(callback)[0];
+	// @ts-expect-error All good, no worries :-)
+	return new Effect(callback);
 }
 
 function getActive(this: InternalEffect): boolean {
 	return this[SYMBOL_STATE].active;
 }
 
-function getEffect(callback: GenericCallback, computed?: ComputedEffect): [Effect, EffectState] {
-	// @ts-expect-error All good, no worries :-)
-	const instance = new Effect(callback, computed);
-
-	return [instance, instance[SYMBOL_STATE]];
+function getEffectState(callback: GenericCallback, computed?: ComputedEffect): EffectState {
+	return {
+		callback,
+		computed,
+		active: true,
+		children: undefined,
+		name: NAME_EFFECT,
+		parent: undefined,
+		sources: undefined,
+		version: 0,
+	};
 }
 
 export function internalEffect(callback: GenericCallback, computed?: ComputedEffect): EffectState {
-	return getEffect(callback, computed)[1];
+	const state = getEffectState(callback, computed);
+
+	runEffect(state);
+
+	return state;
 }
 
 export function runEffect(state: EffectState): void {
@@ -115,27 +120,64 @@ export function runEffect(state: EffectState): void {
 	disposeChildren(state);
 
 	const previousEffect = ACTIVE.effect;
-	const previousSources = state.sources;
+	const previousParent = ACTIVE.parent;
 
 	ACTIVE.effect = state;
+	ACTIVE.parent = state;
 
-	state.sources = undefined;
+	state.version += 1;
 
 	try {
 		state.callback();
 	} finally {
 		ACTIVE.effect = previousEffect;
+		ACTIVE.parent = previousParent;
 
-		if (previousSources != null) {
-			const sources = state.sources as Set<ReactiveState> | undefined;
+		if (state.sources != null) {
+			for (const [source, version] of state.sources) {
+				if (version !== state.version) {
+					state.sources.delete(source);
 
-			for (const source of previousSources) {
-				if (!(sources?.has(source) ?? false)) {
 					source.observers?.delete(state);
 				}
 			}
 		}
 	}
+}
+
+/**
+ * Create a scope for effects and computeds
+ *
+ * _(Effects and computeds created inside the scope are not stopped when a surrounding effect re-runs; use the returned function to stop and deactivate them)_
+ *
+ * @param callback Callback to run inside the scope
+ * @returns Function for stopping and deactivating everything created inside the scope
+ */
+export function scope(callback: GenericCallback): () => void {
+	if (typeof callback !== 'function') {
+		throw new TypeError(MESSAGE_SCOPE_CALLBACK);
+	}
+
+	const parent: Parent = {
+		children: undefined,
+	};
+
+	const previousEffect = ACTIVE.effect;
+	const previousParent = ACTIVE.parent;
+
+	ACTIVE.effect = undefined;
+	ACTIVE.parent = parent;
+
+	try {
+		callback();
+	} finally {
+		ACTIVE.effect = previousEffect;
+		ACTIVE.parent = previousParent;
+	}
+
+	return () => {
+		disposeChildren(parent);
+	};
 }
 
 export function setParent(child: Child, state: EffectState, parent?: Parent): void {

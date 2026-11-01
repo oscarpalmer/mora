@@ -1,4 +1,5 @@
 import type {GenericAsyncCallback, GenericCallback} from '@oscarpalmer/atoms/models';
+import type {Subscriptions} from '@oscarpalmer/atoms/subscription';
 import {flushHandlers} from '../batch';
 import {
 	ACTIVE,
@@ -56,6 +57,38 @@ Object.defineProperties(Computed.prototype, {
 
 // #region Functions
 
+function callSubscribers(
+	instance: InternalStateful,
+	subscriptions: Subscriptions<GenericCallback>,
+): void {
+	const previousEffect = ACTIVE.effect;
+	const previousParent = ACTIVE.parent;
+
+	ACTIVE.effect = undefined;
+	ACTIVE.parent = undefined;
+
+	try {
+		for (const type of SUBSCRIPTION_TYPES) {
+			if (type === SUBSCRIPTION_TYPE_FROZEN) {
+				continue;
+			}
+
+			const callbacks = subscriptions.values.to.keyed?.get(type);
+
+			if (callbacks != null && callbacks.size > 0) {
+				const copy = SUBSCRIPTION_TYPES_COPY.has(type);
+
+				for (const [, callback] of callbacks) {
+					callback(peekSignalValue.call(instance, copy));
+				}
+			}
+		}
+	} finally {
+		ACTIVE.effect = previousEffect;
+		ACTIVE.parent = previousParent;
+	}
+}
+
 /**
  * Create a computed value
  *
@@ -67,7 +100,7 @@ export function computed<Value>(
 	callback: () => Value | Promise<Value>,
 	options?: ReactiveOptions<Value>,
 ): Computed<Value> {
-	return getComputed(callback, options, ACTIVE.effect) as Computed<Value>;
+	return getComputed(callback, options, ACTIVE.parent) as Computed<Value>;
 }
 
 function getComputed<Value>(
@@ -97,18 +130,14 @@ function getComputedEffect(
 		notify: false,
 	};
 
+	const onAfter = (): void => {
+		fx.notify = false;
+	};
+
 	fx.instance = internalEffect(() => {
 		fx.dirty = false;
 
-		handleSignal(
-			instance,
-			callback,
-			setAndEmit,
-			() => {
-				fx.notify = false;
-			},
-			fx.notify,
-		);
+		handleSignal(instance, callback, setAndEmit, onAfter, fx.notify);
 	}, fx);
 
 	return fx;
@@ -151,28 +180,8 @@ function setAndEmit(instance: InternalStateful, value: unknown, notify: boolean)
 
 	notifyObservers(state);
 
-	const previousEffect = ACTIVE.effect;
-
-	ACTIVE.effect = undefined;
-
-	try {
-		for (const type of SUBSCRIPTION_TYPES) {
-			if (type === SUBSCRIPTION_TYPE_FROZEN) {
-				continue;
-			}
-
-			const subscriptions = state.subscriptions?.values.to.keyed?.get(type);
-
-			if (subscriptions != null && subscriptions.size > 0) {
-				const copy = SUBSCRIPTION_TYPES_COPY.has(type);
-
-				for (const [, callback] of subscriptions) {
-					callback(peekSignalValue.call(instance, copy));
-				}
-			}
-		}
-	} finally {
-		ACTIVE.effect = previousEffect;
+	if (state.subscriptions != null) {
+		callSubscribers(instance, state.subscriptions);
 	}
 
 	flushHandlers();

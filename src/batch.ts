@@ -13,19 +13,19 @@ export function flushHandlers(): void {
 	BATCH.flushing = true;
 
 	const previousEffect = ACTIVE.effect;
+	const previousParent = ACTIVE.parent;
 
 	ACTIVE.effect = undefined;
+	ACTIVE.parent = undefined;
 
 	try {
 		while (BATCH.depth === 0 && BATCH.handlers.size > 0) {
-			const handlers = [...BATCH.handlers];
-			const {length} = handlers;
+			const handlers = BATCH.handlers;
 
-			BATCH.handlers.clear();
+			BATCH.handlers = BATCH.queue;
+			BATCH.queue = handlers;
 
-			for (let index = 0; index < length; index += 1) {
-				const [owner, handler] = handlers[index];
-
+			for (const [owner, handler] of handlers) {
 				if (!owner.active) {
 					continue;
 				}
@@ -42,10 +42,15 @@ export function flushHandlers(): void {
 					runEffect(handler as EffectState);
 				}
 			}
+
+			handlers.clear();
 		}
 	} finally {
 		ACTIVE.effect = previousEffect;
+		ACTIVE.parent = previousParent;
+
 		BATCH.flushing = false;
+		BATCH.queue.clear();
 	}
 }
 

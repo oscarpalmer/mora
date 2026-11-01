@@ -16,9 +16,13 @@ import {getReadonlySignal} from './readonly';
 // #region Instance
 
 function Signal(this: any, value: unknown, options?: ReactiveOptions<unknown>): void {
-	this[SYMBOL_STATE] = getState(NAME_SIGNAL, undefined, options);
+	const handle = typeof value === 'function' || value instanceof Promise;
 
-	handleSignal(this, value, setAndEmit);
+	this[SYMBOL_STATE] = getState(NAME_SIGNAL, handle ? undefined : value, options);
+
+	if (handle) {
+		handleSignal(this, value, setAndEmit);
+	}
 }
 
 Signal.prototype.asReadonly = getReadonlySignal;

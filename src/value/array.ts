@@ -154,7 +154,7 @@ function getArrayDerivation(
 	instance: InternalArray,
 	callback: () => unknown[],
 ): Computed<unknown[]> {
-	return internalComputed(callback, undefined, ACTIVE.effect ?? instance[SYMBOL_STATE]) as never;
+	return internalComputed(callback, undefined, ACTIVE.parent ?? instance[SYMBOL_STATE]) as never;
 }
 
 function getArrayLength(this: InternalArray): number {

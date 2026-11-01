@@ -6,13 +6,17 @@ import {SYMBOL_EFFECT, SYMBOL_READONLY, SYMBOL_STATE, type PROPERTY_LENGTH} from
 
 export type Active = {
 	effect?: EffectState;
+	parent?: Parent;
 };
 
 export type Batch = {
 	depth: number;
 	flushing: boolean;
-	handlers: Map<EffectState | Subscription, EffectState | StoredSubscription>;
+	handlers: BatchHandlers;
+	queue: BatchHandlers;
 };
+
+type BatchHandlers = Map<EffectState | Subscription, EffectState | StoredSubscription>;
 
 export type Child = Computed<unknown> | Effect;
 
@@ -42,7 +46,8 @@ export type EffectState = {
 	computed?: ComputedEffect;
 	name: string;
 	parent?: Parent;
-	sources?: Set<ReactiveState>;
+	sources?: Map<ReactiveState, number>;
+	version: number;
 };
 
 export type InternalArray = {

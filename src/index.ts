@@ -1,6 +1,6 @@
 export type {Subscription} from '@oscarpalmer/atoms/subscription';
 export {startBatch, stopBatch} from './batch';
-export {effect} from './effect';
+export {effect, scope} from './effect';
 export {
 	isComputed,
 	isEffect,

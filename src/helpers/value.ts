@@ -29,18 +29,20 @@ export function emitValue(instance: InternalStateful): void {
 
 	notifyObservers(state);
 
-	for (const type of SUBSCRIPTION_TYPES) {
-		const subscriptions = state.subscriptions?.values.to.keyed?.get(type);
+	if (state.subscriptions != null) {
+		for (const type of SUBSCRIPTION_TYPES) {
+			const subscriptions = state.subscriptions.values.to.keyed?.get(type);
 
-		if (subscriptions != null && subscriptions.size > 0) {
-			for (const [subscription, callback] of subscriptions) {
-				BATCH.handlers.set(subscription, {
-					callback,
-					instance,
-					state,
-					frozen: type === SUBSCRIPTION_TYPE_FROZEN,
-					copy: SUBSCRIPTION_TYPES_COPY.has(type),
-				});
+			if (subscriptions != null && subscriptions.size > 0) {
+				for (const [subscription, callback] of subscriptions) {
+					BATCH.handlers.set(subscription, {
+						callback,
+						instance,
+						state,
+						frozen: type === SUBSCRIPTION_TYPE_FROZEN,
+						copy: SUBSCRIPTION_TYPES_COPY.has(type),
+					});
+				}
 			}
 		}
 	}
@@ -218,9 +220,9 @@ export function trackSignal(state: ReactiveState, self?: EffectState): void {
 
 	state.observers.add(observer);
 
-	observer.sources ??= new Set();
+	observer.sources ??= new Map();
 
-	observer.sources.add(state);
+	observer.sources.set(state, observer.version);
 }
 
 export function updateSignal(

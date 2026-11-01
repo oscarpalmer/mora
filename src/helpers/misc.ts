@@ -9,7 +9,7 @@ import type {
 	InternalReadonly,
 	InternalStore,
 	ReactiveOptions,
-	ReactiveState,
+	SignalState,
 } from '../models';
 import {peekSignalValue} from './value';
 
@@ -116,7 +116,7 @@ export function getState(
 	name: string,
 	value: unknown,
 	options?: ReactiveOptions<unknown>,
-): ReactiveState {
+): SignalState {
 	return {
 		name,
 		value,
@@ -125,6 +125,11 @@ export function getState(
 			typeof options === 'object' && typeof options?.equal === 'function'
 				? options.equal
 				: undefined,
+		observers: undefined,
+		promise: undefined,
+		promises: undefined,
+		readonlies: undefined,
+		subscriptions: undefined,
 	};
 }
 

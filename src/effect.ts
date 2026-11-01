@@ -14,14 +14,7 @@ import {
 } from './constants';
 import {unlinkSourcesFrom} from './helpers/graph';
 import {deactivateComputedState} from './helpers/misc';
-import type {
-	ComputedState,
-	Effect,
-	InternalEffect,
-	Link,
-	ObserverState,
-	Parent,
-} from './models';
+import type {ComputedState, Effect, InternalEffect, Link, ObserverState, Parent} from './models';
 
 // #region Instance
 
@@ -63,6 +56,9 @@ Object.defineProperties(Effect.prototype, {
 
 // #region Functions
 
+/**
+ * Brings computed sources up to date (in read order), stopping as soon as one of them changes
+ */
 function checkSources(node: ObserverState): void {
 	let link = node.firstSource;
 
@@ -92,6 +88,7 @@ export function deactivateEffect(state: ObserverState): void {
 export function disposeChildren(parent: Parent): void {
 	let child = parent.firstChild;
 
+	// Detach the list first, so children being disposed don't try to remove themselves from it
 	parent.firstChild = undefined;
 	parent.lastChild = undefined;
 
@@ -131,6 +128,9 @@ function getActive(this: InternalEffect): boolean {
 	return this[SYMBOL_STATE].active;
 }
 
+/**
+ * Pull: only (re-)runs the observer if one of its sources actually changed
+ */
 export function refreshObserver(node: ObserverState): void {
 	if (node.status === STATUS_CHECK) {
 		checkSources(node);
@@ -178,7 +178,10 @@ export function runObserver(node: ObserverState): void {
 	ACTIVE.effect = node;
 	ACTIVE.parent = node;
 
+	// Reads during the run are matched against last run's sources, starting from the first one
 	node.cursor = undefined;
+
+	// Ignores being marked by its own reads, e.g. a computed recomputing to a new value mid-run
 	node.status = STATUS_RUNNING;
 	node.version += 1;
 
@@ -190,8 +193,10 @@ export function runObserver(node: ObserverState): void {
 
 		node.status = STATUS_CLEAN;
 
+		// Narrowed to `undefined` by TypeScript, but updated by reads during the callback
 		const cursor = node.cursor as Link | undefined;
 
+		// Sources after the last one read weren't read this run, so they're stale
 		unlinkSourcesFrom(node, cursor == null ? node.firstSource : cursor.nextSource);
 	}
 }
@@ -217,6 +222,7 @@ export function scope(callback: GenericCallback): () => void {
 	const previousEffect = ACTIVE.effect;
 	const previousParent = ACTIVE.parent;
 
+	// Untracked, and with its own parent, so nothing inside belongs to a surrounding effect
 	ACTIVE.effect = undefined;
 	ACTIVE.parent = parent;
 

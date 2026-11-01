@@ -29,6 +29,7 @@ export function deactivateComputed(this: InternalComputed): void {
 }
 
 export function deactivateComputedState(state: ComputedState): void {
+	// Unlinks it from its sources (as an observer), and from its observers (as a source)
 	deactivateEffect(state);
 	deactivateState(state);
 }
@@ -40,6 +41,7 @@ export function deactivateProxy(this: InternalArray | InternalStore): void {
 		return;
 	}
 
+	// Includes its keyed computeds, as well as top-level `filter`/`map`/`select` computeds
 	disposeChildren(state);
 
 	if (state.mapped != null) {
@@ -67,6 +69,7 @@ export function deactivateReadonly(this: InternalReadonly): void {
 		return;
 	}
 
+	// Lets `asReadonly()` create a new readonly for the signal
 	(signal.readonlies as PlainObject)![readonly.name] = undefined;
 
 	if (readonly.subscriptions != null) {

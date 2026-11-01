@@ -279,6 +279,16 @@ test('promise', () =>
 		}, 225);
 	}));
 
+test('promise, deactivated', () => {
+	const stored = store({a: 1});
+
+	stored.set('a', new Promise<number>(() => {}));
+	stored.deactivate();
+
+	expect(stored.active).toBe(false);
+	expect(stored.peek('a')).toBe(1);
+});
+
 test('subscribe', () => {
 	const stored = store({a: 1, b: 2, c: 3});
 

@@ -1,7 +1,13 @@
 import type {Link, ObserverState, ReactiveState} from '../models';
 
+// Each link is one dependency, kept in two doubly linked lists at once:
+// the observer's list of sources (in read order) and the source's list of observers
+
 // #region Functions
 
+/**
+ * Inserts the link into the observer's sources between `previous` and `next`, and appends it to the source's observers
+ */
 export function linkSource(
 	observer: ObserverState,
 	source: ReactiveState,
@@ -60,6 +66,7 @@ export function unlinkObserver(link: Link): void {
 export function unlinkSource(link: Link): void {
 	const {nextSource, observer, previousSource} = link;
 
+	// The source can be deactivated while its observer is running
 	if (observer.cursor === link) {
 		observer.cursor = previousSource;
 	}
@@ -77,6 +84,9 @@ export function unlinkSource(link: Link): void {
 	}
 }
 
+/**
+ * Cuts the observer's sources off at `from`, and removes those links from their sources' observers
+ */
 export function unlinkSourcesFrom(observer: ObserverState, from: Link | undefined): void {
 	if (from == null) {
 		return;

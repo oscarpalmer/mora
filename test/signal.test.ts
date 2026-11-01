@@ -135,3 +135,13 @@ test('promise value', () =>
 			done();
 		}, 150);
 	}));
+
+test('promise value, deactivated', () => {
+	const value = signal(1);
+
+	value.set(new Promise<number>(() => {}));
+	value.deactivate();
+
+	expect(value.active).toBe(false);
+	expect(value.peek()).toBe(1);
+});

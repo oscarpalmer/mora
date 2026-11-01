@@ -7,6 +7,7 @@ import {
 	getSignalValue,
 	getStringValue,
 	handleSignal,
+	isPromise,
 	peekSignalValue,
 	updateSignal,
 } from '../helpers/value';
@@ -16,7 +17,8 @@ import {getReadonlySignal} from './readonly';
 // #region Instance
 
 function Signal(this: any, value: unknown, options?: ReactiveOptions<unknown>): void {
-	const handle = typeof value === 'function' || value instanceof Promise;
+	// Plain values skip `handleSignal`; with no observers or subscribers yet, there's nothing to emit
+	const handle = typeof value === 'function' || isPromise(value);
 
 	this[SYMBOL_STATE] = getState(NAME_SIGNAL, handle ? undefined : value, options);
 

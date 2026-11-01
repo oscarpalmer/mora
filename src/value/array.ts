@@ -156,6 +156,7 @@ function getArrayDerivation(
 	instance: InternalArray,
 	callback: () => unknown[],
 ): Computed<unknown[]> {
+	// Owned by the running effect or computed (so it's disposed when that re-runs), otherwise by the array
 	return internalComputed(callback, undefined, ACTIVE.parent ?? instance[SYMBOL_STATE]) as never;
 }
 

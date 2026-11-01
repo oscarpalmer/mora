@@ -13,12 +13,21 @@ export type Batch = {
 	depth: number;
 	flushing: boolean;
 	queue: Array<ObserverState | StoredSubscription>;
+	/**
+	 * Subscriptions currently in the queue, so each one is only queued once
+	 */
 	subscriptions: Set<Subscription>;
 };
 
 export type Computed<Value> = Reactive<Value>;
 
+/**
+ * A computed is both an observer (of its sources) and a source (for its observers)
+ */
 export type ComputedState = {
+	/**
+	 * Forces the next computation to emit, even if the value is equal _(set by `notify()` on arrays and stores)_
+	 */
 	notify: boolean;
 } & ObserverState &
 	SignalState;
@@ -65,6 +74,9 @@ export type InternalStore = {
 	[SYMBOL_STATE]: ReactiveProxyState;
 } & ReactiveStore<PlainObject>;
 
+/**
+ * One dependency between a source and an observer _(see `helpers/graph.ts`)_
+ */
 export type Link = {
 	nextObserver: Link | undefined;
 	nextSource: Link | undefined;
@@ -72,12 +84,18 @@ export type Link = {
 	previousObserver: Link | undefined;
 	previousSource: Link | undefined;
 	source: ReactiveState;
+	/**
+	 * The observer's version when last read, to spot repeated reads within a run
+	 */
 	version: number;
 };
 
 export type ObserverState = {
 	active: boolean;
 	callback: GenericCallback;
+	/**
+	 * The last source link read during the current run
+	 */
 	cursor?: Link;
 	firstChild?: ObserverState;
 	firstSource?: Link;
@@ -88,10 +106,20 @@ export type ObserverState = {
 	parent?: Parent;
 	previousSibling?: ObserverState;
 	queued: boolean;
+	/**
+	 * One of the `STATUS_*` constants
+	 */
 	status: number;
+	/**
+	 * Incremented on every run
+	 */
 	version: number;
 };
 
+/**
+ * - Owns the effects and computeds created inside it, and disposes them with itself
+ * - _(running effects and computeds, scopes, arrays and stores)_
+ */
 export type Parent = {
 	firstChild?: ObserverState;
 	lastChild?: ObserverState;
@@ -566,8 +594,17 @@ export type ReadonlySignalValue<Value> = Value extends unknown[]
 
 export type ReadonlyState = {
 	active: boolean;
+	/**
+	 * Key for the readonly in its signal's `readonlies`
+	 */
 	name: string;
+	/**
+	 * Made through the readonly, and unsubscribed when it's deactivated
+	 */
 	subscriptions?: Set<Subscription>;
+	/**
+	 * Snapshot of the value when deactivated
+	 */
 	value?: unknown;
 };
 

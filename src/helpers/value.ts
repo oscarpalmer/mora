@@ -149,7 +149,7 @@ export function handleSignal(
 	try {
 		let actual = typeof origin === 'function' ? (origin as () => unknown)() : origin;
 
-		if (actual instanceof Promise) {
+		if (isPromise(actual)) {
 			state.promise = actual;
 
 			void actual
@@ -175,6 +175,12 @@ export function handleSignal(
 	}
 }
 
+export function isPromise(value: unknown): value is Promise<unknown> {
+	// Checking the type first lets primitives skip the (slower) prototype check
+	return typeof value === 'object' && value instanceof Promise;
+}
+
+// Push: only marks observers, nothing is (re-)computed here
 function markObserver(node: ObserverState, status: number): void {
 	if (node.status >= status) {
 		return;
@@ -184,6 +190,7 @@ function markObserver(node: ObserverState, status: number): void {
 
 	node.status = status;
 
+	// Already queued or propagated when it was first marked
 	if (!clean) {
 		return;
 	}
@@ -196,10 +203,12 @@ function markObserver(node: ObserverState, status: number): void {
 
 	const computed = node as ComputedState;
 
+	// Subscribers need values pushed to them, so subscribed computeds are refreshed eagerly
 	if (computed.subscriptions != null) {
 		queueObserver(node);
 	}
 
+	// The computed's value may not actually change, so its observers only need to check
 	let link = computed.firstObserver;
 
 	while (link != null) {
@@ -252,6 +261,7 @@ function queueSubscriptions(
 		}
 
 		for (const [subscription, callback] of callbacks) {
+			// Already queued subscribers keep their place, and read the latest value when called
 			if (!BATCH.subscriptions.has(subscription)) {
 				BATCH.subscriptions.add(subscription);
 
@@ -277,12 +287,14 @@ export function trackSignal(state: ReactiveState, self?: ObserverState): void {
 
 	const previous = observer.cursor;
 
+	// Same source as the previous read
 	if (previous?.source === state) {
 		return;
 	}
 
 	const next = previous == null ? observer.firstSource : previous.nextSource;
 
+	// Same source as in this position last run (the common case: no allocation or lookup)
 	if (next?.source === state) {
 		next.version = observer.version;
 
@@ -293,6 +305,7 @@ export function trackSignal(state: ReactiveState, self?: ObserverState): void {
 
 	const last = state.lastObserver;
 
+	// Already read earlier in this run
 	if (last?.observer === observer && last.version === observer.version) {
 		return;
 	}

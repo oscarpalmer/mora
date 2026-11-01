@@ -92,6 +92,7 @@ export function subscribeToReadonly(
 		subscriber,
 	);
 
+	// Kept so they can be unsubscribed when the readonly is deactivated; manually unsubscribed ones are pruned here
 	state.subscriptions ??= new Set();
 
 	for (const existing of state.subscriptions) {

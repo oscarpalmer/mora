@@ -15,6 +15,7 @@ export function flushHandlers(): void {
 	const previousEffect = ACTIVE.effect;
 	const previousParent = ACTIVE.parent;
 
+	// Handlers aren't tracked by, or children of, whatever triggered the flush
 	ACTIVE.effect = undefined;
 	ACTIVE.parent = undefined;
 
@@ -23,6 +24,7 @@ export function flushHandlers(): void {
 	let index = 0;
 
 	try {
+		// Handlers queued during the flush are appended, and run in the same loop
 		while (BATCH.depth === 0 && index < queue.length) {
 			const handler = queue[index];
 
@@ -36,6 +38,7 @@ export function flushHandlers(): void {
 
 		BATCH.flushing = false;
 
+		// Keeps handlers that didn't run (after an error, or a batch started mid-flush) for the next flush
 		if (index >= queue.length) {
 			queue.length = 0;
 		} else {

@@ -38,6 +38,7 @@ function Computed(
 	const state: ComputedState = {
 		...getState(NAME_COMPUTED, undefined, options),
 		callback: () => {
+			// Forced by `notify()` on arrays and stores; emits even if the value is equal
 			const {notify} = state;
 
 			state.notify = false;
@@ -54,6 +55,7 @@ function Computed(
 		parent: undefined,
 		previousSibling: undefined,
 		queued: false,
+		// Lazy: computed on first read
 		status: STATUS_DIRTY,
 		version: 0,
 	};
@@ -147,6 +149,7 @@ function peekComputedValue(this: InternalComputed, copy?: boolean): unknown {
 	return peekSignalValue.call(this, copy);
 }
 
+// For reads that shouldn't be tracked, but must still return an up-to-date value
 function refreshComputed(instance: InternalComputed): void {
 	const state = instance[SYMBOL_STATE];
 
@@ -164,6 +167,8 @@ function setAndEmit(instance: InternalStateful, value: unknown, notify: boolean)
 
 	state.value = value;
 
+	// When recomputed synchronously (i.e., pulled), whoever pulled it continues the flush;
+	// when a promise resolves later, the computed acts like a signal write and flushes itself
 	emitValue(instance, ACTIVE.effect !== state);
 }
 

@@ -70,12 +70,26 @@ export const NAME_ALL: Set<string> = new Set([NAME_ARRAY, NAME_COMPUTED, NAME_SI
 
 export const PROPERTY_LENGTH = 'length';
 
+// Observer statuses, ordered so a higher status is never downgraded by a lower one
+
+/**
+ * A computed source may have changed, so sources need checking before running
+ */
 export const STATUS_CHECK = 1;
 
+/**
+ * Up to date
+ */
 export const STATUS_CLEAN = 0;
 
+/**
+ * A source has changed, so it needs to run
+ */
 export const STATUS_DIRTY = 2;
 
+/**
+ * Currently running, so new marks are ignored
+ */
 export const STATUS_RUNNING = 3;
 
 export const SYMBOL_READONLY: unique symbol = Symbol('readonly');

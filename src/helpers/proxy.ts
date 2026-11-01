@@ -11,7 +11,7 @@ import {startBatch, stopBatch} from '../batch';
 import {MESSAGE_UPDATE_CALLBACK, PROPERTY_LENGTH, SYMBOL_STATE} from '../constants';
 import type {InternalArray, InternalComputed, InternalStore, ReactiveProxyState} from '../models';
 import {internalComputed} from '../value/computed';
-import {emitValue, getSignalValue, peekSignalValue} from './value';
+import {emitValue, getSignalValue, isPromise, peekSignalValue} from './value';
 
 // #region Functions
 
@@ -28,6 +28,7 @@ export function getReactiveValueInProxy(
 	let item = state.mapped.get(mapKey);
 
 	if (item == null) {
+		// Owned by the array/store, as it's cached, and may be created inside a (re-running) effect
 		item = internalComputed(
 			() =>
 				state.isArray
@@ -77,6 +78,7 @@ export function notifyProxyValue(this: InternalArray | InternalStore): void {
 	const values = [...state.mapped.values()];
 	const {length} = values;
 
+	// Keyed computeds observe the array/store, so the emit marks them; `notify` makes them emit even if equal
 	for (let index = 0; index < length; index += 1) {
 		values[index][SYMBOL_STATE].notify = true;
 	}
@@ -200,7 +202,7 @@ export function setProxyValue(
 		}
 	}
 
-	if (actual instanceof Promise) {
+	if (isPromise(actual)) {
 		if (keyed) {
 			state.promises ??= new Map();
 

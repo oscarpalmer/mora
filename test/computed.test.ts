@@ -74,6 +74,8 @@ test('deactivated dependent of computed', () => {
 	const b = computed(() => a.get() * 2);
 	const c = computed(() => b.get() + 1);
 
+	expect(c.get()).toBe(3);
+
 	c.deactivate();
 
 	a.set(2);

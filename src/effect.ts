@@ -2,24 +2,52 @@ import {noop} from '@oscarpalmer/atoms/function';
 import type {GenericCallback} from '@oscarpalmer/atoms/models';
 import {
 	ACTIVE,
-	BATCH,
 	MESSAGE_EFFECT_CALLBACK,
 	MESSAGE_SCOPE_CALLBACK,
+	NAME_COMPUTED,
 	NAME_EFFECT,
+	STATUS_CHECK,
+	STATUS_CLEAN,
+	STATUS_DIRTY,
+	STATUS_RUNNING,
 	SYMBOL_STATE,
 } from './constants';
-import type {Child, ComputedEffect, Effect, EffectState, InternalEffect, Parent} from './models';
+import {unlinkSourcesFrom} from './helpers/graph';
+import {deactivateComputedState} from './helpers/misc';
+import type {
+	ComputedState,
+	Effect,
+	InternalEffect,
+	Link,
+	ObserverState,
+	Parent,
+} from './models';
 
 // #region Instance
 
 function Effect(this: InternalEffect, callback: GenericCallback): void {
-	const state = getEffectState(callback);
+	const state: ObserverState = {
+		callback,
+		active: true,
+		cursor: undefined,
+		firstChild: undefined,
+		firstSource: undefined,
+		lastChild: undefined,
+		lastSource: undefined,
+		name: NAME_EFFECT,
+		nextSibling: undefined,
+		parent: undefined,
+		previousSibling: undefined,
+		queued: false,
+		status: STATUS_CLEAN,
+		version: 0,
+	};
 
 	this[SYMBOL_STATE] = state;
 
-	setParent(this, state, ACTIVE.parent);
+	setParent(state, ACTIVE.parent);
 
-	runEffect(state);
+	runObserver(state);
 }
 
 Effect.prototype.stop = stopEffect;
@@ -35,40 +63,52 @@ Object.defineProperties(Effect.prototype, {
 
 // #region Functions
 
-export function deactivateEffect(state: EffectState): void {
+function checkSources(node: ObserverState): void {
+	let link = node.firstSource;
+
+	while (link != null) {
+		if (link.source.name === NAME_COMPUTED) {
+			refreshObserver(link.source as ComputedState);
+
+			if (node.status === STATUS_DIRTY) {
+				return;
+			}
+		}
+
+		link = link.nextSource;
+	}
+}
+
+export function deactivateEffect(state: ObserverState): void {
 	disposeChildren(state);
 
 	state.active = false;
 	state.callback = noop;
+	state.cursor = undefined;
 
-	BATCH.handlers.delete(state);
-
-	if (state.sources != null) {
-		for (const [source] of state.sources) {
-			source.observers?.delete(state);
-		}
-
-		state.sources.clear();
-
-		state.sources = undefined;
-	}
+	unlinkSourcesFrom(state, state.firstSource);
 }
 
 export function disposeChildren(parent: Parent): void {
-	const {children} = parent;
+	let child = parent.firstChild;
 
-	if (children == null) {
-		return;
-	}
+	parent.firstChild = undefined;
+	parent.lastChild = undefined;
 
-	parent.children = undefined;
+	while (child != null) {
+		const next = child.nextSibling;
 
-	for (const child of children) {
-		if ('stop' in child) {
-			child.stop();
+		child.nextSibling = undefined;
+		child.parent = undefined;
+		child.previousSibling = undefined;
+
+		if (child.name === NAME_COMPUTED) {
+			deactivateComputedState(child as ComputedState);
 		} else {
-			child.deactivate();
+			deactivateEffect(child);
 		}
+
+		child = next;
 	}
 }
 
@@ -91,57 +131,68 @@ function getActive(this: InternalEffect): boolean {
 	return this[SYMBOL_STATE].active;
 }
 
-function getEffectState(callback: GenericCallback, computed?: ComputedEffect): EffectState {
-	return {
-		callback,
-		computed,
-		active: true,
-		children: undefined,
-		name: NAME_EFFECT,
-		parent: undefined,
-		sources: undefined,
-		version: 0,
-	};
+export function refreshObserver(node: ObserverState): void {
+	if (node.status === STATUS_CHECK) {
+		checkSources(node);
+
+		if (node.status === STATUS_CHECK) {
+			node.status = STATUS_CLEAN;
+		}
+	}
+
+	if (node.status === STATUS_DIRTY) {
+		runObserver(node);
+	}
 }
 
-export function internalEffect(callback: GenericCallback, computed?: ComputedEffect): EffectState {
-	const state = getEffectState(callback, computed);
+export function removeChild(state: ObserverState): void {
+	const {nextSibling, parent, previousSibling} = state;
 
-	runEffect(state);
-
-	return state;
-}
-
-export function runEffect(state: EffectState): void {
-	if (state.computed != null && !state.computed.dirty) {
+	if (parent == null) {
 		return;
 	}
 
-	disposeChildren(state);
+	if (previousSibling == null) {
+		parent.firstChild = nextSibling;
+	} else {
+		previousSibling.nextSibling = nextSibling;
+	}
+
+	if (nextSibling == null) {
+		parent.lastChild = previousSibling;
+	} else {
+		nextSibling.previousSibling = previousSibling;
+	}
+
+	state.nextSibling = undefined;
+	state.parent = undefined;
+	state.previousSibling = undefined;
+}
+
+export function runObserver(node: ObserverState): void {
+	disposeChildren(node);
 
 	const previousEffect = ACTIVE.effect;
 	const previousParent = ACTIVE.parent;
 
-	ACTIVE.effect = state;
-	ACTIVE.parent = state;
+	ACTIVE.effect = node;
+	ACTIVE.parent = node;
 
-	state.version += 1;
+	node.cursor = undefined;
+	node.status = STATUS_RUNNING;
+	node.version += 1;
 
 	try {
-		state.callback();
+		node.callback();
 	} finally {
 		ACTIVE.effect = previousEffect;
 		ACTIVE.parent = previousParent;
 
-		if (state.sources != null) {
-			for (const [source, version] of state.sources) {
-				if (version !== state.version) {
-					state.sources.delete(source);
+		node.status = STATUS_CLEAN;
 
-					source.observers?.delete(state);
-				}
-			}
-		}
+		const cursor = node.cursor as Link | undefined;
+
+		unlinkSourcesFrom(node, cursor == null ? node.firstSource : cursor.nextSource);
 	}
 }
 
@@ -159,7 +210,8 @@ export function scope(callback: GenericCallback): () => void {
 	}
 
 	const parent: Parent = {
-		children: undefined,
+		firstChild: undefined,
+		lastChild: undefined,
 	};
 
 	const previousEffect = ACTIVE.effect;
@@ -180,24 +232,30 @@ export function scope(callback: GenericCallback): () => void {
 	};
 }
 
-export function setParent(child: Child, state: EffectState, parent?: Parent): void {
+export function setParent(state: ObserverState, parent?: Parent): void {
 	if (parent == null) {
 		return;
 	}
 
+	const last = parent.lastChild;
+
 	state.parent = parent;
+	state.previousSibling = last;
 
-	parent.children ??= new Set();
+	if (last == null) {
+		parent.firstChild = state;
+	} else {
+		last.nextSibling = state;
+	}
 
-	parent.children.add(child);
+	parent.lastChild = state;
 }
 
 function stopEffect(this: InternalEffect): void {
 	const state = this[SYMBOL_STATE];
 
 	if (state.active) {
-		state.parent?.children?.delete(this);
-
+		removeChild(state);
 		deactivateEffect(state);
 	}
 }

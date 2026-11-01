@@ -19,7 +19,9 @@ import {getReadonlySignal} from './readonly';
 function ReactiveStore(this: any, value: never, options?: ReactiveOptions<unknown>): void {
 	this[SYMBOL_STATE] = {
 		...getState(NAME_STORE, undefined, options),
+		firstChild: undefined,
 		isArray: false,
+		lastChild: undefined,
 	};
 
 	this[SYMBOL_STATE].value = new Proxy(

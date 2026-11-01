@@ -14,8 +14,8 @@ export const ARRAY_PEEK = 10;
 export const BATCH: Batch = {
 	depth: 0,
 	flushing: false,
-	handlers: new Map(),
-	queue: new Map(),
+	queue: [],
+	subscriptions: new Set(),
 };
 
 export const MESSAGE_COMPUTED_CALLBACK = 'Computed callback must be a function';
@@ -70,7 +70,13 @@ export const NAME_ALL: Set<string> = new Set([NAME_ARRAY, NAME_COMPUTED, NAME_SI
 
 export const PROPERTY_LENGTH = 'length';
 
-export const SYMBOL_EFFECT: unique symbol = Symbol('effect');
+export const STATUS_CHECK = 1;
+
+export const STATUS_CLEAN = 0;
+
+export const STATUS_DIRTY = 2;
+
+export const STATUS_RUNNING = 3;
 
 export const SYMBOL_READONLY: unique symbol = Symbol('readonly');
 

@@ -1,8 +1,9 @@
 import {noop} from '@oscarpalmer/atoms/function';
 import type {PlainObject} from '@oscarpalmer/atoms/models';
-import {SYMBOL_EFFECT, SYMBOL_READONLY, SYMBOL_STATE} from '../constants';
-import {deactivateEffect, disposeChildren} from '../effect';
+import {SYMBOL_READONLY, SYMBOL_STATE} from '../constants';
+import {deactivateEffect, disposeChildren, removeChild} from '../effect';
 import type {
+	ComputedState,
 	InternalArray,
 	InternalComputed,
 	InternalReactive,
@@ -11,6 +12,7 @@ import type {
 	ReactiveOptions,
 	SignalState,
 } from '../models';
+import {unlinkSource} from './graph';
 import {peekSignalValue} from './value';
 
 // #region Functions
@@ -22,13 +24,13 @@ export function deactivateComputed(this: InternalComputed): void {
 		return;
 	}
 
-	const fx = this[SYMBOL_EFFECT];
+	removeChild(state);
+	deactivateComputedState(state);
+}
 
-	fx.instance.parent?.children?.delete(this);
-
-	deactivateEffect(fx.instance);
-
-	deactivateReactive.call(this);
+export function deactivateComputedState(state: ComputedState): void {
+	deactivateEffect(state);
+	deactivateState(state);
 }
 
 export function deactivateProxy(this: InternalArray | InternalStore): void {
@@ -46,38 +48,15 @@ export function deactivateProxy(this: InternalArray | InternalStore): void {
 		state.mapped = undefined;
 	}
 
-	deactivateReactive.call(this);
+	deactivateState(state);
 }
 
 export function deactivateReactive(this: InternalReactive): void {
 	const state = this[SYMBOL_STATE];
 
-	if (!state.active) {
-		return;
+	if (state.active) {
+		deactivateState(state);
 	}
-
-	state.active = false;
-
-	if (state.observers != null) {
-		for (const observer of state.observers) {
-			observer.sources?.delete(state);
-		}
-
-		state.observers.clear();
-	}
-
-	state.promises?.clear();
-	state.readonlies?.frozen?.deactivate();
-	state.readonlies?.original?.deactivate();
-	state.subscriptions?.clear();
-
-	state.equal = noop as never;
-	state.promise = undefined;
-
-	state.observers = undefined;
-	state.promises = undefined;
-	state.readonlies = undefined;
-	state.subscriptions = undefined;
 }
 
 export function deactivateReadonly(this: InternalReadonly): void {
@@ -104,6 +83,32 @@ export function deactivateReadonly(this: InternalReadonly): void {
 	readonly.value = peekSignalValue.call(this, true);
 }
 
+function deactivateState(state: SignalState): void {
+	state.active = false;
+
+	let link = state.firstObserver;
+
+	while (link != null) {
+		unlinkSource(link);
+
+		link = link.nextObserver;
+	}
+
+	state.promises?.clear();
+	state.readonlies?.frozen?.deactivate();
+	state.readonlies?.original?.deactivate();
+	state.subscriptions?.clear();
+
+	state.equal = noop as never;
+	state.promise = undefined;
+
+	state.firstObserver = undefined;
+	state.lastObserver = undefined;
+	state.promises = undefined;
+	state.readonlies = undefined;
+	state.subscriptions = undefined;
+}
+
 export function getReactiveActive(this: InternalReactive): boolean {
 	return this[SYMBOL_STATE].active;
 }
@@ -125,7 +130,8 @@ export function getState(
 			typeof options === 'object' && typeof options?.equal === 'function'
 				? options.equal
 				: undefined,
-		observers: undefined,
+		firstObserver: undefined,
+		lastObserver: undefined,
 		promise: undefined,
 		promises: undefined,
 		readonlies: undefined,

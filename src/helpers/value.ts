@@ -1,6 +1,8 @@
 import {isPlainObject} from '@oscarpalmer/atoms/is';
 import {min, round} from '@oscarpalmer/atoms/math';
-import {flushHandlers} from '../batch';
+import type {GenericCallback} from '@oscarpalmer/atoms/models';
+import type {Subscriptions} from '@oscarpalmer/atoms/subscription';
+import {flushHandlers, queueObserver} from '../batch';
 import {
 	ACTIVE,
 	ARRAY_OFFSET,
@@ -8,13 +10,24 @@ import {
 	ARRAY_THRESHOLD,
 	BATCH,
 	MESSAGE_UPDATE_CALLBACK,
+	NAME_COMPUTED,
+	STATUS_CHECK,
+	STATUS_CLEAN,
+	STATUS_DIRTY,
 	SUBSCRIPTION_TYPE_FROZEN,
 	SUBSCRIPTION_TYPES,
 	SUBSCRIPTION_TYPES_COPY,
 	SYMBOL_READONLY,
 	SYMBOL_STATE,
 } from '../constants';
-import type {EffectState, InternalReadonly, InternalStateful, ReactiveState} from '../models';
+import type {
+	ComputedState,
+	InternalReadonly,
+	InternalStateful,
+	ObserverState,
+	ReactiveState,
+} from '../models';
+import {linkSource} from './graph';
 
 // #region Types
 
@@ -24,30 +37,16 @@ type SetValue = (instance: InternalStateful, value: unknown, notify: boolean) =>
 
 // #region Functions
 
-export function emitValue(instance: InternalStateful): void {
+export function emitValue(instance: InternalStateful, flush?: boolean): void {
 	const state = instance[SYMBOL_STATE];
 
 	notifyObservers(state);
 
 	if (state.subscriptions != null) {
-		for (const type of SUBSCRIPTION_TYPES) {
-			const subscriptions = state.subscriptions.values.to.keyed?.get(type);
-
-			if (subscriptions != null && subscriptions.size > 0) {
-				for (const [subscription, callback] of subscriptions) {
-					BATCH.handlers.set(subscription, {
-						callback,
-						instance,
-						state,
-						frozen: type === SUBSCRIPTION_TYPE_FROZEN,
-						copy: SUBSCRIPTION_TYPES_COPY.has(type),
-					});
-				}
-			}
-		}
+		queueSubscriptions(instance, state.subscriptions);
 	}
 
-	if (BATCH.depth === 0) {
+	if ((flush ?? true) && BATCH.depth === 0) {
 		flushHandlers();
 	}
 }
@@ -176,17 +175,47 @@ export function handleSignal(
 	}
 }
 
-export function notifyObservers(state: ReactiveState): void {
-	if (state.observers == null) {
+function markObserver(node: ObserverState, status: number): void {
+	if (node.status >= status) {
 		return;
 	}
 
-	for (const observer of state.observers) {
-		if (observer.computed != null) {
-			observer.computed.dirty = true;
-		}
+	const clean = node.status === STATUS_CLEAN;
 
-		BATCH.handlers.set(observer, observer);
+	node.status = status;
+
+	if (!clean) {
+		return;
+	}
+
+	if (node.name !== NAME_COMPUTED) {
+		queueObserver(node);
+
+		return;
+	}
+
+	const computed = node as ComputedState;
+
+	if (computed.subscriptions != null) {
+		queueObserver(node);
+	}
+
+	let link = computed.firstObserver;
+
+	while (link != null) {
+		markObserver(link.observer, STATUS_CHECK);
+
+		link = link.nextObserver;
+	}
+}
+
+export function notifyObservers(state: ReactiveState): void {
+	let link = state.firstObserver;
+
+	while (link != null) {
+		markObserver(link.observer, STATUS_DIRTY);
+
+		link = link.nextObserver;
 	}
 }
 
@@ -209,20 +238,66 @@ export function peekSignalValue(
 	return peeked;
 }
 
-export function trackSignal(state: ReactiveState, self?: EffectState): void {
+function queueSubscriptions(
+	instance: InternalStateful,
+	subscriptions: Subscriptions<GenericCallback>,
+): void {
+	const state = instance[SYMBOL_STATE];
+
+	for (const type of SUBSCRIPTION_TYPES) {
+		const callbacks = subscriptions.values.to.keyed?.get(type);
+
+		if (callbacks == null || callbacks.size === 0) {
+			continue;
+		}
+
+		for (const [subscription, callback] of callbacks) {
+			if (!BATCH.subscriptions.has(subscription)) {
+				BATCH.subscriptions.add(subscription);
+
+				BATCH.queue.push({
+					callback,
+					instance,
+					state,
+					subscription,
+					copy: SUBSCRIPTION_TYPES_COPY.has(type),
+					frozen: type === SUBSCRIPTION_TYPE_FROZEN,
+				});
+			}
+		}
+	}
+}
+
+export function trackSignal(state: ReactiveState, self?: ObserverState): void {
 	const observer = ACTIVE.effect;
 
 	if (observer == null || !observer.active || observer === self) {
 		return;
 	}
 
-	state.observers ??= new Set();
+	const previous = observer.cursor;
 
-	state.observers.add(observer);
+	if (previous?.source === state) {
+		return;
+	}
 
-	observer.sources ??= new Map();
+	const next = previous == null ? observer.firstSource : previous.nextSource;
 
-	observer.sources.set(state, observer.version);
+	if (next?.source === state) {
+		next.version = observer.version;
+
+		observer.cursor = next;
+
+		return;
+	}
+
+	const last = state.lastObserver;
+
+	if (last?.observer === observer && last.version === observer.version) {
+		return;
+	}
+
+	observer.cursor = linkSource(observer, state, previous, next);
 }
 
 export function updateSignal(

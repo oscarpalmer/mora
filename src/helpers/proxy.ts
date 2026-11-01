@@ -8,7 +8,7 @@ import type {
 import {getNumber} from '@oscarpalmer/atoms/number';
 import {getString} from '@oscarpalmer/atoms/string';
 import {startBatch, stopBatch} from '../batch';
-import {MESSAGE_UPDATE_CALLBACK, PROPERTY_LENGTH, SYMBOL_EFFECT, SYMBOL_STATE} from '../constants';
+import {MESSAGE_UPDATE_CALLBACK, PROPERTY_LENGTH, SYMBOL_STATE} from '../constants';
 import type {InternalArray, InternalComputed, InternalStore, ReactiveProxyState} from '../models';
 import {internalComputed} from '../value/computed';
 import {emitValue, getSignalValue, peekSignalValue} from './value';
@@ -50,13 +50,11 @@ export function getValueInProxy(this: InternalArray | InternalStore, first?: unk
 		return peekValueInProxy.call(this, first);
 	}
 
-	let signal: InternalComputed | undefined;
-
 	if (state.isArray ? typeof first === 'number' : isKey(first)) {
-		signal = getReactiveValueInProxy(this, first as Key);
+		return getReactiveValueInProxy(this, first as Key).get();
 	}
 
-	return getSignalValue.call(signal ?? this);
+	return getSignalValue.call(this);
 }
 
 function isProxyKey(isArray: boolean, value: unknown): value is Key {
@@ -80,8 +78,7 @@ export function notifyProxyValue(this: InternalArray | InternalStore): void {
 	const {length} = values;
 
 	for (let index = 0; index < length; index += 1) {
-		values[index][SYMBOL_EFFECT].dirty = true;
-		values[index][SYMBOL_EFFECT].notify = true;
+		values[index][SYMBOL_STATE].notify = true;
 	}
 
 	emitValue(this);

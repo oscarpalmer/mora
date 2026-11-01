@@ -32,7 +32,9 @@ import {signal} from './signal';
 function ReactiveArray(this: any, value: unknown, options?: ReactiveOptions<unknown>): void {
 	this[SYMBOL_STATE] = {
 		...getState(NAME_ARRAY, undefined, options),
+		firstChild: undefined,
 		isArray: true,
+		lastChild: undefined,
 		length: signal(0),
 	};
 

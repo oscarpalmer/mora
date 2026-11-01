@@ -1,32 +1,27 @@
 import type {GenericCallback, Key, PlainObject} from '@oscarpalmer/atoms/models';
 import type {Subscription, Subscriptions} from '@oscarpalmer/atoms/subscription';
-import {SYMBOL_EFFECT, SYMBOL_READONLY, SYMBOL_STATE, type PROPERTY_LENGTH} from './constants';
+import {SYMBOL_READONLY, SYMBOL_STATE, type PROPERTY_LENGTH} from './constants';
 
 // #region Types
 
 export type Active = {
-	effect?: EffectState;
+	effect?: ObserverState;
 	parent?: Parent;
 };
 
 export type Batch = {
 	depth: number;
 	flushing: boolean;
-	handlers: BatchHandlers;
-	queue: BatchHandlers;
+	queue: Array<ObserverState | StoredSubscription>;
+	subscriptions: Set<Subscription>;
 };
-
-type BatchHandlers = Map<EffectState | Subscription, EffectState | StoredSubscription>;
-
-export type Child = Computed<unknown> | Effect;
 
 export type Computed<Value> = Reactive<Value>;
 
-export type ComputedEffect = {
-	dirty: boolean;
-	instance: EffectState;
+export type ComputedState = {
 	notify: boolean;
-};
+} & ObserverState &
+	SignalState;
 
 export type Effect = {
 	/**
@@ -39,28 +34,16 @@ export type Effect = {
 	stop(): void;
 };
 
-export type EffectState = {
-	active: boolean;
-	callback: GenericCallback;
-	children?: Set<Child>;
-	computed?: ComputedEffect;
-	name: string;
-	parent?: Parent;
-	sources?: Map<ReactiveState, number>;
-	version: number;
-};
-
 export type InternalArray = {
 	[SYMBOL_STATE]: ReactiveProxyState;
 } & ReactiveArray<unknown>;
 
 export type InternalComputed = {
-	[SYMBOL_EFFECT]: ComputedEffect;
-} & Computed<unknown> &
-	InternalStateful;
+	[SYMBOL_STATE]: ComputedState;
+} & Computed<unknown>;
 
 export type InternalEffect = {
-	[SYMBOL_STATE]: EffectState;
+	[SYMBOL_STATE]: ObserverState;
 } & Effect;
 
 export type InternalReactive = {
@@ -82,8 +65,36 @@ export type InternalStore = {
 	[SYMBOL_STATE]: ReactiveProxyState;
 } & ReactiveStore<PlainObject>;
 
+export type Link = {
+	nextObserver: Link | undefined;
+	nextSource: Link | undefined;
+	observer: ObserverState;
+	previousObserver: Link | undefined;
+	previousSource: Link | undefined;
+	source: ReactiveState;
+	version: number;
+};
+
+export type ObserverState = {
+	active: boolean;
+	callback: GenericCallback;
+	cursor?: Link;
+	firstChild?: ObserverState;
+	firstSource?: Link;
+	lastChild?: ObserverState;
+	lastSource?: Link;
+	name: string;
+	nextSibling?: ObserverState;
+	parent?: Parent;
+	previousSibling?: ObserverState;
+	queued: boolean;
+	status: number;
+	version: number;
+};
+
 export type Parent = {
-	children?: Set<Child>;
+	firstChild?: ObserverState;
+	lastChild?: ObserverState;
 };
 
 export type Reactive<Value> = {
@@ -366,8 +377,9 @@ export type ReactiveOptions<Value> = {
 };
 
 export type ReactiveProxyState = {
-	children?: Set<Child>;
+	firstChild?: ObserverState;
 	isArray: boolean;
+	lastChild?: ObserverState;
 	length?: Signal<number>;
 	mapped?: Map<string, InternalComputed>;
 } & SignalState;
@@ -375,8 +387,9 @@ export type ReactiveProxyState = {
 export type ReactiveState<Value = unknown, Item = Value> = {
 	active: boolean;
 	equal?: (first: Item, second: Item) => boolean;
+	firstObserver?: Link;
+	lastObserver?: Link;
 	name: string;
-	observers?: Set<EffectState>;
 	promise?: Promise<unknown>;
 	promises?: Map<Key, Promise<never>>;
 	subscriptions?: Subscriptions<GenericCallback>;
@@ -602,6 +615,7 @@ export type StoredSubscription = {
 	frozen: boolean;
 	instance: InternalStateful;
 	state: SignalState;
+	subscription: Subscription;
 };
 
 export type Subscriber<Value> = (value: Value, subscription: Subscription) => void;

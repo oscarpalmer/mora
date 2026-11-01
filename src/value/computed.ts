@@ -1,50 +1,72 @@
-import type {GenericAsyncCallback, GenericCallback} from '@oscarpalmer/atoms/models';
-import type {Subscriptions} from '@oscarpalmer/atoms/subscription';
-import {flushHandlers} from '../batch';
+import type {GenericCallback} from '@oscarpalmer/atoms/models';
+import type {Subscription} from '@oscarpalmer/atoms/subscription';
 import {
 	ACTIVE,
-	BATCH,
 	MESSAGE_COMPUTED_CALLBACK,
 	NAME_COMPUTED,
-	SUBSCRIPTION_TYPE_FROZEN,
-	SUBSCRIPTION_TYPES,
-	SUBSCRIPTION_TYPES_COPY,
-	SYMBOL_EFFECT,
+	STATUS_DIRTY,
 	SYMBOL_STATE,
 } from '../constants';
-import {internalEffect, runEffect, setParent} from '../effect';
+import {refreshObserver, setParent} from '../effect';
 import {deactivateComputed, getReactiveActive, getState} from '../helpers/misc';
 import {subscribeToSignal} from '../helpers/subscription';
 import {
+	emitValue,
 	getJsonValue,
 	getStringValue,
 	handleSignal,
-	notifyObservers,
 	peekSignalValue,
 	trackSignal,
 } from '../helpers/value';
 import type {
 	Computed,
-	ComputedEffect,
+	ComputedState,
 	InternalComputed,
 	InternalStateful,
 	Parent,
 	ReactiveOptions,
+	Subscriber,
 } from '../models';
 
 // #region Instance
 
-function Computed(this: any, callback: GenericCallback, options?: ReactiveOptions<unknown>): void {
-	this[SYMBOL_STATE] = getState(NAME_COMPUTED, undefined, options);
-	this[SYMBOL_EFFECT] = getComputedEffect(this, callback);
+function Computed(
+	this: InternalComputed,
+	callback: GenericCallback,
+	options?: ReactiveOptions<unknown>,
+): void {
+	const state: ComputedState = {
+		...getState(NAME_COMPUTED, undefined, options),
+		callback: () => {
+			const {notify} = state;
+
+			state.notify = false;
+
+			handleSignal(this, callback, setAndEmit, undefined, notify);
+		},
+		cursor: undefined,
+		firstChild: undefined,
+		firstSource: undefined,
+		lastChild: undefined,
+		lastSource: undefined,
+		nextSibling: undefined,
+		notify: false,
+		parent: undefined,
+		previousSibling: undefined,
+		queued: false,
+		status: STATUS_DIRTY,
+		version: 0,
+	};
+
+	this[SYMBOL_STATE] = state;
 }
 
 Computed.prototype.deactivate = deactivateComputed;
 Computed.prototype.get = getComputedValue;
-Computed.prototype.peek = peekSignalValue;
-Computed.prototype.subscribe = subscribeToSignal;
-Computed.prototype.toJSON = getJsonValue;
-Computed.prototype.toString = getStringValue;
+Computed.prototype.peek = peekComputedValue;
+Computed.prototype.subscribe = subscribeToComputed;
+Computed.prototype.toJSON = getComputedJson;
+Computed.prototype.toString = getComputedString;
 
 Object.defineProperties(Computed.prototype, {
 	active: {
@@ -56,38 +78,6 @@ Object.defineProperties(Computed.prototype, {
 // #endregion
 
 // #region Functions
-
-function callSubscribers(
-	instance: InternalStateful,
-	subscriptions: Subscriptions<GenericCallback>,
-): void {
-	const previousEffect = ACTIVE.effect;
-	const previousParent = ACTIVE.parent;
-
-	ACTIVE.effect = undefined;
-	ACTIVE.parent = undefined;
-
-	try {
-		for (const type of SUBSCRIPTION_TYPES) {
-			if (type === SUBSCRIPTION_TYPE_FROZEN) {
-				continue;
-			}
-
-			const callbacks = subscriptions.values.to.keyed?.get(type);
-
-			if (callbacks != null && callbacks.size > 0) {
-				const copy = SUBSCRIPTION_TYPES_COPY.has(type);
-
-				for (const [, callback] of callbacks) {
-					callback(peekSignalValue.call(instance, copy));
-				}
-			}
-		}
-	} finally {
-		ACTIVE.effect = previousEffect;
-		ACTIVE.parent = previousParent;
-	}
-}
 
 /**
  * Create a computed value
@@ -115,47 +105,29 @@ function getComputed<Value>(
 	// @ts-expect-error All good, no worries :-)
 	const instance: InternalComputed = new Computed(callback, options);
 
-	setParent(instance, instance[SYMBOL_EFFECT].instance, parent);
+	setParent(instance[SYMBOL_STATE], parent);
 
 	return instance;
 }
 
-function getComputedEffect(
-	instance: InternalStateful,
-	callback: GenericAsyncCallback,
-): ComputedEffect {
-	const fx: ComputedEffect = {
-		dirty: true,
-		instance: undefined as never,
-		notify: false,
-	};
+function getComputedJson(this: InternalComputed): unknown {
+	refreshComputed(this);
 
-	const onAfter = (): void => {
-		fx.notify = false;
-	};
+	return getJsonValue.call(this);
+}
 
-	fx.instance = internalEffect(() => {
-		fx.dirty = false;
+function getComputedString(this: InternalComputed, json?: boolean): string {
+	refreshComputed(this);
 
-		handleSignal(instance, callback, setAndEmit, onAfter, fx.notify);
-	}, fx);
-
-	return fx;
+	return getStringValue.call(this, json);
 }
 
 function getComputedValue(this: InternalComputed): unknown {
 	const state = this[SYMBOL_STATE];
 
-	if (!state.active) {
-		return state.value;
-	}
-
-	const fx = this[SYMBOL_EFFECT];
-
-	trackSignal(state, fx.instance);
-
-	if (fx.dirty && BATCH.depth === 0) {
-		runEffect(fx.instance);
+	if (state.active) {
+		trackSignal(state, state);
+		refreshObserver(state);
 	}
 
 	return state.value;
@@ -169,8 +141,22 @@ export function internalComputed(
 	return getComputed(callback, options, parent);
 }
 
-function setAndEmit(instance: InternalStateful, value: unknown, notify: boolean): void {
+function peekComputedValue(this: InternalComputed, copy?: boolean): unknown {
+	refreshComputed(this);
+
+	return peekSignalValue.call(this, copy);
+}
+
+function refreshComputed(instance: InternalComputed): void {
 	const state = instance[SYMBOL_STATE];
+
+	if (state.active) {
+		refreshObserver(state);
+	}
+}
+
+function setAndEmit(instance: InternalStateful, value: unknown, notify: boolean): void {
+	const state = instance[SYMBOL_STATE] as ComputedState;
 
 	if (!state.active || (!notify && (state.equal ?? Object.is)(state.value, value))) {
 		return;
@@ -178,13 +164,17 @@ function setAndEmit(instance: InternalStateful, value: unknown, notify: boolean)
 
 	state.value = value;
 
-	notifyObservers(state);
+	emitValue(instance, ACTIVE.effect !== state);
+}
 
-	if (state.subscriptions != null) {
-		callSubscribers(instance, state.subscriptions);
-	}
+function subscribeToComputed(
+	this: InternalComputed,
+	subscriber: Subscriber<unknown>,
+	copy?: unknown,
+): Subscription {
+	refreshComputed(this);
 
-	flushHandlers();
+	return subscribeToSignal.call(this, subscriber, copy);
 }
 
 // #endregion

@@ -1,7 +1,7 @@
 import {ACTIVE, BATCH} from './constants';
-import {runEffect} from './effect';
+import {refreshObserver} from './effect';
 import {getFrozenValue, peekSignalValue} from './helpers/value';
-import type {EffectState, StoredSubscription} from './models';
+import type {ObserverState, StoredSubscription} from './models';
 
 // #region Functions
 
@@ -18,39 +18,59 @@ export function flushHandlers(): void {
 	ACTIVE.effect = undefined;
 	ACTIVE.parent = undefined;
 
+	const {queue} = BATCH;
+
+	let index = 0;
+
 	try {
-		while (BATCH.depth === 0 && BATCH.handlers.size > 0) {
-			const handlers = BATCH.handlers;
+		while (BATCH.depth === 0 && index < queue.length) {
+			const handler = queue[index];
 
-			BATCH.handlers = BATCH.queue;
-			BATCH.queue = handlers;
+			index += 1;
 
-			for (const [owner, handler] of handlers) {
-				if (!owner.active) {
-					continue;
-				}
-
-				const subscription = handler as StoredSubscription;
-
-				if (typeof subscription.frozen === 'boolean') {
-					subscription.callback(
-						subscription.frozen
-							? getFrozenValue(subscription.state.value)
-							: peekSignalValue.call(subscription.instance, subscription.copy),
-					);
-				} else {
-					runEffect(handler as EffectState);
-				}
-			}
-
-			handlers.clear();
+			runHandler(handler);
 		}
 	} finally {
 		ACTIVE.effect = previousEffect;
 		ACTIVE.parent = previousParent;
 
 		BATCH.flushing = false;
-		BATCH.queue.clear();
+
+		if (index >= queue.length) {
+			queue.length = 0;
+		} else {
+			queue.splice(0, index);
+		}
+	}
+}
+
+export function queueObserver(node: ObserverState): void {
+	if (!node.queued) {
+		node.queued = true;
+
+		BATCH.queue.push(node);
+	}
+}
+
+function runHandler(handler: ObserverState | StoredSubscription): void {
+	if ('subscription' in handler) {
+		BATCH.subscriptions.delete(handler.subscription);
+
+		if (handler.subscription.active) {
+			handler.callback(
+				handler.frozen
+					? getFrozenValue(handler.state.value)
+					: peekSignalValue.call(handler.instance, handler.copy),
+			);
+		}
+
+		return;
+	}
+
+	handler.queued = false;
+
+	if (handler.active) {
+		refreshObserver(handler);
 	}
 }
 

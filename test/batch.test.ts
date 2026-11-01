@@ -56,7 +56,7 @@ test('simple', () => {
 		a.update(current => current + 1);
 	}
 
-	expect(b.peek()).toBe(1123);
+	expect(b.peek()).toBe(1223);
 
 	stopBatch();
 

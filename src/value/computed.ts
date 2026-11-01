@@ -11,15 +11,23 @@ import {
 	SYMBOL_EFFECT,
 	SYMBOL_STATE,
 } from '../constants';
-import {internalEffect, runEffect} from '../effect';
+import {internalEffect, runEffect, setParent} from '../effect';
 import {deactivateComputed, getReactiveActive, getState} from '../helpers/misc';
 import {subscribeToSignal} from '../helpers/subscription';
-import {getJsonValue, getStringValue, handleSignal, peekSignalValue} from '../helpers/value';
+import {
+	getJsonValue,
+	getStringValue,
+	handleSignal,
+	notifyObservers,
+	peekSignalValue,
+	trackSignal,
+} from '../helpers/value';
 import type {
 	Computed,
 	ComputedEffect,
 	InternalComputed,
 	InternalStateful,
+	Parent,
 	ReactiveOptions,
 } from '../models';
 
@@ -59,19 +67,24 @@ export function computed<Value>(
 	callback: () => Value | Promise<Value>,
 	options?: ReactiveOptions<Value>,
 ): Computed<Value> {
-	return getComputed(callback, options) as Computed<Value>;
+	return getComputed(callback, options, ACTIVE.effect) as Computed<Value>;
 }
 
 function getComputed<Value>(
 	callback: GenericCallback,
 	options?: ReactiveOptions<Value>,
+	parent?: Parent,
 ): InternalComputed {
 	if (typeof callback !== 'function') {
 		throw new TypeError(MESSAGE_COMPUTED_CALLBACK);
 	}
 
 	// @ts-expect-error All good, no worries :-)
-	return new Computed(callback, options);
+	const instance: InternalComputed = new Computed(callback, options);
+
+	setParent(instance, instance[SYMBOL_EFFECT].instance, parent);
+
+	return instance;
 }
 
 function getComputedEffect(
@@ -85,26 +98,18 @@ function getComputedEffect(
 	};
 
 	fx.instance = internalEffect(() => {
-		if (fx.dirty) {
-			const previousComputed = ACTIVE.computed;
+		fx.dirty = false;
 
-			ACTIVE.computed = fx;
-
-			handleSignal(
-				instance,
-				callback,
-				setAndEmit,
-				() => {
-					ACTIVE.computed = previousComputed;
-
-					fx.notify = false;
-				},
-				fx.notify,
-			);
-
-			fx.dirty = false;
-		}
-	});
+		handleSignal(
+			instance,
+			callback,
+			setAndEmit,
+			() => {
+				fx.notify = false;
+			},
+			fx.notify,
+		);
+	}, fx);
 
 	return fx;
 }
@@ -118,17 +123,7 @@ function getComputedValue(this: InternalComputed): unknown {
 
 	const fx = this[SYMBOL_EFFECT];
 
-	if (ACTIVE.computed != null && fx !== ACTIVE.computed) {
-		state.computeds ??= new Set();
-
-		state.computeds.add(ACTIVE.computed);
-	}
-
-	if (ACTIVE.effect != null && ACTIVE.effect !== fx.instance) {
-		state.effects ??= new Set();
-
-		state.effects.add(ACTIVE.effect);
-	}
+	trackSignal(state, fx.instance);
 
 	if (fx.dirty && BATCH.depth === 0) {
 		runEffect(fx.instance);
@@ -140,8 +135,9 @@ function getComputedValue(this: InternalComputed): unknown {
 export function internalComputed(
 	callback: GenericCallback,
 	options?: ReactiveOptions<unknown>,
+	parent?: Parent,
 ): InternalComputed {
-	return getComputed(callback, options);
+	return getComputed(callback, options, parent);
 }
 
 function setAndEmit(instance: InternalStateful, value: unknown, notify: boolean): void {
@@ -153,40 +149,30 @@ function setAndEmit(instance: InternalStateful, value: unknown, notify: boolean)
 
 	state.value = value;
 
-	if (state.computeds != null && state.computeds.size > 0) {
-		for (const computed of state.computeds) {
-			if (computed.instance.active) {
-				computed.dirty = true;
-			} else {
-				state.computeds.delete(computed);
+	notifyObservers(state);
+
+	const previousEffect = ACTIVE.effect;
+
+	ACTIVE.effect = undefined;
+
+	try {
+		for (const type of SUBSCRIPTION_TYPES) {
+			if (type === SUBSCRIPTION_TYPE_FROZEN) {
+				continue;
+			}
+
+			const subscriptions = state.subscriptions?.values.to.keyed?.get(type);
+
+			if (subscriptions != null && subscriptions.size > 0) {
+				const copy = SUBSCRIPTION_TYPES_COPY.has(type);
+
+				for (const [, callback] of subscriptions) {
+					callback(peekSignalValue.call(instance, copy));
+				}
 			}
 		}
-	}
-
-	if (state.effects != null && state.effects.size > 0) {
-		for (const effect of state.effects) {
-			if (effect.active) {
-				BATCH.handlers.set(effect, effect);
-			} else {
-				state.effects.delete(effect);
-			}
-		}
-	}
-
-	for (const type of SUBSCRIPTION_TYPES) {
-		if (type === SUBSCRIPTION_TYPE_FROZEN) {
-			continue;
-		}
-
-		const subscriptions = state.subscriptions?.values.to.keyed?.get(type);
-
-		if (subscriptions != null && subscriptions.size > 0) {
-			const copy = SUBSCRIPTION_TYPES_COPY.has(type);
-
-			for (const [, callback] of subscriptions) {
-				callback(peekSignalValue.call(instance, copy));
-			}
-		}
+	} finally {
+		ACTIVE.effect = previousEffect;
 	}
 
 	flushHandlers();

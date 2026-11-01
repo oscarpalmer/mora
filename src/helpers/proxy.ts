@@ -9,13 +9,7 @@ import {getNumber} from '@oscarpalmer/atoms/number';
 import {getString} from '@oscarpalmer/atoms/string';
 import {startBatch, stopBatch} from '../batch';
 import {MESSAGE_UPDATE_CALLBACK, PROPERTY_LENGTH, SYMBOL_EFFECT, SYMBOL_STATE} from '../constants';
-import type {
-	Computed,
-	InternalArray,
-	InternalComputed,
-	InternalStore,
-	ReactiveProxyState,
-} from '../models';
+import type {InternalArray, InternalComputed, InternalStore, ReactiveProxyState} from '../models';
 import {internalComputed} from '../value/computed';
 import {emitValue, getSignalValue, peekSignalValue} from './value';
 
@@ -34,10 +28,13 @@ export function getReactiveValueInProxy(
 	let item = state.mapped.get(mapKey);
 
 	if (item == null) {
-		item = internalComputed(() =>
-			state.isArray
-				? (instance.get() as unknown[]).at(key as number)
-				: (instance.get() as PlainObject)[key],
+		item = internalComputed(
+			() =>
+				state.isArray
+					? (instance.get() as unknown[]).at(key as number)
+					: (instance.get() as PlainObject)[key],
+			undefined,
+			state,
 		);
 
 		state.mapped.set(mapKey, item);
@@ -87,7 +84,7 @@ export function notifyProxyValue(this: InternalArray | InternalStore): void {
 		values[index][SYMBOL_EFFECT].notify = true;
 	}
 
-	emitValue(this, true);
+	emitValue(this);
 }
 
 export function peekValueInProxy(
@@ -279,29 +276,6 @@ export function setValueInProxy(
 	}
 
 	return true;
-}
-
-export function updateProxyDerivations(
-	instance: InternalArray | InternalStore,
-	value: Computed<unknown[]>,
-): Computed<unknown[]> {
-	const state = instance[SYMBOL_STATE];
-
-	if (state.derived == null) {
-		state.derived = new Set([value]);
-
-		return value;
-	}
-
-	for (const computed of state.derived) {
-		if (!computed.active) {
-			state.derived.delete(computed);
-		}
-	}
-
-	state.derived.add(value);
-
-	return value;
 }
 
 export function updateProxyValue(this: InternalArray | InternalStore, callback: unknown): void {

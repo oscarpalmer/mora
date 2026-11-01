@@ -1,6 +1,7 @@
 import {filter} from '@oscarpalmer/atoms/array/filter';
 import {select} from '@oscarpalmer/atoms/array/select';
 import {
+	ACTIVE,
 	MESSAGE_DEACTIVATED_ARRAY_FILTER,
 	MESSAGE_DEACTIVATED_ARRAY_MAP,
 	MESSAGE_DEACTIVATED_ARRAY_SELECT,
@@ -17,13 +18,12 @@ import {
 	peekValueInProxy,
 	setProxyValue,
 	setValueInProxy,
-	updateProxyDerivations,
 	updateProxyValue,
 } from '../helpers/proxy';
 import {subscribeToProxy} from '../helpers/subscription';
 import {emitValue, equalArrays, getJsonValue, getStringValue} from '../helpers/value';
 import type {Computed, InternalArray, ReactiveArray, ReactiveOptions} from '../models';
-import {computed} from './computed';
+import {internalComputed} from './computed';
 import {getReadonlySignal} from './readonly';
 import {signal} from './signal';
 
@@ -147,10 +147,14 @@ function filterArrayValues(this: InternalArray, callback: never): Computed<unkno
 		throw new Error(MESSAGE_DEACTIVATED_ARRAY_FILTER);
 	}
 
-	return updateProxyDerivations(
-		this,
-		computed(() => filter(getArrayValues.call(this) as never, callback) as never),
-	);
+	return getArrayDerivation(this, () => filter(getArrayValues.call(this) as never, callback));
+}
+
+function getArrayDerivation(
+	instance: InternalArray,
+	callback: () => unknown[],
+): Computed<unknown[]> {
+	return internalComputed(callback, undefined, ACTIVE.effect ?? instance[SYMBOL_STATE]) as never;
 }
 
 function getArrayLength(this: InternalArray): number {
@@ -171,12 +175,9 @@ function mapArrayValues(
 		throw new Error(MESSAGE_DEACTIVATED_ARRAY_MAP);
 	}
 
-	return updateProxyDerivations(
-		this,
-		computed(() =>
-			(getArrayValues.call(this) as unknown[]).map((item, index, array) =>
-				callback(item, index, array),
-			),
+	return getArrayDerivation(this, () =>
+		(getArrayValues.call(this) as unknown[]).map((item, index, array) =>
+			callback(item, index, array),
 		),
 	);
 }
@@ -206,9 +207,8 @@ function selectArrayValues(this: InternalArray, filter: never, map: never): Comp
 		throw new Error(MESSAGE_DEACTIVATED_ARRAY_SELECT);
 	}
 
-	return updateProxyDerivations(
-		this,
-		computed(() => select(getArrayValues.call(this) as unknown[], filter, map)),
+	return getArrayDerivation(this, () =>
+		select(getArrayValues.call(this) as unknown[], filter, map),
 	);
 }
 

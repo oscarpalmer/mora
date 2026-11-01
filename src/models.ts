@@ -5,7 +5,6 @@ import {SYMBOL_EFFECT, SYMBOL_READONLY, SYMBOL_STATE, type PROPERTY_LENGTH} from
 // #region Types
 
 export type Active = {
-	computed?: ComputedEffect;
 	effect?: EffectState;
 };
 
@@ -14,6 +13,8 @@ export type Batch = {
 	flushing: boolean;
 	handlers: Map<EffectState | Subscription, EffectState | StoredSubscription>;
 };
+
+export type Child = Computed<unknown> | Effect;
 
 export type Computed<Value> = Reactive<Value>;
 
@@ -37,7 +38,11 @@ export type Effect = {
 export type EffectState = {
 	active: boolean;
 	callback: GenericCallback;
+	children?: Set<Child>;
+	computed?: ComputedEffect;
 	name: string;
+	parent?: Parent;
+	sources?: Set<ReactiveState>;
 };
 
 export type InternalArray = {
@@ -71,6 +76,10 @@ export type InternalStateful = {
 export type InternalStore = {
 	[SYMBOL_STATE]: ReactiveProxyState;
 } & ReactiveStore<PlainObject>;
+
+export type Parent = {
+	children?: Set<Child>;
+};
 
 export type Reactive<Value> = {
 	/**
@@ -352,7 +361,7 @@ export type ReactiveOptions<Value> = {
 };
 
 export type ReactiveProxyState = {
-	derived?: Set<Computed<unknown>>;
+	children?: Set<Child>;
 	isArray: boolean;
 	length?: Signal<number>;
 	mapped?: Map<string, InternalComputed>;
@@ -360,10 +369,9 @@ export type ReactiveProxyState = {
 
 export type ReactiveState<Value = unknown, Item = Value> = {
 	active: boolean;
-	computeds?: Set<ComputedEffect>;
-	effects?: Set<EffectState>;
 	equal?: (first: Item, second: Item) => boolean;
 	name: string;
+	observers?: Set<EffectState>;
 	promise?: Promise<unknown>;
 	promises?: Map<Key, Promise<never>>;
 	subscriptions?: Subscriptions<GenericCallback>;

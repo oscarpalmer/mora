@@ -1,7 +1,7 @@
 import {noop} from '@oscarpalmer/atoms/function';
 import type {PlainObject} from '@oscarpalmer/atoms/models';
 import {SYMBOL_EFFECT, SYMBOL_READONLY, SYMBOL_STATE} from '../constants';
-import {deactivateEffect} from '../effect';
+import {deactivateEffect, disposeChildren} from '../effect';
 import type {
 	InternalArray,
 	InternalComputed,
@@ -22,7 +22,11 @@ export function deactivateComputed(this: InternalComputed): void {
 		return;
 	}
 
-	deactivateEffect(this[SYMBOL_EFFECT].instance);
+	const fx = this[SYMBOL_EFFECT];
+
+	fx.instance.parent?.children?.delete(this);
+
+	deactivateEffect(fx.instance);
 
 	deactivateReactive.call(this);
 }
@@ -34,21 +38,9 @@ export function deactivateProxy(this: InternalArray | InternalStore): void {
 		return;
 	}
 
-	if (state.derived != null) {
-		for (const computed of state.derived) {
-			computed.deactivate();
-		}
-
-		state.derived.clear();
-
-		state.derived = undefined;
-	}
+	disposeChildren(state);
 
 	if (state.mapped != null) {
-		for (const [, computed] of state.mapped) {
-			computed.deactivate();
-		}
-
 		state.mapped.clear();
 
 		state.mapped = undefined;
@@ -66,8 +58,14 @@ export function deactivateReactive(this: InternalReactive): void {
 
 	state.active = false;
 
-	state.computeds?.clear();
-	state.effects?.clear();
+	if (state.observers != null) {
+		for (const observer of state.observers) {
+			observer.sources?.delete(state);
+		}
+
+		state.observers.clear();
+	}
+
 	state.promises?.clear();
 	state.readonlies?.frozen?.deactivate();
 	state.readonlies?.original?.deactivate();
@@ -76,8 +74,7 @@ export function deactivateReactive(this: InternalReactive): void {
 	state.equal = noop as never;
 	state.promise = undefined;
 
-	state.computeds = undefined;
-	state.effects = undefined;
+	state.observers = undefined;
 	state.promises = undefined;
 	state.readonlies = undefined;
 	state.subscriptions = undefined;

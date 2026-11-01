@@ -11,17 +11,10 @@ import {
 	SUBSCRIPTION_TYPE_FROZEN,
 	SUBSCRIPTION_TYPES,
 	SUBSCRIPTION_TYPES_COPY,
-	SYMBOL_EFFECT,
 	SYMBOL_READONLY,
 	SYMBOL_STATE,
 } from '../constants';
-import type {
-	InternalArray,
-	InternalComputed,
-	InternalReadonly,
-	InternalStateful,
-	InternalStore,
-} from '../models';
+import type {EffectState, InternalReadonly, InternalStateful, ReactiveState} from '../models';
 
 // #region Types
 
@@ -31,40 +24,10 @@ type SetValue = (instance: InternalStateful, value: unknown, notify: boolean) =>
 
 // #region Functions
 
-export function emitValue(instance: InternalStateful, notify?: boolean): void {
+export function emitValue(instance: InternalStateful): void {
 	const state = instance[SYMBOL_STATE];
 
-	if (state.computeds != null && state.computeds.size > 0) {
-		for (const computed of state.computeds) {
-			if (computed.instance.active) {
-				computed.dirty = true;
-			} else {
-				state.computeds.delete(computed);
-			}
-		}
-	}
-
-	if (state.effects != null && state.effects.size > 0) {
-		for (const effect of state.effects) {
-			if (effect.active) {
-				BATCH.handlers.set(effect, effect);
-			} else {
-				state.effects.delete(effect);
-			}
-		}
-	}
-
-	if (notify ?? false) {
-		const proxy = instance as InternalArray | InternalStore;
-		const state = proxy[SYMBOL_STATE];
-		const mapped = state.mapped as Map<unknown, InternalComputed>;
-
-		for (const [, item] of mapped) {
-			const {instance} = item[SYMBOL_EFFECT];
-
-			BATCH.handlers.set(instance, instance);
-		}
-	}
+	notifyObservers(state);
 
 	for (const type of SUBSCRIPTION_TYPES) {
 		const subscriptions = state.subscriptions?.values.to.keyed?.get(type);
@@ -152,20 +115,8 @@ export function getJsonValue(this: InternalReadonly | InternalStateful): unknown
 export function getSignalValue(this: InternalStateful): unknown {
 	const state = this[SYMBOL_STATE];
 
-	if (!state.active) {
-		return state.value;
-	}
-
-	if (ACTIVE.computed != null) {
-		state.computeds ??= new Set();
-
-		state.computeds.add(ACTIVE.computed);
-	}
-
-	if (ACTIVE.effect != null) {
-		state.effects ??= new Set();
-
-		state.effects.add(ACTIVE.effect);
+	if (state.active) {
+		trackSignal(state);
 	}
 
 	return state.value;
@@ -223,6 +174,20 @@ export function handleSignal(
 	}
 }
 
+export function notifyObservers(state: ReactiveState): void {
+	if (state.observers == null) {
+		return;
+	}
+
+	for (const observer of state.observers) {
+		if (observer.computed != null) {
+			observer.computed.dirty = true;
+		}
+
+		BATCH.handlers.set(observer, observer);
+	}
+}
+
 export function peekSignalValue(
 	this: InternalStateful | [InternalStateful, unknown],
 	copy?: boolean,
@@ -240,6 +205,22 @@ export function peekSignalValue(
 	}
 
 	return peeked;
+}
+
+export function trackSignal(state: ReactiveState, self?: EffectState): void {
+	const observer = ACTIVE.effect;
+
+	if (observer == null || !observer.active || observer === self) {
+		return;
+	}
+
+	state.observers ??= new Set();
+
+	state.observers.add(observer);
+
+	observer.sources ??= new Set();
+
+	observer.sources.add(state);
 }
 
 export function updateSignal(

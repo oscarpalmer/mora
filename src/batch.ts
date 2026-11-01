@@ -1,4 +1,4 @@
-import {BATCH} from './constants';
+import {ACTIVE, BATCH} from './constants';
 import {runEffect} from './effect';
 import {getFrozenValue, peekSignalValue} from './helpers/value';
 import type {EffectState, StoredSubscription} from './models';
@@ -11,6 +11,10 @@ export function flushHandlers(): void {
 	}
 
 	BATCH.flushing = true;
+
+	const previousEffect = ACTIVE.effect;
+
+	ACTIVE.effect = undefined;
 
 	try {
 		while (BATCH.depth === 0 && BATCH.handlers.size > 0) {
@@ -40,6 +44,7 @@ export function flushHandlers(): void {
 			}
 		}
 	} finally {
+		ACTIVE.effect = previousEffect;
 		BATCH.flushing = false;
 	}
 }

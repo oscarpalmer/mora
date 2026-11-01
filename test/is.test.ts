@@ -20,99 +20,51 @@ const c = array([]);
 const d = store({});
 const e = effect(() => {});
 
+const instances = [a, b, c, d, e];
+
 const values: unknown[] = [undefined, null, 'a', 123, true, Symbol('test'), {}, [], () => {}];
 
-test('isComputed', () => {
+function check(fn: (value: unknown) => boolean, matches: unknown[]): void {
 	for (const value of values) {
-		expect(isComputed(value)).toBe(false);
+		expect(fn(value)).toBe(false);
 	}
 
-	expect(isComputed(a)).toBe(false);
-	expect(isComputed(b)).toBe(true);
-	expect(isComputed(c)).toBe(false);
-	expect(isComputed(d)).toBe(false);
-	expect(isComputed(e)).toBe(false);
+	for (const instance of instances) {
+		expect(fn(instance)).toBe(matches.includes(instance));
+	}
+}
+
+test('isComputed', () => {
+	check(isComputed, [b]);
 });
 
 test('isEffect', () => {
-	for (const value of values) {
-		expect(isEffect(value)).toBe(false);
-	}
-
-	expect(isEffect(a)).toBe(false);
-	expect(isEffect(b)).toBe(false);
-	expect(isEffect(c)).toBe(false);
-	expect(isEffect(d)).toBe(false);
-	expect(isEffect(e)).toBe(true);
+	check(isEffect, [e]);
 });
 
 test('isReactive', () => {
-	for (const value of values) {
-		expect(isReactive(value)).toBe(false);
-	}
-
-	expect(isReactive(a)).toBe(true);
-	expect(isReactive(b)).toBe(true);
-	expect(isReactive(c)).toBe(true);
-	expect(isReactive(d)).toBe(true);
-	expect(isReactive(e)).toBe(false);
-});
-
-test('isSignal', () => {
-	for (const value of values) {
-		expect(isSignal(value)).toBe(false);
-	}
-
-	expect(isSignal(a)).toBe(true);
-	expect(isSignal(b)).toBe(false);
-	expect(isSignal(c)).toBe(false);
-	expect(isSignal(d)).toBe(false);
-	expect(isSignal(e)).toBe(false);
+	check(isReactive, [a, b, c, d]);
 });
 
 test('isReactiveArray', () => {
-	for (const value of values) {
-		expect(isReactiveArray(value)).toBe(false);
-	}
-
-	expect(isReactiveArray(a)).toBe(false);
-	expect(isReactiveArray(b)).toBe(false);
-	expect(isReactiveArray(c)).toBe(true);
-	expect(isReactiveArray(d)).toBe(false);
-	expect(isReactiveArray(e)).toBe(false);
+	check(isReactiveArray, [c]);
 });
 
 test('isReactiveStore', () => {
-	for (const value of values) {
-		expect(isReactiveStore(value)).toBe(false);
-	}
-
-	expect(isReactiveStore(a)).toBe(false);
-	expect(isReactiveStore(b)).toBe(false);
-	expect(isReactiveStore(c)).toBe(false);
-	expect(isReactiveStore(d)).toBe(true);
-	expect(isReactiveStore(e)).toBe(false);
+	check(isReactiveStore, [d]);
 });
 
 test('isReadonlySignal', () => {
-	for (const value of values) {
-		expect(isReadonlySignal(value)).toBe(false);
-	}
+	check(isReadonlySignal, []);
 
-	expect(isReadonlySignal(a)).toBe(false);
-	expect(isReadonlySignal(b)).toBe(false);
-	expect(isReadonlySignal(c)).toBe(false);
-	expect(isReadonlySignal(d)).toBe(false);
-	expect(isReadonlySignal(e)).toBe(false);
-
-	const f = a.asReadonly();
-	const g = c.asReadonly();
-	const h = d.asReadonly();
-
-	expect(isReadonlySignal(f)).toBe(true);
-	expect(isReadonlySignal(g)).toBe(true);
-	expect(isReadonlySignal(h)).toBe(true);
+	expect(isReadonlySignal(a.asReadonly())).toBe(true);
+	expect(isReadonlySignal(c.asReadonly())).toBe(true);
+	expect(isReadonlySignal(d.asReadonly())).toBe(true);
 
 	expect(() => (b as any).asReadonly()).toThrow();
 	expect(() => (e as any).asReadonly()).toThrow();
+});
+
+test('isSignal', () => {
+	check(isSignal, [a]);
 });

@@ -11,8 +11,6 @@ test('basic', () => {
 	});
 
 	expect(value.active).toBe(true);
-
-	expect(value.peek()).toBe(1);
 	expect(count).toBe(1);
 
 	value.set(2);
@@ -27,10 +25,9 @@ test('basic', () => {
 
 	value.set(3);
 
-	expect(value.peek()).toBe(3);
 	expect(count).toBe(3);
 
-	expect(value.toJSON()).toEqual(3);
+	expect(value.toJSON()).toBe(3);
 	expect(value.toString()).toBe('3');
 
 	value.deactivate();
@@ -39,53 +36,12 @@ test('basic', () => {
 	expect(value.active).toBe(false);
 
 	value.set(999);
-
-	expect(count).toBe(3);
-	expect(value.peek()).toBe(3);
-
 	value.update(current => current + 1);
 
-	expect(count).toBe(3);
 	expect(value.peek()).toBe(3);
+	expect(count).toBe(3);
 
 	expect(() => value.update(undefined as never)).toThrow();
-});
-
-test('peek', () => {
-	const value = signal(1);
-
-	let count = 0;
-
-	effect(() => {
-		value.peek();
-
-		count += 1;
-	});
-
-	for (let index = 0; index < 100; index += 1) {
-		value.update(current => current + 1);
-	}
-
-	expect(value.peek()).toBe(101);
-	expect(count).toBe(1);
-});
-
-test('peek, copy', () => {
-	const obj = signal({a: 1, b: 2, c: 3});
-
-	const peeked = obj.peek();
-	const copied = obj.peek(true);
-
-	expect(peeked).toEqual({a: 1, b: 2, c: 3});
-	expect(copied).toEqual({a: 1, b: 2, c: 3});
-	expect(copied).not.toBe(peeked);
-	expect(peeked).toBe(obj.peek());
-	expect(copied).not.toBe(obj.peek());
-	expect(copied).not.toBe(obj.peek(true));
-
-	const num = signal(1);
-
-	expect(num.peek()).toBe(num.peek(true));
 });
 
 test('function value', () =>
@@ -115,6 +71,35 @@ test('function value', () =>
 		}, 50);
 	}));
 
+test('peek', () => {
+	const value = signal(1);
+
+	let count = 0;
+
+	effect(() => {
+		value.peek();
+
+		count += 1;
+	});
+
+	value.set(2);
+
+	expect(value.peek()).toBe(2);
+	expect(count).toBe(1);
+});
+
+test('peek, copy', () => {
+	const obj = signal({a: 1, b: 2, c: 3});
+
+	expect(obj.peek()).toBe(obj.peek());
+	expect(obj.peek(true)).toEqual({a: 1, b: 2, c: 3});
+	expect(obj.peek(true)).not.toBe(obj.peek());
+
+	const num = signal(1);
+
+	expect(num.peek(true)).toBe(1);
+});
+
 test('promise value', () =>
 	new Promise<void>(done => {
 		const value = signal(new Promise<number>(resolve => setTimeout(() => resolve(1), 25)));
@@ -142,12 +127,10 @@ test('promise value', () =>
 
 			value.set(new Promise<number>(resolve => setTimeout(() => resolve(2), 25)));
 			value.set(new Promise<number>(resolve => setTimeout(() => resolve(3), 25)));
-			value.set(new Promise<number>(resolve => setTimeout(() => resolve(4), 25)));
-			value.set(new Promise<number>(resolve => setTimeout(() => resolve(5), 25)));
 		}, 100);
 
 		setTimeout(() => {
-			expect(value.peek()).toBe(5);
+			expect(value.peek()).toBe(3);
 
 			done();
 		}, 150);

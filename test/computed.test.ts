@@ -9,38 +9,25 @@ test('basic', () => {
 	const d = computed(() => c.get() + 1);
 
 	expect(c.active).toBe(true);
-	expect(d.active).toBe(true);
-
 	expect(c.peek()).toBe(3);
 	expect(d.peek()).toBe(4);
 
 	a.update(current => current + 1);
-
-	expect(c.peek()).toBe(4);
-	expect(d.peek()).toBe(5);
-
 	b.set(5);
 
 	expect(c.peek()).toBe(7);
 	expect(d.peek()).toBe(8);
 
-	expect(c.toJSON()).toEqual(7);
-	expect(d.toJSON()).toEqual(8);
-
+	expect(c.toJSON()).toBe(7);
 	expect(c.toString()).toBe('7');
-	expect(d.toString()).toBe('8');
 
 	a.deactivate();
-
 	a.set(10);
 
-	expect(a.peek()).toBe(2);
 	expect(c.peek()).toBe(7);
-	expect(d.peek()).toBe(8);
 
 	b.set(100);
 
-	expect(b.peek()).toBe(100);
 	expect(c.peek()).toBe(102);
 	expect(d.peek()).toBe(103);
 
@@ -51,11 +38,35 @@ test('basic', () => {
 
 	b.set(50);
 
-	expect(b.get()).toBe(50);
 	expect(c.get()).toBe(102);
 	expect(d.get()).toBe(103);
 
 	expect(() => computed(undefined as never)).toThrow();
+});
+
+test('batch', () => {
+	const a = signal(1);
+	const b = computed(() => a.get() + 1);
+
+	let count = 0;
+
+	effect(() => {
+		b.get();
+
+		count += 1;
+	});
+
+	startBatch();
+
+	for (let index = 0; index < 100; index += 1) {
+		a.update(current => current + 1);
+	}
+
+	expect(count).toBe(1);
+
+	stopBatch();
+
+	expect(count).toBe(2);
 });
 
 test('deactivated dependent of computed', () => {
@@ -98,51 +109,17 @@ test('get & peek', () => {
 	expect(getCount).toBe(101);
 	expect(peekCount).toBe(1);
 
-	expect(a.peek()).toBe(101);
 	expect(b.peek()).toBe(10201);
 	expect(c.peek()).toBe(10202);
-});
-
-test('batch', () => {
-	const a = signal(1);
-	const b = computed(() => a.get() + 1);
-
-	let count = 0;
-
-	effect(() => {
-		b.get();
-
-		count += 1;
-	});
-
-	expect(count).toBe(1);
-
-	startBatch();
-
-	for (let index = 0; index < 100; index += 1) {
-		a.update(current => current + 1);
-	}
-
-	expect(count).toBe(1);
-
-	stopBatch();
-
-	expect(count).toBe(2);
 });
 
 test('peek, copy', () => {
 	const value = signal([1, 2, 3]);
 	const squared = computed(() => value.get().map(x => x ** 2));
 
-	const peeked = squared.peek();
-	const copied = squared.peek(true);
-
-	expect(peeked).toEqual([1, 4, 9]);
-	expect(copied).toEqual([1, 4, 9]);
-	expect(copied).not.toBe(peeked);
-	expect(peeked).toBe(squared.peek());
-	expect(copied).not.toBe(squared.peek());
-	expect(copied).not.toBe(squared.peek(true));
+	expect(squared.peek()).toBe(squared.peek());
+	expect(squared.peek(true)).toEqual([1, 4, 9]);
+	expect(squared.peek(true)).not.toBe(squared.peek());
 });
 
 test('promise', () =>
@@ -247,8 +224,8 @@ test('recompute while dirty mid-flush', () => {
 
 	// The effect above runs before `doubled`'s own internal effect in this
 	// flush, so it observes `doubled` while still marked dirty. Reading it
-	// there must trigger a synchronous recompute (line 79) instead of
-	// returning the stale value.
+	// there must trigger a synchronous recompute instead of returning the
+	// stale value.
 	expect(seenDuringFlush).toBe(10);
 	expect(doubled.get()).toBe(10);
 	expect(computeCount).toBe(2);

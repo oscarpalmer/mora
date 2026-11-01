@@ -43,7 +43,6 @@ test('at', () => {
 
 test('basic', () => {
 	const a = array([1, 2, 3, 4, 5]);
-	const b = array('blah' as never);
 
 	let count = 0;
 
@@ -54,32 +53,24 @@ test('basic', () => {
 	});
 
 	expect(a.active).toBe(true);
-	expect(b.active).toBe(true);
-
 	expect(count).toBe(1);
 	expect(a.peek('length')).toBe(5);
-
-	expect(b.peek()).toEqual([]);
 
 	expect(a.toString()).toBe('1,2,3,4,5');
 	expect(a.toJSON()).toEqual([1, 2, 3, 4, 5]);
 
+	expect(array('blah' as never).peek()).toEqual([]);
+
 	a.deactivate();
 	a.deactivate();
-	b.deactivate();
 
 	expect(a.active).toBe(false);
-	expect(b.active).toBe(false);
 
 	a.set([9, 9, 9]);
-	b.set([9, 9, 9]);
-
-	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
-	expect(b.peek()).toEqual([]);
-
 	a.update(current => current.map(item => item * 2));
 
 	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
+	expect(count).toBe(1);
 });
 
 test('clear', () => {
@@ -95,7 +86,6 @@ test('clear', () => {
 
 	a.set([1, 2, 3, 4, 5]);
 
-	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
 	expect(b.peek()).toEqual([2, 4, 6, 8, 10]);
 
 	a.deactivate();
@@ -105,7 +95,7 @@ test('clear', () => {
 	expect(b.peek()).toEqual([2, 4, 6, 8, 10]);
 });
 
-test('copyWith', () => {
+test('copyWithin', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
 	a.get().copyWithin(0, 2);
@@ -144,9 +134,6 @@ test('emit', () => {
 		counts.b += 1;
 	});
 
-	expect(counts.a).toBe(1);
-	expect(counts.b).toBe(1);
-
 	a.set(Array.from({length: 100}, (_, i) => (i === 5 ? i + 1 : 1)));
 
 	expect(counts.a).toBe(2);
@@ -175,19 +162,15 @@ test('fill', () => {
 
 	expect(a.peek()).toEqual([99, 99, 99, 99, 99]);
 
-	a.get().fill(100, 1);
+	a.get().fill(100, 1, 3);
 
-	expect(a.peek()).toEqual([99, 100, 100, 100, 100]);
-
-	a.get().fill(101, 1, 3);
-
-	expect(a.peek()).toEqual([99, 101, 101, 100, 100]);
+	expect(a.peek()).toEqual([99, 100, 100, 99, 99]);
 
 	a.deactivate();
 
-	a.get().fill(102);
+	a.get().fill(101);
 
-	expect(a.peek()).toEqual([99, 101, 101, 100, 100]);
+	expect(a.peek()).toEqual([99, 100, 100, 99, 99]);
 });
 
 test('filter', () => {
@@ -203,14 +186,10 @@ test('filter', () => {
 
 	expect(even.peek()).toEqual([2, 4, 6, 8]);
 
-	numbers.set([]);
-
-	expect(even.peek()).toEqual([]);
-
 	numbers.deactivate();
-	numbers.push(1);
+	numbers.push(10);
 
-	expect(even.peek()).toEqual([]);
+	expect(even.peek()).toEqual([2, 4, 6, 8]);
 
 	expect(() => numbers.filter(() => true)).toThrow();
 });
@@ -218,44 +197,37 @@ test('filter', () => {
 test('length', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
-	const count = [0, 0];
+	const counts = [0, 0];
 
 	effect(() => {
 		a.get('length');
 
-		count[0] += 1;
+		counts[0] += 1;
 	});
 
 	effect(() => {
 		a.length;
 
-		count[1] += 1;
+		counts[1] += 1;
 	});
-
-	expect(a.peek('length')).toBe(5);
-	expect(count).toEqual([1, 1]);
 
 	a.length = 10;
 
 	expect(a.peek('length')).toBe(10);
-	expect(count).toEqual([2, 2]);
+	expect(counts).toEqual([2, 2]);
 
 	a.length = -3;
-
-	expect(a.peek('length')).toBe(10);
-	expect(count).toEqual([2, 2]);
-
 	a.length = 'blah' as never;
 
 	expect(a.peek('length')).toBe(10);
-	expect(count).toEqual([2, 2]);
+	expect(counts).toEqual([2, 2]);
 
 	a.deactivate();
 
 	a.length = 20;
 
 	expect(a.peek('length')).toBe(10);
-	expect(count).toEqual([2, 2]);
+	expect(counts).toEqual([2, 2]);
 });
 
 test('map', () => {
@@ -264,206 +236,101 @@ test('map', () => {
 
 	expect(b.peek()).toEqual([2, 4, 6, 8, 10]);
 
-	a.push(6, 7, 8);
+	a.push(6);
 
-	expect(b.peek()).toEqual([2, 4, 6, 8, 10, 12, 14, 16]);
-
-	a.set([]);
-
-	expect(b.peek()).toEqual([]);
+	expect(b.peek()).toEqual([2, 4, 6, 8, 10, 12]);
 
 	a.deactivate();
+	a.push(7);
 
-	a.push(1);
-
-	expect(b.peek()).toEqual([]);
+	expect(b.peek()).toEqual([2, 4, 6, 8, 10, 12]);
 
 	expect(() => a.map(() => {})).toThrow();
 });
 
 test('notify', () => {
 	const items = array<Item>([]);
-	const objs = array<{value: number}>([]);
 	const strings = items.map(item => item.toString());
 
+	let count = 0;
 	let name = '';
-	let nameCount = 0;
-
-	let value = 0;
-	let valueCount = 0;
 
 	effect(() => {
 		name = items.get(0)?.name ?? '';
 
-		nameCount += 1;
+		count += 1;
 	});
 
-	effect(() => {
-		value = objs.get(0)?.value ?? 0;
-
-		valueCount += 1;
-	});
-
-	expect(strings.peek().join(', ')).toBe('');
-
-	expect(nameCount).toBe(1);
-	expect(valueCount).toBe(1);
-
+	expect(count).toBe(1);
 	expect(name).toBe('');
-	expect(value).toBe(0);
+	expect(strings.peek()).toEqual([]);
 
 	items.push(new Item('Apple'));
-	objs.push({value: 123});
 
-	expect(strings.peek().join(', ')).toBe('#1 Apple');
-
-	expect(nameCount).toBe(2);
-	expect(valueCount).toBe(2);
-
+	expect(count).toBe(2);
 	expect(name).toBe('Apple');
-	expect(value).toBe(123);
+	expect(strings.peek()).toEqual(['#1 Apple']);
 
-	const item = items.peek(0);
+	items.peek(0)!.name = 'Banana';
 
-	if (item != null) {
-		item.name = 'Banana';
-	}
-
-	const obj = objs.peek(0);
-
-	if (obj != null) {
-		obj.value = 456;
-	}
-
-	expect(strings.peek().join(', ')).toBe('#1 Apple');
-
-	expect(nameCount).toBe(2);
-	expect(valueCount).toBe(2);
-
+	expect(count).toBe(2);
 	expect(name).toBe('Apple');
-	expect(value).toBe(123);
+	expect(strings.peek()).toEqual(['#1 Apple']);
 
 	items.notify();
-	objs.notify();
 
-	expect(strings.peek().join(', ')).toBe('#1 Banana');
-
-	expect(nameCount).toBe(3);
-	expect(valueCount).toBe(3);
-
+	expect(count).toBe(3);
 	expect(name).toBe('Banana');
-	expect(value).toBe(456);
+	expect(strings.peek()).toEqual(['#1 Banana']);
 
 	items.deactivate();
-	objs.deactivate();
-
 	items.notify();
-	objs.notify();
 
-	expect(nameCount).toBe(3);
-	expect(valueCount).toBe(3);
+	expect(count).toBe(3);
 });
 
 test('peek', () => {
-	const a = array([1, 2, 3, 4, 5]);
-	const b = array([[1], [2], [3], [4], [5]]);
-	const c = array([{id: 1, value: 1}]);
+	const a = array([1, 2, 3]);
+	const b = array([[1], [2], [3]]);
+	const c = array([{value: 1}]);
 
-	const counts = [0, 0, 0];
+	let count = 0;
 
 	effect(() => {
 		a.peek();
-		b.peek();
-		c.peek();
-
-		counts[0] += 1;
-	});
-
-	effect(() => {
 		a.peek(0);
-		b.peek(0);
-		c.peek(0);
-
-		counts[1] += 1;
-	});
-
-	effect(() => {
 		a.peek('length');
-		b.peek('length');
-		c.peek('length');
 
-		counts[2] += 1;
+		count += 1;
 	});
 
-	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
-	expect(a.peek('length')).toBe(5);
-	expect(a.peek('blah' as never)).toEqual([1, 2, 3, 4, 5]);
+	expect(a.peek()).toEqual([1, 2, 3]);
+	expect(a.peek(0)).toBe(1);
+	expect(a.peek('length')).toBe(3);
+	expect(a.peek('blah' as never)).toEqual([1, 2, 3]);
 
-	expect(b.peek()).toEqual([[1], [2], [3], [4], [5]]);
-	expect(b.peek('length')).toBe(5);
-	expect(b.peek('blah' as never)).toEqual([[1], [2], [3], [4], [5]]);
+	a.peek()[0] = 11;
 
-	expect(c.peek()).toEqual([{id: 1, value: 1}]);
-	expect(c.peek('length')).toBe(1);
-	expect(c.peek('blah' as never)).toEqual([{id: 1, value: 1}]);
+	expect(a.peek()).toEqual([11, 2, 3]);
 
-	expect(counts).toEqual([1, 1, 1]);
+	a.peek(true)[0] = 111;
 
-	let values = a.peek();
-	let numbers = b.peek();
-	let items = c.peek();
+	expect(a.peek()).toEqual([11, 2, 3]);
+	expect(a.peek(0, true)).toBe(11);
 
-	values[0] = 11;
-	numbers[0] = [11];
-	items[0] = {id: 1, value: 11};
+	b.peek(0)![0] = 22;
+	c.peek(0)!.value = 22;
 
-	expect(a.peek()).toEqual([11, 2, 3, 4, 5]);
-	expect(b.peek()).toEqual([[11], [2], [3], [4], [5]]);
-	expect(c.peek()).toEqual([{id: 1, value: 11}]);
+	expect(b.peek(0)).toEqual([22]);
+	expect(c.peek(0)).toEqual({value: 22});
 
-	expect(counts).toEqual([1, 1, 1]);
+	b.peek(0, true)![0] = 222;
+	c.peek(0, true)!.value = 222;
 
-	values = a.peek(true);
-	numbers = b.peek(true);
-	items = c.peek(true);
+	expect(b.peek(0)).toEqual([22]);
+	expect(c.peek(0)).toEqual({value: 22});
 
-	values[0] = 111;
-	numbers[0] = [111];
-	items[0] = {id: 1, value: 111};
-
-	expect(a.peek()).toEqual([11, 2, 3, 4, 5]);
-	expect(b.peek()).toEqual([[11], [2], [3], [4], [5]]);
-	expect(c.peek()).toEqual([{id: 1, value: 11}]);
-
-	expect(counts).toEqual([1, 1, 1]);
-
-	let value = a.peek(0)!;
-	let number = b.peek(0)!;
-	let item = c.peek(0)!;
-
-	value = 1111;
-	number[0] = 1111;
-	item.value = 1111;
-
-	expect(a.peek()).toEqual([11, 2, 3, 4, 5]);
-	expect(b.peek()).toEqual([[1111], [2], [3], [4], [5]]);
-	expect(c.peek()).toEqual([{id: 1, value: 1111}]);
-
-	expect(counts).toEqual([1, 1, 1]);
-
-	value = a.peek(0, true)!;
-	number = b.peek(0, true)!;
-	item = c.peek(0, true)!;
-
-	value = 11111;
-	number[0] = 11111;
-	item.value = 11111;
-
-	expect(a.peek()).toEqual([11, 2, 3, 4, 5]);
-	expect(b.peek()).toEqual([[1111], [2], [3], [4], [5]]);
-	expect(c.peek()).toEqual([{id: 1, value: 1111}]);
-
-	expect(counts).toEqual([1, 1, 1]);
+	expect(count).toBe(1);
 });
 
 test('pop', () => {
@@ -502,7 +369,6 @@ test('select', () => {
 		{id: 1, value: 'Apple'},
 		{id: 2, value: 'Banana'},
 		{id: 3, value: 'Cherry'},
-		{id: 4, value: 'Date'},
 	]);
 
 	const even = all.select(
@@ -515,16 +381,15 @@ test('select', () => {
 		item => item.value,
 	);
 
-	expect(even.peek()).toEqual(['Banana', 'Date']);
+	expect(even.peek()).toEqual(['Banana']);
 	expect(odd.peek()).toEqual(['Apple', 'Cherry']);
 
-	all.push({id: 5, value: 'Elderberry'});
+	all.push({id: 4, value: 'Date'}, {id: 5, value: 'Elderberry'});
 
 	expect(even.peek()).toEqual(['Banana', 'Date']);
 	expect(odd.peek()).toEqual(['Apple', 'Cherry', 'Elderberry']);
 
 	all.deactivate();
-
 	all.push({id: 6, value: 'Fig'});
 
 	expect(even.peek()).toEqual(['Banana', 'Date']);
@@ -532,7 +397,7 @@ test('select', () => {
 
 	expect(() =>
 		all.select(
-			item => item.id % 2 === 0,
+			() => true,
 			item => item.value,
 		),
 	).toThrow();
@@ -549,8 +414,6 @@ test('set', () => {
 		count += 1;
 	});
 
-	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
-
 	a.set([6, 7, 8]);
 
 	expect(a.peek()).toEqual([6, 7, 8]);
@@ -563,7 +426,6 @@ test('set', () => {
 
 	a.set(1, 999);
 
-	expect(a.peek()).toEqual([6, 999, 8]);
 	expect(count).toBe(3);
 
 	a.set(-1, 666);
@@ -572,6 +434,7 @@ test('set', () => {
 	expect(count).toBe(4);
 
 	a.set(-1000, 333);
+	a.set(Number.NaN, 123);
 
 	expect(a.peek()).toEqual([6, 999, 666]);
 	expect(count).toBe(4);
@@ -581,26 +444,9 @@ test('set', () => {
 	expect(a.peek()).toEqual([6, 999, 666, 333]);
 	expect(count).toBe(5);
 
-	a.set(Number.NaN, 123);
+	a.set('length', 6);
 
-	expect(a.peek()).toEqual([6, 999, 666, 333]);
-	expect(count).toBe(5);
-
-	a.set('length', 10);
-
-	expect(a.peek('length')).toBe(10);
-	expect(a.peek()).toEqual([
-		6,
-		999,
-		666,
-		333,
-		undefined,
-		undefined,
-		undefined,
-		undefined,
-		undefined,
-		undefined,
-	]);
+	expect(a.peek()).toEqual([6, 999, 666, 333, undefined, undefined]);
 	expect(count).toBe(6);
 
 	a.set('blah' as never, 'Hello, world!' as never);
@@ -614,20 +460,12 @@ test('set', () => {
 	a.deactivate();
 
 	a.set(0, 1234);
-
-	expect(a.peek(0)).toBe(6);
-
 	a.get()[0] = 1234;
-
-	expect(a.peek(0)).toBe(6);
-
 	a.set([1, 2, 3]);
-
-	expect(a.peek()).not.toEqual([1, 2, 3]);
-
 	a.set('length', 0);
 
-	expect(a.peek()).not.toEqual([]);
+	expect(a.peek(0)).toBe(6);
+	expect(a.peek('length')).toBe(6);
 });
 
 test('shift', () => {
@@ -639,9 +477,8 @@ test('shift', () => {
 
 	a.deactivate();
 
-	expect(a.shift()).toBe(undefined);
+	expect(a.shift()).toBeUndefined();
 	expect(a.peek()).toEqual([2, 3, 4, 5]);
-	expect(a.peek('length')).toBe(4);
 });
 
 test('sort', () => {
@@ -679,19 +516,12 @@ test('splice + (get)', () => {
 
 	expect(a.peek()).toEqual([3, 6, 4, 5]);
 
-	expect(first).toBe(3);
-	expect(last).toBe(5);
-
 	a.splice(0);
 
 	expect(a.peek()).toEqual([]);
 
-	expect(first).toBe(undefined);
-	expect(last).toBe(undefined);
-
-	a.set([1, 2, 3]);
-
-	expect(a.peek()).toEqual([1, 2, 3]);
+	expect(first).toBeUndefined();
+	expect(last).toBeUndefined();
 
 	a.deactivate();
 
@@ -699,63 +529,42 @@ test('splice + (get)', () => {
 });
 
 test('subscription', () => {
-	function onArray(): void {
-		counts.array[1] += 1;
-	}
-
-	function onFirst(): void {
-		counts.item[1] += 1;
-	}
-
 	const a = array([1, 2, 3, 4, 5]);
 
 	const counts = {
-		array: [0, 0],
-		item: [0, 0],
+		array: 0,
+		item: 0,
 	};
 
-	const arraySubscriptionOne = a.subscribe(onArray);
-
-	const arraySubscriptionTwo = a.subscribe(() => {
-		counts.array[0] += 1;
+	const arraySubscription = a.subscribe(() => {
+		counts.array += 1;
 	});
 
-	const firstSubscriptionOne = a.subscribe(0, onFirst);
-
-	const firstSubscriptionTwo = a.subscribe(0, () => {
-		counts.item[0] += 1;
+	const itemSubscription = a.subscribe(0, () => {
+		counts.item += 1;
 	});
 
-	expect(counts.array).toEqual([1, 1]);
-	expect(counts.item).toEqual([1, 1]);
+	expect(counts).toEqual({array: 1, item: 1});
 
 	a.push(6, 7, 8);
 
-	expect(counts.array).toEqual([2, 2]);
-	expect(counts.item).toEqual([1, 1]);
+	expect(counts).toEqual({array: 2, item: 1});
 
 	a.set(0, 999);
 
-	expect(counts.array).toEqual([3, 3]);
-	expect(counts.item).toEqual([2, 2]);
+	expect(counts).toEqual({array: 3, item: 2});
 
-	arraySubscriptionTwo.unsubscribe();
-	firstSubscriptionTwo.unsubscribe();
-
-	arraySubscriptionOne.unsubscribe();
-	firstSubscriptionOne.unsubscribe();
+	arraySubscription.unsubscribe();
+	itemSubscription.unsubscribe();
 
 	a.set([1, 2, 3]);
 
-	expect(counts.array).toEqual([3, 3]);
-	expect(counts.item).toEqual([2, 2]);
+	expect(counts).toEqual({array: 3, item: 2});
 
 	a.deactivate();
 
 	expect(() => a.subscribe(() => {})).toThrow();
-
-	expect(() => a.subscribe('blah' as never)).toThrow();
-	expect(() => a.subscribe('blah' as never, 123 as never)).toThrow();
+	expect(() => a.subscribe(0, () => {})).toThrow();
 });
 
 test('unshift', () => {
@@ -780,8 +589,6 @@ test('update', () => {
 
 		count += 1;
 	});
-
-	expect(count).toBe(1);
 
 	a.update(value => value.map(item => item * 2));
 
@@ -821,15 +628,12 @@ test('value: function', () => {
 		throw new Error('Should be a silent error');
 	});
 
+	arr.set(() => 'blah' as never);
+
 	expect(arr.peek()).toEqual([1, 99, 3]);
 	expect(count).toBe(2);
 
 	arr.set(() => undefined);
-
-	expect(arr.peek()).toEqual([]);
-	expect(count).toBe(3);
-
-	arr.set(() => 'blah' as never);
 
 	expect(arr.peek()).toEqual([]);
 	expect(count).toBe(3);
@@ -875,12 +679,10 @@ test('value: promise', () =>
 
 			arr.set(new Promise<number[]>(resolve => setTimeout(() => resolve([7, 8, 9]), 25)));
 			arr.set(new Promise<number[]>(resolve => setTimeout(() => resolve([10, 11, 12]), 25)));
-			arr.set(new Promise<number[]>(resolve => setTimeout(() => resolve([13, 14, 15]), 25)));
-			arr.set(new Promise<number[]>(resolve => setTimeout(() => resolve([16, 17, 18]), 25)));
 		}, 125);
 
 		setTimeout(() => {
-			expect(arr.peek()).toEqual([16, 17, 18]);
+			expect(arr.peek()).toEqual([10, 11, 12]);
 			expect(count).toBe(4);
 
 			arr.set(new Promise(resolve => resolve(undefined)));

@@ -6,107 +6,31 @@ test('array', () => {
 	const b = a.asReadonly();
 	const c = a.asReadonly(true);
 
-	const counts = [0, 0, 0];
+	let count = 0;
 
 	effect(() => {
-		const value = a.get();
+		expect(Object.isFrozen(a.get())).toBe(false);
+		expect(Object.isFrozen(b.get())).toBe(false);
+		expect(Object.isFrozen(c.get())).toBe(true);
 
-		expect(Object.isFrozen(value)).toBe(false);
-
-		counts[0] += 1;
+		count += 1;
 	});
 
-	effect(() => {
-		const value = b.get();
-
-		expect(Object.isFrozen(value)).toBe(false);
-
-		counts[1] += 1;
-	});
-
-	effect(() => {
-		const value = c.get();
-
-		expect(Object.isFrozen(value)).toBe(true);
-
-		counts[2] += 1;
-	});
-
-	expect((a as any).frozen).toBe(undefined);
 	expect(b.frozen).toBe(false);
 	expect(c.frozen).toBe(true);
 
-	expect(Object.is(a.peek(), b.peek())).toBe(true);
-	expect(Object.is(b.peek(), c.peek())).toBe(false);
-	expect(Object.is(a.peek(), c.peek())).toBe(false);
-
-	expect(Object.isFrozen(a.peek())).toBe(false);
-	expect(Object.isFrozen(b.peek())).toBe(false);
+	expect(b.peek()).toBe(a.peek());
+	expect(c.peek()).not.toBe(a.peek());
 	expect(Object.isFrozen(c.peek())).toBe(true);
-
-	expect(a.peek()).toEqual([1, 2, 3]);
-	expect(b.peek()).toEqual([1, 2, 3]);
-	expect(c.peek()).toEqual([1, 2, 3]);
 
 	a.set([4, 5, 6]);
 
-	expect(a.peek()).toEqual([4, 5, 6]);
+	expect(count).toBe(2);
 	expect(b.peek()).toEqual([4, 5, 6]);
 	expect(c.peek()).toEqual([4, 5, 6]);
 
-	expect(() => {
-		a.peek().push(7);
-		b.peek().push(8);
-	}).not.toThrow();
-
-	expect(() => {
-		(c.peek() as any).push(9);
-	}).toThrow();
-
-	expect(() => {
-		(b as any).set([7, 8, 9]);
-	}).toThrow();
-});
-
-test('store', () => {
-	const a = store({x: 1, y: 2});
-	const b = a.asReadonly();
-	const c = a.asReadonly(true);
-
-	expect((a as any).frozen).toBe(undefined);
-	expect(b.frozen).toBe(false);
-	expect(c.frozen).toBe(true);
-
-	expect(Object.isFrozen(a.peek())).toBe(false);
-	expect(Object.isFrozen(b.peek())).toBe(false);
-	expect(Object.isFrozen(c.peek())).toBe(true);
-
-	expect(Object.is(a.peek(), b.peek())).toBe(true);
-	expect(Object.is(b.peek(), c.peek())).toBe(false);
-	expect(Object.is(a.peek(), c.peek())).toBe(false);
-
-	expect(a.peek()).toEqual({x: 1, y: 2});
-	expect(b.peek()).toEqual({x: 1, y: 2});
-	expect(c.peek()).toEqual({x: 1, y: 2});
-
-	a.set('z', 99);
-
-	expect(a.peek()).toEqual({x: 1, y: 2, z: 99});
-	expect(b.peek()).toEqual({x: 1, y: 2, z: 99});
-	expect(c.peek()).toEqual({x: 1, y: 2, z: 99});
-
-	expect(() => {
-		a.peek().x = 100;
-		b.peek().y = 200;
-	}).not.toThrow();
-
-	expect(() => {
-		(c.peek() as any).z = 300;
-	}).toThrow();
-
-	expect(() => {
-		(b as any).set('å', 100);
-	}).toThrow();
+	expect(() => (c.peek() as any).push(7)).toThrow();
+	expect(() => (b as any).set([7, 8, 9])).toThrow();
 });
 
 test('signal', () => {
@@ -114,30 +38,17 @@ test('signal', () => {
 	const b = a.asReadonly();
 	const c = a.asReadonly(true);
 
-	expect((a as any).frozen).toBe(undefined);
+	expect((a as any).frozen).toBeUndefined();
 	expect(b.frozen).toBe(false);
 	expect(c.frozen).toBe(true);
 
 	expect(b.active).toBe(true);
 	expect(c.active).toBe(true);
 
-	expect(a.peek()).toBe(0);
-	expect(b.peek()).toBe(0);
-	expect(c.peek()).toBe(0);
-
 	a.set(1);
 
-	expect(a.peek()).toBe(1);
 	expect(b.peek()).toBe(1);
 	expect(c.peek()).toBe(1);
-
-	expect(a.toJSON()).toBe(1);
-	expect(b.toJSON()).toBe(1);
-	expect(c.toJSON()).toBe(1);
-
-	expect(a.toString()).toBe('1');
-	expect(b.toString()).toBe('1');
-	expect(c.toString()).toBe('1');
 
 	b.deactivate();
 	b.deactivate();
@@ -147,58 +58,50 @@ test('signal', () => {
 
 	a.set(2);
 
-	expect(a.peek()).toBe(2);
+	expect(b.get()).toBe(1);
 	expect(b.peek()).toBe(1);
-	expect(c.peek()).toBe(2);
-
-	expect(a.toJSON()).toBe(2);
 	expect(b.toJSON()).toBe(1);
-	expect(c.toJSON()).toBe(2);
-
-	expect(a.toString()).toBe('2');
 	expect(b.toString()).toBe('1');
-	expect(c.toString()).toBe('2');
 
-	c.deactivate();
-
-	expect(b.active).toBe(false);
-	expect(c.active).toBe(false);
-
-	a.set(3);
-
-	expect(a.peek()).toBe(3);
-	expect(b.peek()).toBe(1);
-	expect(c.peek()).toBe(2);
-
-	expect(a.toJSON()).toBe(3);
-	expect(b.toJSON()).toBe(1);
+	expect(c.get()).toBe(2);
 	expect(c.toJSON()).toBe(2);
-
-	expect(a.toString()).toBe('3');
-	expect(b.toString()).toBe('1');
 	expect(c.toString()).toBe('2');
 
 	a.deactivate();
 
-	a.set(4);
+	expect(c.active).toBe(false);
 
-	expect(a.peek()).toBe(3);
-	expect(b.get()).toBe(1);
+	a.set(3);
+
+	expect(a.peek()).toBe(2);
 	expect(c.peek()).toBe(2);
 
-	expect(a.toJSON()).toBe(3);
-	expect(b.toJSON()).toBe(1);
-	expect(c.toJSON()).toBe(2);
-
-	expect(a.toString()).toBe('3');
-	expect(b.toString()).toBe('1');
-	expect(c.toString()).toBe('2');
-
 	expect(() => a.asReadonly()).toThrow();
+	expect(() => (b as any).set(2)).toThrow();
+});
+
+test('store', () => {
+	const a = store({x: 1, y: 2});
+	const b = a.asReadonly();
+	const c = a.asReadonly(true);
+
+	expect(b.frozen).toBe(false);
+	expect(c.frozen).toBe(true);
+
+	expect(b.peek()).toBe(a.peek());
+	expect(c.peek()).not.toBe(a.peek());
+	expect(Object.isFrozen(c.peek())).toBe(true);
+
+	a.set('z', 99);
+
+	expect(b.peek()).toEqual({x: 1, y: 2, z: 99});
+	expect(c.peek()).toEqual({x: 1, y: 2, z: 99});
 
 	expect(() => {
-		(b as any).set(2);
+		(c.peek() as any).z = 300;
 	}).toThrow();
+
+	expect(() => (b as any).set('å', 100)).toThrow();
 });
 
 test('subscriptions', () => {

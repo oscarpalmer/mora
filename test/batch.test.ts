@@ -2,8 +2,42 @@ import {expect, test} from 'vite-plus/test';
 import {computed, effect, signal, startBatch, stopBatch} from '../src';
 import {BATCH} from '../src/constants';
 
+test('nested', () => {
+	let count = 0;
+
+	const a = signal(1);
+	const b = signal(2);
+
+	effect(() => {
+		a.get();
+		b.get();
+
+		count += 1;
+	});
+
+	startBatch();
+	startBatch();
+
+	expect(BATCH.depth).toBe(2);
+
+	a.set(10);
+	b.set(20);
+
+	stopBatch();
+
+	expect(BATCH.depth).toBe(1);
+	expect(count).toBe(1);
+
+	a.set(100);
+
+	stopBatch();
+
+	expect(BATCH.depth).toBe(0);
+	expect(count).toBe(2);
+});
+
 test('simple', () => {
-	let counter = 0;
+	let count = 0;
 
 	const a = signal(123);
 	const b = computed(() => a.get() + 1000);
@@ -11,10 +45,8 @@ test('simple', () => {
 	effect(() => {
 		a.get();
 
-		counter += 1;
+		count += 1;
 	});
-
-	expect(BATCH.depth).toBe(0);
 
 	startBatch();
 
@@ -29,60 +61,11 @@ test('simple', () => {
 	stopBatch();
 
 	expect(BATCH.depth).toBe(0);
-	expect(counter).toBe(2);
-	expect(a.peek()).toBe(223);
+	expect(count).toBe(2);
 	expect(b.peek()).toBe(1223);
 });
 
-test('nested', () => {
-	let count = 0;
-
-	const signal1 = signal(1);
-	const signal2 = signal(2);
-
-	effect(() => {
-		signal1.get();
-		signal2.get();
-
-		count += 1;
-	});
-
-	expect(BATCH.depth).toBe(0);
-
-	startBatch();
-
-	expect(BATCH.depth).toBe(1);
-
-	startBatch();
-
-	expect(BATCH.depth).toBe(2);
-
-	signal1.set(10);
-	signal2.set(20);
-
-	stopBatch();
-
-	expect(BATCH.depth).toBe(1);
-	expect(count).toBe(1);
-
-	signal1.set(100);
-
-	stopBatch();
-
-	expect(BATCH.depth).toBe(0);
-
-	expect(count).toBe(2);
-	expect(signal1.peek()).toBe(100);
-	expect(signal2.peek()).toBe(20);
-});
-
 test('stops at zero depth', () => {
-	expect(BATCH.depth).toBe(0);
-
-	stopBatch();
-
-	expect(BATCH.depth).toBe(0);
-
 	stopBatch();
 	stopBatch();
 

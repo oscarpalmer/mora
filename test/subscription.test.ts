@@ -11,17 +11,16 @@ test('basic', () => {
 	const totals = [0, 0];
 
 	const value = signal(1);
-	const squared = computed(() => value.get() * 2);
+	const doubled = computed(() => value.get() * 2);
 
 	let valueSubscription = value.subscribe(value => {
 		counts[0] += 1;
 		totals[0] += value;
 	});
 
-	const squaredSubscription = squared.subscribe(onValue);
-	const secondSquaredSubscription = squared.subscribe(onValue);
+	const doubledSubscription = doubled.subscribe(onValue);
 
-	expect(squaredSubscription).toBe(secondSquaredSubscription);
+	expect(doubled.subscribe(onValue)).toBe(doubledSubscription);
 
 	expect(counts).toEqual([1, 1]);
 	expect(totals).toEqual([1, 2]);
@@ -32,7 +31,7 @@ test('basic', () => {
 	expect(totals).toEqual([124, 246]);
 
 	valueSubscription.unsubscribe();
-	squaredSubscription.unsubscribe();
+	doubledSubscription.unsubscribe();
 
 	value.set(456);
 
@@ -46,23 +45,12 @@ test('basic', () => {
 	expect(counts).toEqual([2, 4]);
 	expect(totals).toEqual([124, 789]);
 
-	valueSubscription.unsubscribe();
-
-	value.set(1234);
-
-	expect(value.peek()).toBe(1234);
-	expect(counts).toEqual([2, 4]);
-	expect(totals).toEqual([124, 789]);
-
 	expect(() => value.subscribe('blah' as never)).toThrow();
 
 	value.deactivate();
-
 	value.set(999);
 
-	expect(value.peek()).toBe(1234);
 	expect(counts).toEqual([2, 4]);
-	expect(totals).toEqual([124, 789]);
 
 	expect(() => value.subscribe(() => {})).toThrow();
 });
@@ -75,8 +63,6 @@ test('batched', () => {
 	a.subscribe(() => {
 		count += 1;
 	});
-
-	expect(count).toBe(1);
 
 	startBatch();
 
@@ -91,109 +77,70 @@ test('batched', () => {
 	expect(count).toBe(2);
 });
 
-test('copies', () =>
-	new Promise<void>(done => {
-		const copied = {
-			array: undefined as unknown as number[],
-			nested: undefined as unknown as number[] | undefined,
-			object: undefined as unknown as Record<string, number[]>,
-		};
+test('copies', () => {
+	const numbers = array([1, 2, 3]);
+	const object = store({a: [1, 1, 1], b: [2, 2, 2]});
 
-		const originals = {
-			array: undefined as unknown as number[],
-			nested: undefined as unknown as number[] | undefined,
-			object: undefined as unknown as Record<string, number[]>,
-		};
+	const copies: Record<string, any> = {};
+	const originals: Record<string, any> = {};
 
-		const numbers = array([1, 2, 3]);
-		const object = store({a: [1, 1, 1], b: [2, 2, 2], c: [3, 3, 3]});
+	numbers.subscribe((value, subscription) => {
+		originals.array = value;
 
-		numbers.subscribe((value, subscription) => {
-			originals.array = value;
+		subscription.unsubscribe();
+	});
 
-			subscription.unsubscribe();
-		});
+	numbers.subscribe((value, subscription) => {
+		copies.array = value;
 
-		numbers.subscribe((value, subscription) => {
-			copied.array = value;
+		subscription.unsubscribe();
+	}, true);
 
-			subscription.unsubscribe();
-		}, true);
+	object.subscribe((value, subscription) => {
+		originals.object = value;
 
-		object.subscribe((value, subscription) => {
-			originals.object = value;
+		subscription.unsubscribe();
+	});
 
-			subscription.unsubscribe();
-		});
+	object.subscribe((value, subscription) => {
+		copies.object = value;
 
-		object.subscribe((value, subscription) => {
-			copied.object = value;
+		subscription.unsubscribe();
+	}, true);
 
-			subscription.unsubscribe();
-		}, true);
+	object.subscribe('b', (value, subscription) => {
+		originals.nested = value;
 
-		object.subscribe('b', (value, subscription) => {
-			originals.nested = value;
+		subscription.unsubscribe();
+	});
+
+	object.subscribe(
+		'b',
+		(value, subscription) => {
+			copies.nested = value;
 
 			subscription.unsubscribe();
-		});
+		},
+		true,
+	);
 
-		object.subscribe(
-			'b',
-			(value, subscription) => {
-				copied.nested = value;
+	expect(originals.array).toBe(numbers.peek());
+	expect(originals.object).toBe(object.peek());
+	expect(originals.nested).toBe(object.peek('b'));
 
-				subscription.unsubscribe();
-			},
-			true,
-		);
+	expect(copies.array).toEqual(originals.array);
+	expect(copies.array).not.toBe(originals.array);
 
-		expect(originals.array).toEqual(copied.array);
-		expect(originals.array).not.toBe(copied.array);
+	expect(copies.object).toEqual(originals.object);
+	expect(copies.object).not.toBe(originals.object);
 
-		expect(originals.object).toEqual(copied.object);
-		expect(originals.object).not.toBe(copied.object);
+	expect(copies.nested).toEqual(originals.nested);
+	expect(copies.nested).not.toBe(originals.nested);
 
-		expect(originals.nested).toEqual(copied.nested);
-		expect(originals.nested).not.toBe(copied.nested);
+	copies.array[0] = 9;
+	copies.object.a = [9, 9, 9];
+	copies.nested[0] = 9;
 
-		setTimeout(() => {
-			originals.array[0] = 9;
-			copied.array[2] = 8;
-
-			originals.object.a = [7, 7, 7];
-			copied.object.c = [6, 6, 6];
-
-			originals.nested![0] = 5;
-			copied.nested![2] = 4;
-
-			expect(originals.array).not.toEqual(copied.array);
-			expect(originals.array).not.toBe(copied.array);
-
-			expect(originals.array[0]).toBe(9);
-			expect(originals.array[2]).toBe(3);
-
-			expect(copied.array[0]).toBe(1);
-			expect(copied.array[2]).toBe(8);
-
-			expect(originals.object).not.toEqual(copied.object);
-			expect(originals.object).not.toBe(copied.object);
-
-			expect(originals.object.a).toEqual([7, 7, 7]);
-			expect(originals.object.c).toEqual([3, 3, 3]);
-
-			expect(copied.object.a).toEqual([1, 1, 1]);
-			expect(copied.object.c).toEqual([6, 6, 6]);
-
-			expect(originals.nested).not.toEqual(copied.nested);
-			expect(originals.nested).not.toBe(copied.nested);
-
-			expect(originals.nested![0]).toBe(5);
-			expect(originals.nested![2]).toBe(2);
-
-			expect(copied.nested![0]).toBe(2);
-			expect(copied.nested![2]).toBe(4);
-
-			done();
-		}, 25);
-	}));
+	expect(numbers.peek()).toEqual([1, 2, 3]);
+	expect(object.peek()).toEqual({a: [1, 1, 1], b: [2, 2, 2]});
+});

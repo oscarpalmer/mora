@@ -15,6 +15,20 @@ import {emitValue, getSignalValue, isPromise, peekSignalValue} from './value';
 
 // #region Functions
 
+export function deleteValueInProxy(
+	instance: InternalStore,
+	target: object,
+	property: PropertyKey,
+): boolean {
+	if (instance[SYMBOL_STATE].active && Object.hasOwn(target, property)) {
+		Reflect.deleteProperty(target, property);
+
+		emitValue(instance);
+	}
+
+	return true;
+}
+
 export function getReactiveValueInProxy(
 	instance: InternalArray | InternalStore,
 	key: Key,
@@ -128,7 +142,11 @@ function setProxyObject(state: ReactiveProxyState, value: unknown): void {
 	for (let index = 0; index < length; index += 1) {
 		const key = currentKeys[index];
 
-		current[key] = nextKeys.includes(key) ? next[key] : undefined;
+		if (nextKeys.includes(key)) {
+			current[key] = next[key];
+		} else {
+			delete current[key];
+		}
 	}
 
 	length = nextKeys.length;

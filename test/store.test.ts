@@ -76,6 +76,45 @@ test('basic', () => {
 	expect(store('blah' as never).peek()).toEqual({});
 });
 
+test('delete', () => {
+	const stored = store<Record<string, number>>({a: 1, b: 2, c: 3});
+
+	const values: unknown[] = [];
+
+	let count = 0;
+
+	effect(() => {
+		stored.get();
+
+		count += 1;
+	});
+
+	stored.subscribe('a', value => {
+		values.push(value);
+	});
+
+	delete stored.get().a;
+
+	expect(Object.keys(stored.peek())).toEqual(['b', 'c']);
+	expect(values).toEqual([1, undefined]);
+	expect(count).toBe(2);
+
+	delete stored.get().missing;
+
+	expect(count).toBe(2);
+
+	stored.set({c: 4});
+
+	expect(Object.keys(stored.peek())).toEqual(['c']);
+	expect(count).toBe(3);
+
+	stored.deactivate();
+
+	delete stored.get().c;
+
+	expect(stored.peek()).toEqual({c: 4});
+});
+
 test('function', () => {
 	const stored = store({a: 1, b: 2, c: 3});
 

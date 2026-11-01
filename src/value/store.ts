@@ -2,6 +2,7 @@ import type {PlainObject} from '@oscarpalmer/atoms/models';
 import {NAME_STORE, SYMBOL_STATE} from '../constants';
 import {deactivateProxy, getReactiveActive, getState} from '../helpers/misc';
 import {
+	deleteValueInProxy,
 	getValueInProxy,
 	notifyProxyValue,
 	peekValueInProxy,
@@ -27,6 +28,7 @@ function ReactiveStore(this: any, value: never, options?: ReactiveOptions<unknow
 	this[SYMBOL_STATE].value = new Proxy(
 		{},
 		{
+			deleteProperty: (target, property) => deleteValueInProxy(this, target, property),
 			set: (target, property, value) => setValueInProxy(this, target, property, value),
 		},
 	);

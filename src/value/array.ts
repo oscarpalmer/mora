@@ -237,8 +237,8 @@ function shiftArrayValue(this: InternalArray): unknown {
 
 function spliceArrayValues(
 	this: InternalArray,
-	from: never,
-	to?: never,
+	start: never,
+	deleteCount?: never,
 	...items: unknown[]
 ): unknown[] {
 	const state = this[SYMBOL_STATE];
@@ -249,7 +249,7 @@ function spliceArrayValues(
 
 	const values = state.value as unknown[];
 
-	return values.splice(from, to ?? values.length, ...items);
+	return values.splice(start, deleteCount ?? values.length, ...items);
 }
 
 function unshiftArrayValues(this: InternalArray, ...items: unknown[]): number {

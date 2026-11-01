@@ -352,12 +352,12 @@ export type ReactiveArray<Item> = {
 	/**
 	 * Remove and return items from the array _(and optionally add new items)_
 	 *
-	 * @param from Index to start removing items from
-	 * @param to Index to stop removing items at _(defaults to the end of the array)_
-	 * @param items Optional items to add
+	 * @param start Index to start removing items from _(if negative, starts from the end)_
+	 * @param deleteCount Number of items to remove _(defaults to removing every item from `start`)_
+	 * @param items Optional items to add at `start`
 	 * @returns Removed items
 	 */
-	splice(from: number, to?: number, ...items: Item[]): Item[];
+	splice(start: number, deleteCount?: number, ...items: Item[]): Item[];
 
 	/**
 	 * Subscribe to changes

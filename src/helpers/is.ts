@@ -47,8 +47,8 @@ function isMora<Instance>(input: unknown, value: string | Set<string>): input is
 		return false;
 	}
 
-	if (value === NAME_READONLY) {
-		return SYMBOL_READONLY in input;
+	if (SYMBOL_READONLY in input) {
+		return value === NAME_READONLY || value === NAME_ALL;
 	}
 
 	if (!(SYMBOL_STATE in input)) {

@@ -20,7 +20,12 @@ export function flushHandlers(): void {
 			BATCH.handlers.clear();
 
 			for (let index = 0; index < length; index += 1) {
-				const [, handler] = handlers[index];
+				const [owner, handler] = handlers[index];
+
+				if (!owner.active) {
+					continue;
+				}
+
 				const subscription = handler as StoredSubscription;
 
 				if (typeof subscription.frozen === 'boolean') {

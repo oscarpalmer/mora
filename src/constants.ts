@@ -25,6 +25,8 @@ export const MESSAGE_DEACTIVATED_ARRAY_MAP = 'Cannot map an inactive reactive ar
 
 export const MESSAGE_DEACTIVATED_ARRAY_SELECT = 'Cannot select from an inactive reactive array';
 
+export const MESSAGE_DEACTIVATED_READONLY = 'Cannot create readonly variant of inactive signal';
+
 export const MESSAGE_DEACTIVATED_SUBSCRIPTION = 'Cannot subscribe to inactive signal';
 
 export const MESSAGE_EFFECT_CALLBACK = 'Effect callback must be a function';
@@ -76,13 +78,13 @@ export const SUBSCRIPTION_PROPERTY: SubscriptionProperty = {
 	value: NAME_SUBSCRIPTION,
 };
 
-export const SUBSCRIPTION_TYPE_COPY: SubscriptionType = 'copy';
+export const SUBSCRIPTION_TYPE_COPY = 'copy' as const;
 
-export const SUBSCRIPTION_TYPE_FROZEN: SubscriptionType = 'frozen';
+export const SUBSCRIPTION_TYPE_FROZEN = 'frozen' as const;
 
-export const SUBSCRIPTION_TYPE_ORIGINAL: SubscriptionType = 'original';
+export const SUBSCRIPTION_TYPE_ORIGINAL = 'original' as const;
 
-export const SUBSCRIPTION_TYPE_READONLY: SubscriptionType = 'readonly';
+export const SUBSCRIPTION_TYPE_READONLY = 'readonly' as const;
 
 export const SUBSCRIPTION_TYPES_COPY: Set<SubscriptionType> = new Set([
 	SUBSCRIPTION_TYPE_COPY,

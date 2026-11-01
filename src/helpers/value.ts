@@ -12,9 +12,16 @@ import {
 	SUBSCRIPTION_TYPES,
 	SUBSCRIPTION_TYPES_COPY,
 	SYMBOL_EFFECT,
+	SYMBOL_READONLY,
 	SYMBOL_STATE,
 } from '../constants';
-import type {InternalArray, InternalComputed, InternalStateful, InternalStore} from '../models';
+import type {
+	InternalArray,
+	InternalComputed,
+	InternalReadonly,
+	InternalStateful,
+	InternalStore,
+} from '../models';
 
 // #region Types
 
@@ -29,13 +36,21 @@ export function emitValue(instance: InternalStateful, notify?: boolean): void {
 
 	if (state.computeds != null && state.computeds.size > 0) {
 		for (const computed of state.computeds) {
-			computed.dirty = true;
+			if (computed.instance.active) {
+				computed.dirty = true;
+			} else {
+				state.computeds.delete(computed);
+			}
 		}
 	}
 
 	if (state.effects != null && state.effects.size > 0) {
 		for (const effect of state.effects) {
-			BATCH.handlers.set(effect, effect);
+			if (effect.active) {
+				BATCH.handlers.set(effect, effect);
+			} else {
+				state.effects.delete(effect);
+			}
 		}
 	}
 
@@ -45,9 +60,9 @@ export function emitValue(instance: InternalStateful, notify?: boolean): void {
 		const mapped = state.mapped as Map<unknown, InternalComputed>;
 
 		for (const [, item] of mapped) {
-			const fx = item[SYMBOL_EFFECT];
+			const {instance} = item[SYMBOL_EFFECT];
 
-			BATCH.handlers.set(fx.instance, fx.instance);
+			BATCH.handlers.set(instance, instance);
 		}
 	}
 
@@ -126,7 +141,11 @@ export function getFrozenValue(value: unknown): unknown {
 	return frozen;
 }
 
-export function getJsonValue(this: InternalStateful): unknown {
+export function getJsonValue(this: InternalReadonly | InternalStateful): unknown {
+	if (SYMBOL_READONLY in this && !this[SYMBOL_READONLY].active) {
+		return this[SYMBOL_READONLY].value;
+	}
+
 	return this[SYMBOL_STATE].value;
 }
 
@@ -152,10 +171,14 @@ export function getSignalValue(this: InternalStateful): unknown {
 	return state.value;
 }
 
-export function getStringValue(this: InternalStateful, json?: boolean): string {
-	return json === true
-		? JSON.stringify(this[SYMBOL_STATE].value)
-		: String(this[SYMBOL_STATE].value);
+export function getStringValue(this: InternalReadonly | InternalStateful, json?: boolean): string {
+	let {value} = this[SYMBOL_STATE];
+
+	if (SYMBOL_READONLY in this && !this[SYMBOL_READONLY].active) {
+		value = this[SYMBOL_READONLY].value;
+	}
+
+	return json === true ? JSON.stringify(value) : String(value);
 }
 
 export function handleSignal(
@@ -228,7 +251,9 @@ export function updateSignal(
 		throw new TypeError(MESSAGE_UPDATE_CALLBACK);
 	}
 
-	handleSignal(instance, callback(instance[SYMBOL_STATE].value), setValue);
+	if (instance[SYMBOL_STATE].active) {
+		handleSignal(instance, callback(instance[SYMBOL_STATE].value), setValue);
+	}
 }
 
 // #endregion

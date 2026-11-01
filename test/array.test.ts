@@ -76,6 +76,10 @@ test('basic', () => {
 
 	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
 	expect(b.peek()).toEqual([]);
+
+	a.update(current => current.map(item => item * 2));
+
+	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
 });
 
 test('clear', () => {
@@ -187,25 +191,28 @@ test('fill', () => {
 });
 
 test('filter', () => {
-	const a = array([1, 2, 3, 4, 5]);
-	const b = a.filter(item => item % 2 === 0);
+	const numbers = array([1, 2, 3, 4, 5]);
 
-	expect(b.peek()).toEqual([2, 4]);
+	numbers.map(item => item * 2).deactivate();
 
-	a.push(6, 7, 8);
+	const even = numbers.filter(item => item % 2 === 0);
 
-	expect(b.peek()).toEqual([2, 4, 6, 8]);
+	expect(even.peek()).toEqual([2, 4]);
 
-	a.set([]);
+	numbers.push(6, 7, 8);
 
-	expect(b.peek()).toEqual([]);
+	expect(even.peek()).toEqual([2, 4, 6, 8]);
 
-	a.deactivate();
-	a.push(1);
+	numbers.set([]);
 
-	expect(b.peek()).toEqual([]);
+	expect(even.peek()).toEqual([]);
 
-	expect(() => a.filter(() => true)).toThrow();
+	numbers.deactivate();
+	numbers.push(1);
+
+	expect(even.peek()).toEqual([]);
+
+	expect(() => numbers.filter(() => true)).toThrow();
 });
 
 test('length', () => {
@@ -280,17 +287,28 @@ test('notify', () => {
 	const strings = items.map(item => item.toString());
 
 	let name = '';
+	let nameCount = 0;
+
 	let value = 0;
+	let valueCount = 0;
 
 	effect(() => {
 		name = items.get(0)?.name ?? '';
+
+		nameCount += 1;
 	});
 
 	effect(() => {
 		value = objs.get(0)?.value ?? 0;
+
+		valueCount += 1;
 	});
 
 	expect(strings.peek().join(', ')).toBe('');
+
+	expect(nameCount).toBe(1);
+	expect(valueCount).toBe(1);
+
 	expect(name).toBe('');
 	expect(value).toBe(0);
 
@@ -298,6 +316,10 @@ test('notify', () => {
 	objs.push({value: 123});
 
 	expect(strings.peek().join(', ')).toBe('#1 Apple');
+
+	expect(nameCount).toBe(2);
+	expect(valueCount).toBe(2);
+
 	expect(name).toBe('Apple');
 	expect(value).toBe(123);
 
@@ -314,6 +336,10 @@ test('notify', () => {
 	}
 
 	expect(strings.peek().join(', ')).toBe('#1 Apple');
+
+	expect(nameCount).toBe(2);
+	expect(valueCount).toBe(2);
+
 	expect(name).toBe('Apple');
 	expect(value).toBe(123);
 
@@ -321,8 +347,21 @@ test('notify', () => {
 	objs.notify();
 
 	expect(strings.peek().join(', ')).toBe('#1 Banana');
+
+	expect(nameCount).toBe(3);
+	expect(valueCount).toBe(3);
+
 	expect(name).toBe('Banana');
 	expect(value).toBe(456);
+
+	items.deactivate();
+	objs.deactivate();
+
+	items.notify();
+	objs.notify();
+
+	expect(nameCount).toBe(3);
+	expect(valueCount).toBe(3);
 });
 
 test('peek', () => {
@@ -710,6 +749,10 @@ test('subscription', () => {
 
 	expect(counts.array).toEqual([3, 3]);
 	expect(counts.item).toEqual([2, 2]);
+
+	a.deactivate();
+
+	expect(() => a.subscribe(() => {})).toThrow();
 
 	expect(() => a.subscribe('blah' as never)).toThrow();
 	expect(() => a.subscribe('blah' as never, 123 as never)).toThrow();

@@ -58,6 +58,19 @@ test('basic', () => {
 	expect(() => computed(undefined as never)).toThrow();
 });
 
+test('deactivated dependent of computed', () => {
+	const a = signal(1);
+	const b = computed(() => a.get() * 2);
+	const c = computed(() => b.get() + 1);
+
+	c.deactivate();
+
+	a.set(2);
+
+	expect(b.get()).toBe(4);
+	expect(c.get()).toBe(3);
+});
+
 test('get & peek', () => {
 	const a = signal(1);
 	const b = computed(() => a.get() ** 2);

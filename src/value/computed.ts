@@ -147,7 +147,7 @@ export function internalComputed(
 function setAndEmit(instance: InternalStateful, value: unknown, notify: boolean): void {
 	const state = instance[SYMBOL_STATE];
 
-	if (!notify && (state.equal ?? Object.is)(state.value, value)) {
+	if (!state.active || (!notify && (state.equal ?? Object.is)(state.value, value))) {
 		return;
 	}
 
@@ -155,13 +155,21 @@ function setAndEmit(instance: InternalStateful, value: unknown, notify: boolean)
 
 	if (state.computeds != null && state.computeds.size > 0) {
 		for (const computed of state.computeds) {
-			computed.dirty = true;
+			if (computed.instance.active) {
+				computed.dirty = true;
+			} else {
+				state.computeds.delete(computed);
+			}
 		}
 	}
 
 	if (state.effects != null && state.effects.size > 0) {
 		for (const effect of state.effects) {
-			BATCH.handlers.set(effect, effect);
+			if (effect.active) {
+				BATCH.handlers.set(effect, effect);
+			} else {
+				state.effects.delete(effect);
+			}
 		}
 	}
 

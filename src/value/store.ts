@@ -1,6 +1,6 @@
 import type {PlainObject} from '@oscarpalmer/atoms/models';
 import {NAME_STORE, SYMBOL_STATE} from '../constants';
-import {deactivateReactive, getReactiveActive, getState} from '../helpers/misc';
+import {deactivateProxy, getReactiveActive, getState} from '../helpers/misc';
 import {
 	getValueInProxy,
 	notifyProxyValue,
@@ -33,7 +33,7 @@ function ReactiveStore(this: any, value: never, options?: ReactiveOptions<unknow
 }
 
 ReactiveStore.prototype.asReadonly = getReadonlySignal;
-ReactiveStore.prototype.deactivate = deactivateReactive;
+ReactiveStore.prototype.deactivate = deactivateProxy;
 ReactiveStore.prototype.get = getValueInProxy;
 ReactiveStore.prototype.notify = notifyProxyValue;
 ReactiveStore.prototype.peek = peekValueInProxy;

@@ -9,7 +9,13 @@ import {getNumber} from '@oscarpalmer/atoms/number';
 import {getString} from '@oscarpalmer/atoms/string';
 import {startBatch, stopBatch} from '../batch';
 import {MESSAGE_UPDATE_CALLBACK, PROPERTY_LENGTH, SYMBOL_EFFECT, SYMBOL_STATE} from '../constants';
-import type {InternalArray, InternalComputed, InternalStore, ReactiveProxyState} from '../models';
+import type {
+	Computed,
+	InternalArray,
+	InternalComputed,
+	InternalStore,
+	ReactiveProxyState,
+} from '../models';
 import {internalComputed} from '../value/computed';
 import {emitValue, getSignalValue, peekSignalValue} from './value';
 
@@ -41,9 +47,15 @@ export function getReactiveValueInProxy(
 }
 
 export function getValueInProxy(this: InternalArray | InternalStore, first?: unknown): unknown {
+	const state = this[SYMBOL_STATE];
+
+	if (!state.active) {
+		return peekValueInProxy.call(this, first);
+	}
+
 	let signal: InternalComputed | undefined;
 
-	if (this[SYMBOL_STATE].isArray ? typeof first === 'number' : isKey(first)) {
+	if (state.isArray ? typeof first === 'number' : isKey(first)) {
 		signal = getReactiveValueInProxy(this, first as Key);
 	}
 
@@ -60,6 +72,10 @@ function isProxyObject(isArray: boolean, value: unknown): value is ArrayOrPlainO
 
 export function notifyProxyValue(this: InternalArray | InternalStore): void {
 	const state = this[SYMBOL_STATE];
+
+	if (!state.active) {
+		return;
+	}
 
 	state.mapped ??= new Map();
 
@@ -265,12 +281,37 @@ export function setValueInProxy(
 	return true;
 }
 
+export function updateProxyDerivations(
+	instance: InternalArray | InternalStore,
+	value: Computed<unknown[]>,
+): Computed<unknown[]> {
+	const state = instance[SYMBOL_STATE];
+
+	if (state.derived == null) {
+		state.derived = new Set([value]);
+
+		return value;
+	}
+
+	for (const computed of state.derived) {
+		if (!computed.active) {
+			state.derived.delete(computed);
+		}
+	}
+
+	state.derived.add(value);
+
+	return value;
+}
+
 export function updateProxyValue(this: InternalArray | InternalStore, callback: unknown): void {
 	if (typeof callback !== 'function') {
 		throw new TypeError(MESSAGE_UPDATE_CALLBACK);
 	}
 
-	setProxyValue.call(this, callback(this[SYMBOL_STATE].value));
+	if (this[SYMBOL_STATE].active) {
+		setProxyValue.call(this, callback(this[SYMBOL_STATE].value));
+	}
 }
 
 // #endregion

@@ -74,12 +74,23 @@ test('basic', () => {
 	expect(stored.peek('a')).toBeUndefined();
 
 	stored.deactivate();
+	stored.deactivate();
 
 	expect(stored.active).toBe(false);
 
 	stored.set({
 		foo: 'bar',
 	} as never);
+
+	expect(counts.obj).toBe(5);
+	expect(counts.a).toBe(3);
+	expect(stored.peek()).toEqual({});
+	expect(stored.peek('a')).toBeUndefined();
+
+	stored.update(current => ({
+		...current,
+		foo: 'bar',
+	}));
 
 	expect(counts.obj).toBe(5);
 	expect(counts.a).toBe(3);

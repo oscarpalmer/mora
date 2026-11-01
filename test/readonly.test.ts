@@ -151,6 +151,14 @@ test('signal', () => {
 	expect(b.peek()).toBe(1);
 	expect(c.peek()).toBe(2);
 
+	expect(a.toJSON()).toBe(2);
+	expect(b.toJSON()).toBe(1);
+	expect(c.toJSON()).toBe(2);
+
+	expect(a.toString()).toBe('2');
+	expect(b.toString()).toBe('1');
+	expect(c.toString()).toBe('2');
+
 	c.deactivate();
 
 	expect(b.active).toBe(false);
@@ -162,31 +170,65 @@ test('signal', () => {
 	expect(b.peek()).toBe(1);
 	expect(c.peek()).toBe(2);
 
+	expect(a.toJSON()).toBe(3);
+	expect(b.toJSON()).toBe(1);
+	expect(c.toJSON()).toBe(2);
+
+	expect(a.toString()).toBe('3');
+	expect(b.toString()).toBe('1');
+	expect(c.toString()).toBe('2');
+
+	a.deactivate();
+
+	a.set(4);
+
+	expect(a.peek()).toBe(3);
+	expect(b.get()).toBe(1);
+	expect(c.peek()).toBe(2);
+
+	expect(a.toJSON()).toBe(3);
+	expect(b.toJSON()).toBe(1);
+	expect(c.toJSON()).toBe(2);
+
+	expect(a.toString()).toBe('3');
+	expect(b.toString()).toBe('1');
+	expect(c.toString()).toBe('2');
+
+	expect(() => a.asReadonly()).toThrow();
+
 	expect(() => {
 		(b as any).set(2);
 	}).toThrow();
 });
 
 test('subscriptions', () => {
-	function onSubscription() {
-		count += 1;
+	function onFirst() {
+		counts[0] += 1;
+	}
+
+	function onSecond() {
+		counts[1] += 1;
 	}
 
 	const value = signal(1);
 	const readonly = value.asReadonly();
 	const frozen = value.asReadonly(true);
 
-	let count = 0;
+	const counts = [0, 0];
 
-	const valueSubscription = value.subscribe(onSubscription);
-	const readonlySubscription = readonly.subscribe(onSubscription);
-	const frozenSubscription = frozen.subscribe(onSubscription);
+	const valueSubscription = value.subscribe(onFirst);
+	const readonlySubscription = readonly.subscribe(onFirst);
+	const frozenSubscription = frozen.subscribe(onFirst);
 
-	expect(count).toBe(3);
+	readonly.subscribe(() => {}).unsubscribe();
+
+	readonly.subscribe(onSecond);
+
+	expect(counts).toEqual([3, 1]);
 
 	value.set(2);
 
-	expect(count).toBe(6);
+	expect(counts).toEqual([6, 2]);
 
 	valueSubscription.unsubscribe();
 	readonlySubscription.unsubscribe();
@@ -194,5 +236,13 @@ test('subscriptions', () => {
 
 	value.set(3);
 
-	expect(count).toBe(6);
+	expect(counts).toEqual([6, 3]);
+
+	readonly.deactivate();
+
+	value.set(4);
+
+	expect(counts).toEqual([6, 3]);
+
+	expect(() => readonly.subscribe(() => {})).toThrow();
 });

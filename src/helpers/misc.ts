@@ -1,9 +1,13 @@
 import {noop} from '@oscarpalmer/atoms/function';
+import type {PlainObject} from '@oscarpalmer/atoms/models';
 import {SYMBOL_EFFECT, SYMBOL_READONLY, SYMBOL_STATE} from '../constants';
+import {deactivateEffect} from '../effect';
 import type {
+	InternalArray,
 	InternalComputed,
 	InternalReactive,
 	InternalReadonly,
+	InternalStore,
 	ReactiveOptions,
 	ReactiveState,
 } from '../models';
@@ -18,10 +22,37 @@ export function deactivateComputed(this: InternalComputed): void {
 		return;
 	}
 
-	const fx = this[SYMBOL_EFFECT];
+	deactivateEffect(this[SYMBOL_EFFECT].instance);
 
-	fx.instance.active = false;
-	fx.instance.callback = noop;
+	deactivateReactive.call(this);
+}
+
+export function deactivateProxy(this: InternalArray | InternalStore): void {
+	const state = this[SYMBOL_STATE];
+
+	if (!state.active) {
+		return;
+	}
+
+	if (state.derived != null) {
+		for (const computed of state.derived) {
+			computed.deactivate();
+		}
+
+		state.derived.clear();
+
+		state.derived = undefined;
+	}
+
+	if (state.mapped != null) {
+		for (const [, computed] of state.mapped) {
+			computed.deactivate();
+		}
+
+		state.mapped.clear();
+
+		state.mapped = undefined;
+	}
 
 	deactivateReactive.call(this);
 }
@@ -54,9 +85,22 @@ export function deactivateReactive(this: InternalReactive): void {
 
 export function deactivateReadonly(this: InternalReadonly): void {
 	const readonly = this[SYMBOL_READONLY];
+	const signal = this[SYMBOL_STATE];
 
 	if (!readonly.active) {
 		return;
+	}
+
+	(signal.readonlies as PlainObject)![readonly.name] = undefined;
+
+	if (readonly.subscriptions != null) {
+		for (const subscription of readonly.subscriptions) {
+			subscription.unsubscribe();
+		}
+
+		readonly.subscriptions.clear();
+
+		readonly.subscriptions = undefined;
 	}
 
 	readonly.active = false;

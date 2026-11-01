@@ -43,6 +43,11 @@ test('basic', () => {
 	expect(count).toBe(3);
 	expect(value.peek()).toBe(3);
 
+	value.update(current => current + 1);
+
+	expect(count).toBe(3);
+	expect(value.peek()).toBe(3);
+
 	expect(() => value.update(undefined as never)).toThrow();
 });
 

@@ -10,13 +10,14 @@ import {
 	PROPERTY_LENGTH,
 	SYMBOL_STATE,
 } from '../constants';
-import {deactivateReactive, getReactiveActive, getState} from '../helpers/misc';
+import {deactivateProxy, getReactiveActive, getState} from '../helpers/misc';
 import {
 	getValueInProxy,
 	notifyProxyValue,
 	peekValueInProxy,
 	setProxyValue,
 	setValueInProxy,
+	updateProxyDerivations,
 	updateProxyValue,
 } from '../helpers/proxy';
 import {subscribeToProxy} from '../helpers/subscription';
@@ -138,7 +139,7 @@ function deactivateArray(this: InternalArray): void {
 
 	state.length?.deactivate?.();
 
-	deactivateReactive.call(this);
+	deactivateProxy.call(this);
 }
 
 function filterArrayValues(this: InternalArray, callback: never): Computed<unknown[]> {
@@ -146,7 +147,10 @@ function filterArrayValues(this: InternalArray, callback: never): Computed<unkno
 		throw new Error(MESSAGE_DEACTIVATED_ARRAY_FILTER);
 	}
 
-	return computed(() => filter(getArrayValues.call(this) as never, callback) as never);
+	return updateProxyDerivations(
+		this,
+		computed(() => filter(getArrayValues.call(this) as never, callback) as never),
+	);
 }
 
 function getArrayLength(this: InternalArray): number {
@@ -167,9 +171,12 @@ function mapArrayValues(
 		throw new Error(MESSAGE_DEACTIVATED_ARRAY_MAP);
 	}
 
-	return computed(() =>
-		(getArrayValues.call(this) as unknown[]).map((item, index, array) =>
-			callback(item, index, array),
+	return updateProxyDerivations(
+		this,
+		computed(() =>
+			(getArrayValues.call(this) as unknown[]).map((item, index, array) =>
+				callback(item, index, array),
+			),
 		),
 	);
 }
@@ -199,7 +206,10 @@ function selectArrayValues(this: InternalArray, filter: never, map: never): Comp
 		throw new Error(MESSAGE_DEACTIVATED_ARRAY_SELECT);
 	}
 
-	return computed(() => select(getArrayValues.call(this) as unknown[], filter, map));
+	return updateProxyDerivations(
+		this,
+		computed(() => select(getArrayValues.call(this) as unknown[], filter, map)),
+	);
 }
 
 function setArrayLength(this: InternalArray, value: number): void {

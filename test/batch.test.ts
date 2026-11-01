@@ -88,3 +88,23 @@ test('stops at zero depth', () => {
 
 	expect(BATCH.depth).toBe(0);
 });
+
+test('unsubscribed while batching', () => {
+	const value = signal(1);
+
+	let count = 0;
+
+	const subscription = value.subscribe(() => {
+		count += 1;
+	});
+
+	startBatch();
+
+	value.set(2);
+
+	subscription.unsubscribe();
+
+	stopBatch();
+
+	expect(count).toBe(1);
+});

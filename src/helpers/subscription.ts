@@ -10,6 +10,7 @@ import {
 	SUBSCRIPTION_TYPE_READONLY,
 	SUBSCRIPTION_TYPES,
 	SUBSCRIPTION_TYPES_COPY,
+	SYMBOL_READONLY,
 	SYMBOL_STATE,
 } from '../constants';
 import type {
@@ -31,6 +32,10 @@ export function subscribeToProxy(
 	second?: Subscriber<unknown> | boolean,
 	third?: boolean,
 ): Subscription {
+	if (!this[SYMBOL_STATE].active) {
+		throw new Error(MESSAGE_DEACTIVATED_SUBSCRIPTION);
+	}
+
 	if (isKey(first)) {
 		return getReactiveValueInProxy(this, first).subscribe(second as Subscriber<unknown>, third);
 	}
@@ -75,11 +80,29 @@ export function subscribeToReadonly(
 	this: InternalReadonly,
 	subscriber: Subscriber<unknown>,
 ): Subscription {
-	return subscribeToReactive.call(
+	const state = this[SYMBOL_READONLY];
+
+	if (!state.active) {
+		throw new Error(MESSAGE_DEACTIVATED_SUBSCRIPTION);
+	}
+
+	const subscription = subscribeToReactive.call(
 		this,
 		this.frozen ? SUBSCRIPTION_TYPE_FROZEN : SUBSCRIPTION_TYPE_READONLY,
 		subscriber,
 	);
+
+	state.subscriptions ??= new Set();
+
+	for (const existing of state.subscriptions) {
+		if (!existing.active) {
+			state.subscriptions.delete(existing);
+		}
+	}
+
+	state.subscriptions.add(subscription);
+
+	return subscription;
 }
 
 export function subscribeToSignal(

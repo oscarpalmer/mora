@@ -28,6 +28,13 @@ Object.defineProperties(Effect.prototype, {
 
 // #region Functions
 
+export function deactivateEffect(state: EffectState): void {
+	state.active = false;
+	state.callback = noop;
+
+	BATCH.handlers.delete(state);
+}
+
 /**
  * Create an effect
  *
@@ -72,14 +79,9 @@ export function runEffect(state: EffectState): void {
 function stopEffect(this: InternalEffect): void {
 	const state = this[SYMBOL_STATE];
 
-	if (!state.active) {
-		return;
+	if (state.active) {
+		deactivateEffect(state);
 	}
-
-	BATCH.handlers.delete(state);
-
-	state.active = false;
-	state.callback = noop;
 }
 
 // #endregion

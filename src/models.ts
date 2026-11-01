@@ -352,6 +352,7 @@ export type ReactiveOptions<Value> = {
 };
 
 export type ReactiveProxyState = {
+	derived?: Set<Computed<unknown>>;
 	isArray: boolean;
 	length?: Signal<number>;
 	mapped?: Map<string, InternalComputed>;
@@ -539,6 +540,8 @@ export type ReadonlySignalValue<Value> = Value extends unknown[]
 
 export type ReadonlyState = {
 	active: boolean;
+	name: string;
+	subscriptions?: Set<Subscription>;
 	value?: unknown;
 };
 

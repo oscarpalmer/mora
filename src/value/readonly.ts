@@ -1,4 +1,5 @@
 import {
+	MESSAGE_DEACTIVATED_READONLY,
 	SUBSCRIPTION_TYPE_FROZEN,
 	SUBSCRIPTION_TYPE_ORIGINAL,
 	SYMBOL_READONLY,
@@ -17,11 +18,12 @@ import type {InternalReadonly, InternalSignal, ReadonlySignal, SignalState} from
 
 // #region Instance
 
-function Readonly(this: any, state: SignalState, frozen: boolean): void {
+function Readonly(this: InternalReadonly, state: SignalState, frozen: boolean): void {
 	this[SYMBOL_STATE] = state;
 
 	this[SYMBOL_READONLY] = {
 		active: true,
+		name: frozen ? SUBSCRIPTION_TYPE_FROZEN : SUBSCRIPTION_TYPE_ORIGINAL,
 	};
 
 	Object.defineProperty(this, SUBSCRIPTION_TYPE_FROZEN, {
@@ -51,14 +53,20 @@ export function getReadonlySignal<Value>(
 	this: InternalSignal,
 	frozen?: never,
 ): ReadonlySignal<Value> {
+	const state = this[SYMBOL_STATE];
+
+	if (!state.active) {
+		throw new Error(MESSAGE_DEACTIVATED_READONLY);
+	}
+
 	const key = (frozen === true ? SUBSCRIPTION_TYPE_FROZEN : SUBSCRIPTION_TYPE_ORIGINAL) as never;
 
-	this[SYMBOL_STATE].readonlies ??= {};
+	state.readonlies ??= {};
 
 	// @ts-expect-error All good, no worries :-)
-	this[SYMBOL_STATE].readonlies[key] ??= new Readonly(this[SYMBOL_STATE], frozen === true);
+	state.readonlies[key] ??= new Readonly(state, frozen === true);
 
-	return this[SYMBOL_STATE].readonlies[key] as never;
+	return state.readonlies[key] as never;
 }
 
 function getReadonlyValue(this: InternalReadonly) {
@@ -73,16 +81,12 @@ function handleReadonlyValue(
 ): unknown {
 	const state = instance[SYMBOL_READONLY];
 
-	if (!state.active) {
-		return frozen ? getFrozenValue(state.value) : state.value;
-	}
-
 	let value: unknown;
 
 	if (peek) {
-		value = peekSignalValue.call(instance, copy === true);
+		value = peekSignalValue.call(state.active ? instance : [instance, state.value], copy === true);
 	} else {
-		value = getSignalValue.call(instance);
+		value = state.active ? getSignalValue.call(instance) : state.value;
 	}
 
 	return frozen ? getFrozenValue(value) : value;

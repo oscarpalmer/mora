@@ -20,6 +20,8 @@ test('array', () => {
 	expect(c.frozen).toBe(true);
 
 	expect(b.peek()).toBe(a.peek());
+	expect(b.peek(true)).toEqual(a.peek());
+	expect(b.peek(true)).not.toBe(a.peek());
 	expect(c.peek()).not.toBe(a.peek());
 	expect(Object.isFrozen(c.peek())).toBe(true);
 

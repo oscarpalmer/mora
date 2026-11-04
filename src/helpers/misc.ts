@@ -1,4 +1,3 @@
-import {noop} from '@oscarpalmer/atoms/function';
 import type {PlainObject} from '@oscarpalmer/atoms/models';
 import {SYMBOL_READONLY, SYMBOL_STATE} from '../constants';
 import {deactivateEffect, disposeChildren, removeChild} from '../effect';
@@ -13,7 +12,7 @@ import type {
 	SignalState,
 } from '../models';
 import {unlinkSource} from './graph';
-import {peekSignalValue} from './value';
+import {copyValue, getCopySource} from './value';
 
 // #region Functions
 
@@ -44,11 +43,7 @@ export function deactivateProxy(this: InternalArray | InternalStore): void {
 	// Includes its keyed computeds, as well as top-level `filter`/`map`/`select` computeds
 	disposeChildren(state);
 
-	if (state.mapped != null) {
-		state.mapped.clear();
-
-		state.mapped = undefined;
-	}
+	state.mapped = undefined;
 
 	deactivateState(state);
 }
@@ -77,13 +72,11 @@ export function deactivateReadonly(this: InternalReadonly): void {
 			subscription.unsubscribe();
 		}
 
-		readonly.subscriptions.clear();
-
 		readonly.subscriptions = undefined;
 	}
 
 	readonly.active = false;
-	readonly.value = peekSignalValue.call(this, true);
+	readonly.value = copyValue(getCopySource(signal), true);
 }
 
 function deactivateState(state: SignalState): void {
@@ -97,12 +90,11 @@ function deactivateState(state: SignalState): void {
 		link = link.nextObserver;
 	}
 
-	state.promises?.clear();
 	state.readonlies?.frozen?.deactivate();
 	state.readonlies?.original?.deactivate();
 	state.subscriptions?.clear();
 
-	state.equal = noop as never;
+	state.equal = undefined;
 	state.promise = undefined;
 
 	state.firstObserver = undefined;

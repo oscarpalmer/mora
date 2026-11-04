@@ -9,7 +9,6 @@ import {
 	SUBSCRIPTION_TYPE_ORIGINAL,
 	SUBSCRIPTION_TYPE_READONLY,
 	SUBSCRIPTION_TYPES,
-	SUBSCRIPTION_TYPES_COPY,
 	SYMBOL_READONLY,
 	SYMBOL_STATE,
 } from '../constants';
@@ -22,7 +21,7 @@ import type {
 	SubscriptionType,
 } from '../models';
 import {getReactiveValueInProxy} from './proxy';
-import {getFrozenValue, peekSignalValue} from './value';
+import {getSubscriptionValue} from './value';
 
 // #region Functions
 
@@ -65,12 +64,7 @@ function subscribeToReactive(
 	});
 
 	if (!existing) {
-		subscriber(
-			type === SUBSCRIPTION_TYPE_FROZEN
-				? getFrozenValue(state.value)
-				: peekSignalValue.call(this, SUBSCRIPTION_TYPES_COPY.has(type)),
-			subscription,
-		);
+		subscriber(getSubscriptionValue(state, type), subscription);
 	}
 
 	return subscription;

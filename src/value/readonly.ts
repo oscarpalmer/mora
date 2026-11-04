@@ -8,11 +8,12 @@ import {
 import {deactivateReadonly, getReadonlyActive} from '../helpers/misc';
 import {subscribeToReadonly} from '../helpers/subscription';
 import {
+	copyValue,
+	getCopySource,
 	getFrozenValue,
 	getJsonValue,
 	getSignalValue,
 	getStringValue,
-	peekSignalValue,
 } from '../helpers/value';
 import type {InternalReadonly, InternalSignal, ReadonlySignal, SignalState} from '../models';
 
@@ -79,17 +80,24 @@ function handleReadonlyValue(
 	frozen: boolean,
 	copy?: boolean,
 ): unknown {
-	const state = instance[SYMBOL_READONLY];
+	const readonly = instance[SYMBOL_READONLY];
 
-	let value: unknown;
-
-	if (peek) {
-		value = peekSignalValue.call(state.active ? instance : [instance, state.value], copy === true);
-	} else {
-		value = state.active ? getSignalValue.call(instance) : state.value;
+	if (!readonly.active) {
+		return frozen ? getFrozenValue(readonly.value) : copyValue(readonly.value, peek && copy);
 	}
 
-	return frozen ? getFrozenValue(value) : value;
+	const state = instance[SYMBOL_STATE];
+
+	if (!peek) {
+		// Only for tracking; the value is read below
+		getSignalValue.call(instance);
+	}
+
+	if (frozen) {
+		return getFrozenValue(getCopySource(state));
+	}
+
+	return peek && copy === true ? copyValue(getCopySource(state), true) : state.value;
 }
 
 function peekReadonlyValue(this: InternalReadonly, copy?: boolean) {

@@ -1,12 +1,12 @@
 import {ACTIVE, BATCH} from './constants';
 import {refreshObserver} from './effect';
-import {getFrozenValue, peekSignalValue} from './helpers/value';
+import {getSubscriptionValue} from './helpers/value';
 import type {ObserverState, StoredSubscription} from './models';
 
 // #region Functions
 
 export function flushHandlers(): void {
-	if (BATCH.flushing) {
+	if (BATCH.flushing || BATCH.depth > 0 || BATCH.queue.length === 0) {
 		return;
 	}
 
@@ -60,11 +60,7 @@ function runHandler(handler: ObserverState | StoredSubscription): void {
 		BATCH.subscriptions.delete(handler.subscription);
 
 		if (handler.subscription.active) {
-			handler.callback(
-				handler.frozen
-					? getFrozenValue(handler.state.value)
-					: peekSignalValue.call(handler.instance, handler.copy),
-			);
+			handler.callback(getSubscriptionValue(handler.state, handler.type), handler.subscription);
 		}
 
 		return;

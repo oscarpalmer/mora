@@ -1,6 +1,6 @@
 {
 	"name": "@oscarpalmer/mora",
-	"version": "0.40.0",
+	"version": "0.41.0",
 	"description": "Signals and stuff…",
 	"keywords": [
 		"reactive",
@@ -47,6 +47,6 @@
 		"jsdom": "^30.1",
 		"tsdown": "^0.23",
 		"typescript": "^7",
-		"vite-plus": "^1.4"
+		"vite-plus": "^1.5"
 	}
 }

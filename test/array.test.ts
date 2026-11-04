@@ -113,6 +113,37 @@ test('copyWithin', () => {
 	expect(a.peek()).toEqual([3, 4, 5, 4, 5]);
 });
 
+test('derived: callback array', () => {
+	const items = array([1, 2, 3]);
+
+	const arrays: unknown[] = [];
+
+	items
+		.filter((_, __, array) => {
+			arrays.push(array);
+
+			return true;
+		})
+		.get();
+
+	items.map((_, __, array) => arrays.push(array)).get();
+
+	items
+		.select(
+			(_, __, array) => {
+				arrays.push(array);
+
+				return true;
+			},
+			(_, __, array) => arrays.push(array),
+		)
+		.get();
+
+	// The proxy, so changes made through it are noticed
+	expect(arrays.length).toBe(12);
+	expect(arrays.every(array => array === items.get())).toBe(true);
+});
+
 test('emit', () => {
 	const a = array(Array.from({length: 100}, (_, i) => i));
 	const b = array(Array.from({length: 300}, (_, i) => i));
@@ -228,6 +259,35 @@ test('length', () => {
 
 	expect(a.peek('length')).toBe(10);
 	expect(counts).toEqual([2, 2]);
+});
+
+test('length, with items', () => {
+	const items = array([1, 2, 3]);
+
+	const seen: string[] = [];
+
+	effect(() => {
+		seen.push(`${items.get().length}/${items.length}`);
+	});
+
+	items.push(4);
+	items.get()[4] = 5;
+	items.set([1]);
+
+	// Runs once per change, and never sees a stale length
+	expect(seen).toEqual(['3/3', '4/4', '5/5', '1/1']);
+
+	effect(() => {
+		if (items.get().length > 1) {
+			throw new Error('Should be thrown by the assignment');
+		}
+	});
+
+	expect(() => {
+		items.get()[1] = 2;
+	}).toThrow();
+
+	expect(items.peek('length')).toBe(2);
 });
 
 test('map', () => {
@@ -468,6 +528,18 @@ test('set', () => {
 	expect(a.peek('length')).toBe(6);
 });
 
+test('set, large arrays', () => {
+	const size = 250_000;
+
+	const items = array(Array.from({length: size}, (_, index) => index));
+
+	expect(items.peek('length')).toBe(size);
+
+	items.set(Array.from({length: size}, (_, index) => index * 2));
+
+	expect(items.peek(-1)).toBe((size - 1) * 2);
+});
+
 test('shift', () => {
 	const a = array([1, 2, 3, 4, 5]);
 
@@ -493,6 +565,27 @@ test('sort', () => {
 	a.get().sort((a, b) => b - a);
 
 	expect(a.peek()).toEqual([1, 2, 3, 4, 5]);
+});
+
+test('sort + (reverse)', () => {
+	const items = array([3, 1, 2]);
+
+	let count = 0;
+
+	effect(() => {
+		items.get();
+
+		count += 1;
+	});
+
+	const sorted = items.get().sort();
+
+	expect(sorted).toBe(items.get());
+
+	sorted.reverse();
+
+	expect(items.peek()).toEqual([3, 2, 1]);
+	expect(count).toBe(3);
 });
 
 test('splice + (get)', () => {

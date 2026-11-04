@@ -25,7 +25,10 @@ import type {
 	InternalReadonly,
 	InternalStateful,
 	ObserverState,
+	ReactiveProxyState,
 	ReactiveState,
+	SignalState,
+	SubscriptionType,
 } from '../models';
 import {linkSource} from './graph';
 
@@ -37,13 +40,25 @@ type SetValue = (instance: InternalStateful, value: unknown, notify: boolean) =>
 
 // #region Functions
 
+export function copyValue(value: unknown, copy?: boolean): unknown {
+	if (copy !== true) {
+		return value;
+	}
+
+	if (Array.isArray(value)) {
+		return value.slice();
+	}
+
+	return isPlainObject(value) ? {...value} : value;
+}
+
 export function emitValue(instance: InternalStateful, flush?: boolean): void {
 	const state = instance[SYMBOL_STATE];
 
 	notifyObservers(state);
 
 	if (state.subscriptions != null) {
-		queueSubscriptions(instance, state.subscriptions);
+		queueSubscriptions(state, state.subscriptions);
 	}
 
 	if ((flush ?? true) && BATCH.depth === 0) {
@@ -93,6 +108,15 @@ export function equalArrays(
 	return true;
 }
 
+/**
+ * Gets the value to copy or freeze for a signal: an array's or store's target, as reads through its proxy are slow
+ *
+ * _(The target must never be handed out as-is)_
+ */
+export function getCopySource(state: SignalState): unknown {
+	return (state as Partial<ReactiveProxyState>).target ?? state.value;
+}
+
 export function getFrozenValue(value: unknown): unknown {
 	let frozen = value;
 
@@ -124,20 +148,23 @@ export function getSignalValue(this: InternalStateful): unknown {
 }
 
 export function getStringValue(this: InternalReadonly | InternalStateful, json?: boolean): string {
-	let {value} = this[SYMBOL_STATE];
-
-	if (SYMBOL_READONLY in this && !this[SYMBOL_READONLY].active) {
-		value = this[SYMBOL_READONLY].value;
-	}
+	const value = getJsonValue.call(this);
 
 	return json === true ? JSON.stringify(value) : String(value);
+}
+
+export function getSubscriptionValue(state: SignalState, type: SubscriptionType): unknown {
+	if (type === SUBSCRIPTION_TYPE_FROZEN) {
+		return getFrozenValue(getCopySource(state));
+	}
+
+	return SUBSCRIPTION_TYPES_COPY.has(type) ? copyValue(getCopySource(state), true) : state.value;
 }
 
 export function handleSignal(
 	instance: InternalStateful,
 	origin: unknown,
 	setValue: SetValue,
-	onAfter?: () => void,
 	notify?: boolean,
 ): void {
 	const state = instance[SYMBOL_STATE];
@@ -147,7 +174,7 @@ export function handleSignal(
 	}
 
 	try {
-		let actual = typeof origin === 'function' ? (origin as () => unknown)() : origin;
+		const actual = typeof origin === 'function' ? (origin as () => unknown)() : origin;
 
 		if (isPromise(actual)) {
 			state.promise = actual;
@@ -170,8 +197,6 @@ export function handleSignal(
 		}
 	} catch {
 		// ?
-	} finally {
-		onAfter?.();
 	}
 }
 
@@ -180,8 +205,9 @@ export function isPromise(value: unknown): value is Promise<unknown> {
 	return typeof value === 'object' && value instanceof Promise;
 }
 
-// Push: only marks observers, nothing is (re-)computed here
 function markObserver(node: ObserverState, status: number): void {
+	// Push: only marks observers, nothing is (re-)computed here
+
 	if (node.status >= status) {
 		return;
 	}
@@ -228,31 +254,14 @@ export function notifyObservers(state: ReactiveState): void {
 	}
 }
 
-export function peekSignalValue(
-	this: InternalStateful | [InternalStateful, unknown],
-	copy?: boolean,
-): unknown {
-	let peeked: unknown = Array.isArray(this) ? this[1] : this[SYMBOL_STATE].value;
-
-	if (copy !== true) {
-		return peeked;
-	}
-
-	if (Array.isArray(peeked)) {
-		peeked = peeked.slice();
-	} else if (isPlainObject(peeked)) {
-		peeked = {...peeked};
-	}
-
-	return peeked;
+export function peekSignalValue(this: InternalStateful, copy?: boolean): unknown {
+	return copyValue(this[SYMBOL_STATE].value, copy);
 }
 
 function queueSubscriptions(
-	instance: InternalStateful,
+	state: SignalState,
 	subscriptions: Subscriptions<GenericCallback>,
 ): void {
-	const state = instance[SYMBOL_STATE];
-
 	for (const type of SUBSCRIPTION_TYPES) {
 		const callbacks = subscriptions.values.to.keyed?.get(type);
 
@@ -267,11 +276,9 @@ function queueSubscriptions(
 
 				BATCH.queue.push({
 					callback,
-					instance,
 					state,
 					subscription,
-					copy: SUBSCRIPTION_TYPES_COPY.has(type),
-					frozen: type === SUBSCRIPTION_TYPE_FROZEN,
+					type,
 				});
 			}
 		}

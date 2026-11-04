@@ -43,7 +43,7 @@ function Computed(
 
 			state.notify = false;
 
-			handleSignal(this, callback, setAndEmit, undefined, notify);
+			handleSignal(this, callback, setAndEmit, notify);
 		},
 		cursor: undefined,
 		firstChild: undefined,
@@ -95,7 +95,7 @@ export function computed<Value>(
 	return getComputed(callback, options, ACTIVE.parent) as Computed<Value>;
 }
 
-function getComputed<Value>(
+export function getComputed<Value>(
 	callback: GenericCallback,
 	options?: ReactiveOptions<Value>,
 	parent?: Parent,
@@ -135,22 +135,15 @@ function getComputedValue(this: InternalComputed): unknown {
 	return state.value;
 }
 
-export function internalComputed(
-	callback: GenericCallback,
-	options?: ReactiveOptions<unknown>,
-	parent?: Parent,
-): InternalComputed {
-	return getComputed(callback, options, parent);
-}
-
 function peekComputedValue(this: InternalComputed, copy?: boolean): unknown {
 	refreshComputed(this);
 
 	return peekSignalValue.call(this, copy);
 }
 
-// For reads that shouldn't be tracked, but must still return an up-to-date value
 function refreshComputed(instance: InternalComputed): void {
+	// For reads that shouldn't be tracked, but must still return an up-to-date value
+
 	const state = instance[SYMBOL_STATE];
 
 	if (state.active) {

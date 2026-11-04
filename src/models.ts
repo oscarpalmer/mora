@@ -201,9 +201,7 @@ export type ReactiveArray<Item> = {
 	 * @param frozen Freeze the array? _(defaults to `false`)_
 	 * @returns Readonly reactive array
 	 */
-	asReadonly(
-		frozen?: boolean,
-	): typeof frozen extends true ? ReadonlyFrozenSignal<Item[]> : ReadonlySignal<Item[]>;
+	asReadonly(frozen?: boolean): ReadonlySignal<Item[]>;
 
 	/**
 	 * Get the value at an index
@@ -410,6 +408,10 @@ export type ReactiveProxyState = {
 	lastChild?: ObserverState;
 	length?: Signal<number>;
 	mapped?: Map<string, InternalComputed>;
+	/**
+	 * The proxied array or object, for internal reads and writes that shouldn't go through the proxy _(`value`)_
+	 */
+	target: PlainObject | unknown[];
 } & SignalState;
 
 export type ReactiveState<Value = unknown, Item = Value> = {
@@ -439,9 +441,7 @@ export type ReactiveStore<Store> = {
 	 * @param frozen Freeze the store? _(defaults to `false`)_
 	 * @returns Readonly reactive store
 	 */
-	asReadonly(
-		frozen?: boolean,
-	): typeof frozen extends true ? ReadonlyFrozenSignal<Store> : ReadonlySignal<Store>;
+	asReadonly(frozen?: boolean): ReadonlySignal<Store>;
 
 	/**
 	 * Get the value
@@ -623,9 +623,7 @@ export type Signal<Value> = {
 	 * @param frozen Freeze the signal? _(defaults to `false`)_
 	 * @returns Readonly signal
 	 */
-	asReadonly(
-		frozen?: boolean,
-	): typeof frozen extends true ? ReadonlyFrozenSignal<Value> : ReadonlySignal<Value>;
+	asReadonly(frozen?: boolean): ReadonlySignal<Value>;
 
 	/**
 	 * Set the value
@@ -648,11 +646,9 @@ export type SignalState = {
 
 export type StoredSubscription = {
 	callback: GenericCallback;
-	copy: boolean;
-	frozen: boolean;
-	instance: InternalStateful;
 	state: SignalState;
 	subscription: Subscription;
+	type: SubscriptionType;
 };
 
 export type Subscriber<Value> = (value: Value, subscription: Subscription) => void;

@@ -1,17 +1,16 @@
-import {isKey, isPlainObject} from '@oscarpalmer/atoms/is';
+import {isKey, isNumerical, isPlainObject} from '@oscarpalmer/atoms/is';
 import type {
 	ArrayOrPlainObject,
 	GenericCallback,
 	Key,
 	PlainObject,
 } from '@oscarpalmer/atoms/models';
-import {getNumber} from '@oscarpalmer/atoms/number';
 import {getString} from '@oscarpalmer/atoms/string';
 import {startBatch, stopBatch} from '../batch';
 import {MESSAGE_UPDATE_CALLBACK, PROPERTY_LENGTH, SYMBOL_STATE} from '../constants';
 import type {InternalArray, InternalComputed, InternalStore, ReactiveProxyState} from '../models';
-import {internalComputed} from '../value/computed';
-import {emitValue, getSignalValue, isPromise, peekSignalValue} from './value';
+import {getComputed} from '../value/computed';
+import {copyValue, emitValue, equalArrays, getCopySource, getSignalValue, isPromise} from './value';
 
 // #region Functions
 
@@ -29,6 +28,24 @@ export function deleteValueInProxy(
 	return true;
 }
 
+export function emitProxyValue(instance: InternalArray | InternalStore): void {
+	const state = instance[SYMBOL_STATE];
+
+	if (state.length == null) {
+		emitValue(instance);
+
+		return;
+	}
+
+	startBatch();
+
+	emitValue(instance);
+
+	state.length.set((state.target as unknown[]).length);
+
+	stopBatch();
+}
+
 export function getReactiveValueInProxy(
 	instance: InternalArray | InternalStore,
 	key: Key,
@@ -43,11 +60,13 @@ export function getReactiveValueInProxy(
 
 	if (item == null) {
 		// Owned by the array/store, as it's cached, and may be created inside a (re-running) effect
-		item = internalComputed(
-			() =>
-				state.isArray
-					? (instance.get() as unknown[]).at(key as number)
-					: (instance.get() as PlainObject)[key],
+		item = getComputed(
+			() => {
+				// Tracks the whole array/store, but reads the key from its target
+				getSignalValue.call(instance);
+
+				return getTargetValue(state, key);
+			},
 			undefined,
 			state,
 		);
@@ -56,6 +75,12 @@ export function getReactiveValueInProxy(
 	}
 
 	return item;
+}
+
+function getTargetValue(state: ReactiveProxyState, key: Key): unknown {
+	return state.isArray
+		? (state.target as unknown[]).at(key as number)
+		: (state.target as PlainObject)[key];
 }
 
 export function getValueInProxy(this: InternalArray | InternalStore, first?: unknown): unknown {
@@ -87,14 +112,11 @@ export function notifyProxyValue(this: InternalArray | InternalStore): void {
 		return;
 	}
 
-	state.mapped ??= new Map();
-
-	const values = [...state.mapped.values()];
-	const {length} = values;
-
 	// Keyed computeds observe the array/store, so the emit marks them; `notify` makes them emit even if equal
-	for (let index = 0; index < length; index += 1) {
-		values[index][SYMBOL_STATE].notify = true;
+	if (state.mapped != null) {
+		for (const item of state.mapped.values()) {
+			item[SYMBOL_STATE].notify = true;
+		}
 	}
 
 	emitValue(this);
@@ -106,35 +128,55 @@ export function peekValueInProxy(
 	second?: boolean,
 ): unknown {
 	const state = this[SYMBOL_STATE];
+	const copy = first === true || second === true;
 
 	let value: unknown;
 
 	if (state.isArray ? typeof first === 'number' : isKey(first)) {
-		value = state.isArray
-			? (state.value as unknown[]).at(first as number)
-			: (state.value as PlainObject)[first as Key];
+		value = getTargetValue(state, first as Key);
 	} else {
-		value = state.value;
+		value = copy ? getCopySource(state) : state.value;
 	}
 
-	return peekSignalValue.call([this, value], first === true || second === true);
+	return copyValue(value, copy);
 }
 
-function setProxyObject(state: ReactiveProxyState, value: unknown): void {
-	if (state.isArray) {
-		const values = state.value as unknown[];
+function setProxyItems(instance: InternalArray, items: unknown[]): void {
+	const state = instance[SYMBOL_STATE];
+	const target = state.target as unknown[];
 
-		values.splice(0, values.length, ...((value ?? []) as unknown[]));
+	if (equalArrays(target, items, state.equal)) {
+		return;
+	}
+
+	const {length} = items;
+
+	// Copied item by item, as spreading a large array into `splice` overflows the call stack
+	target.length = length;
+
+	for (let index = 0; index < length; index += 1) {
+		target[index] = items[index];
+	}
+
+	emitProxyValue(instance);
+}
+
+function setProxyObject(instance: InternalArray | InternalStore, value: unknown): void {
+	const state = instance[SYMBOL_STATE];
+
+	if (state.isArray) {
+		setProxyItems(instance as InternalArray, (value ?? []) as unknown[]);
 
 		return;
 	}
 
 	startBatch();
 
+	// Written through the proxy, so each key is compared (and emitted) on its own
 	const current = state.value as PlainObject;
 	const next = (value as Record<string, unknown>) ?? {};
 
-	const currentKeys = Object.keys(current);
+	const currentKeys = Object.keys(state.target);
 	const nextKeys = Object.keys(next);
 
 	let {length} = currentKeys;
@@ -142,9 +184,7 @@ function setProxyObject(state: ReactiveProxyState, value: unknown): void {
 	for (let index = 0; index < length; index += 1) {
 		const key = currentKeys[index];
 
-		if (nextKeys.includes(key)) {
-			current[key] = next[key];
-		} else {
+		if (!Object.hasOwn(next, key)) {
 			delete current[key];
 		}
 	}
@@ -154,11 +194,7 @@ function setProxyObject(state: ReactiveProxyState, value: unknown): void {
 	for (let index = 0; index < length; index += 1) {
 		const key = nextKeys[index];
 
-		if (!currentKeys.includes(key)) {
-			const keyedValue = next[key];
-
-			current[key] = keyedValue;
-		}
+		current[key] = next[key];
 	}
 
 	stopBatch();
@@ -199,7 +235,7 @@ export function setProxyValue(
 	}
 
 	if (isProxyObject(state.isArray, first)) {
-		setProxyObject(state, first);
+		setProxyObject(this, first);
 
 		return;
 	}
@@ -242,7 +278,7 @@ export function setProxyValue(
 				if (!keyed && isProxyObject(state.isArray, value) && state.promise === actual) {
 					state.promise = undefined;
 
-					setProxyObject(state, value);
+					setProxyObject(this, value);
 				}
 			})
 			.catch(() => {
@@ -255,7 +291,7 @@ export function setProxyValue(
 	} else if (keyed) {
 		setProxyProperty(state, first, actual);
 	} else if (isProxyObject(state.isArray, actual)) {
-		setProxyObject(state, actual);
+		setProxyObject(this, actual);
 	}
 }
 
@@ -272,7 +308,7 @@ export function setValueInProxy(
 	}
 
 	if (state.isArray) {
-		const isIndex = !Number.isNaN(getNumber(property));
+		const isIndex = isNumerical(property);
 		const isLength = property === PROPERTY_LENGTH;
 
 		if (!(isIndex || isLength)) {
@@ -285,11 +321,7 @@ export function setValueInProxy(
 	if (!(state.equal ?? Object.is)(previous, value)) {
 		Reflect.set(target, property, value);
 
-		emitValue(instance);
-
-		if (state.isArray) {
-			state.length?.set((target as unknown[]).length);
-		}
+		emitProxyValue(instance);
 	}
 
 	return true;

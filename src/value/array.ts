@@ -13,6 +13,7 @@ import {
 } from '../constants';
 import {deactivateProxy, getReactiveActive, getState} from '../helpers/misc';
 import {
+	emitProxyValue,
 	getValueInProxy,
 	notifyProxyValue,
 	peekValueInProxy,
@@ -21,24 +22,33 @@ import {
 	updateProxyValue,
 } from '../helpers/proxy';
 import {subscribeToProxy} from '../helpers/subscription';
-import {emitValue, equalArrays, getJsonValue, getStringValue} from '../helpers/value';
+import {equalArrays, getJsonValue, getStringValue} from '../helpers/value';
 import type {Computed, InternalArray, ReactiveArray, ReactiveOptions} from '../models';
-import {internalComputed} from './computed';
+import {getComputed} from './computed';
 import {getReadonlySignal} from './readonly';
 import {signal} from './signal';
+
+// #region Types
+
+type Callback<Value> = (item: unknown, index: number, array: unknown[]) => Value;
+
+// #endregion
 
 // #region Instance
 
 function ReactiveArray(this: any, value: unknown, options?: ReactiveOptions<unknown>): void {
+	const target: unknown[] = [];
+
 	this[SYMBOL_STATE] = {
 		...getState(NAME_ARRAY, undefined, options),
+		target,
 		firstChild: undefined,
 		isArray: true,
 		lastChild: undefined,
 		length: signal(0),
 	};
 
-	this[SYMBOL_STATE].value = new Proxy([], {
+	this[SYMBOL_STATE].value = new Proxy(target, {
 		get: (target, property) =>
 			METHODS_UPDATE.has(property)
 				? updateArray(this, property, target)
@@ -139,25 +149,38 @@ function deactivateArray(this: InternalArray): void {
 		return;
 	}
 
-	state.length?.deactivate?.();
+	state.length?.deactivate();
 
 	deactivateProxy.call(this);
 }
 
-function filterArrayValues(this: InternalArray, callback: never): Computed<unknown[]> {
+function filterArrayValues(this: InternalArray, callback: Callback<boolean>): Computed<unknown[]> {
 	if (!this[SYMBOL_STATE].active) {
 		throw new Error(MESSAGE_DEACTIVATED_ARRAY_FILTER);
 	}
 
-	return getArrayDerivation(this, () => filter(getArrayValues.call(this) as never, callback));
+	return getArrayDerivation(this, (items, array) =>
+		filter(items, (item, index) => callback(item, index, array)),
+	);
 }
 
+/**
+ * Creates a computed derived from the array's items
+ *
+ * _(Tracked through the proxy, but derived from the target, as reads through the proxy are slow; user callbacks get `array`, the proxy, so they can't change the target unnoticed)_
+ */
 function getArrayDerivation(
 	instance: InternalArray,
-	callback: () => unknown[],
+	derive: (items: unknown[], array: unknown[]) => unknown[],
 ): Computed<unknown[]> {
+	const state = instance[SYMBOL_STATE];
+
 	// Owned by the running effect or computed (so it's disposed when that re-runs), otherwise by the array
-	return internalComputed(callback, undefined, ACTIVE.parent ?? instance[SYMBOL_STATE]) as never;
+	return getComputed(
+		() => derive(state.target as unknown[], getArrayValues.call(instance) as unknown[]),
+		undefined,
+		ACTIVE.parent ?? state,
+	) as never;
 }
 
 function getArrayLength(this: InternalArray): number {
@@ -170,18 +193,13 @@ function getArrayValues(this: InternalArray, value?: unknown): unknown {
 		: getValueInProxy.call(this, value);
 }
 
-function mapArrayValues(
-	this: InternalArray,
-	callback: (item: unknown, index: number, array: unknown[]) => unknown,
-): Computed<unknown[]> {
+function mapArrayValues(this: InternalArray, callback: Callback<unknown>): Computed<unknown[]> {
 	if (!this[SYMBOL_STATE].active) {
 		throw new Error(MESSAGE_DEACTIVATED_ARRAY_MAP);
 	}
 
-	return getArrayDerivation(this, () =>
-		(getArrayValues.call(this) as unknown[]).map((item, index, array) =>
-			callback(item, index, array),
-		),
+	return getArrayDerivation(this, (items, array) =>
+		items.map((item, index) => callback(item, index, array)),
 	);
 }
 
@@ -205,13 +223,21 @@ function pushArrayValues(this: InternalArray, ...items: unknown[]): number {
 		: (state.value as unknown[]).length;
 }
 
-function selectArrayValues(this: InternalArray, filter: never, map: never): Computed<unknown[]> {
+function selectArrayValues(
+	this: InternalArray,
+	filter: Callback<boolean>,
+	map: Callback<unknown>,
+): Computed<unknown[]> {
 	if (!this[SYMBOL_STATE].active) {
 		throw new Error(MESSAGE_DEACTIVATED_ARRAY_SELECT);
 	}
 
-	return getArrayDerivation(this, () =>
-		select(getArrayValues.call(this) as unknown[], filter, map),
+	return getArrayDerivation(this, (items, array) =>
+		select(
+			items,
+			(item, index) => filter(item, index, array),
+			(item, index) => map(item, index, array),
+		),
 	);
 }
 
@@ -279,12 +305,11 @@ function updateArray(instance: InternalArray, type: string | symbol, array: unkn
 				? array.length !== previousLength
 				: !equalArrays(previousArray, array, state.equal)
 		) {
-			emitValue(instance);
-
-			state.length!.set(array.length);
+			emitProxyValue(instance);
 		}
 
-		return result;
+		// Methods returning the array itself (e.g., `sort`) return the proxy instead, so chained calls are noticed
+		return result === array ? state.value : result;
 	};
 }
 

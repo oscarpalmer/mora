@@ -13,7 +13,7 @@ import {
 	SYMBOL_STATE,
 } from './constants';
 import {unlinkSourcesFrom} from './helpers/graph';
-import {deactivateComputedState} from './helpers/misc';
+import {deactivateComputedState, getReactiveActive} from './helpers/misc';
 import type {ComputedState, Effect, InternalEffect, Link, ObserverState, Parent} from './models';
 
 // #region Instance
@@ -48,7 +48,7 @@ Effect.prototype.stop = stopEffect;
 Object.defineProperties(Effect.prototype, {
 	active: {
 		enumerable: true,
-		get: getActive,
+		get: getReactiveActive,
 	},
 });
 
@@ -88,12 +88,16 @@ export function deactivateEffect(state: ObserverState): void {
 export function disposeChildren(parent: Parent): void {
 	let child = parent.firstChild;
 
+	if (child == null) {
+		return;
+	}
+
 	// Detach the list first, so children being disposed don't try to remove themselves from it
 	parent.firstChild = undefined;
 	parent.lastChild = undefined;
 
 	while (child != null) {
-		const next = child.nextSibling;
+		const next: ObserverState | undefined = child.nextSibling;
 
 		child.nextSibling = undefined;
 		child.parent = undefined;
@@ -124,14 +128,9 @@ export function effect(callback: GenericCallback): Effect {
 	return new Effect(callback);
 }
 
-function getActive(this: InternalEffect): boolean {
-	return this[SYMBOL_STATE].active;
-}
-
-/**
- * Pull: only (re-)runs the observer if one of its sources actually changed
- */
 export function refreshObserver(node: ObserverState): void {
+	// Pull: only (re-)runs the observer if one of its sources actually changed
+
 	if (node.status === STATUS_CHECK) {
 		checkSources(node);
 

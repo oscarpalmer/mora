@@ -1,7 +1,27 @@
 import type {Link, ObserverState, ReactiveState} from '../models';
 
-// Each link is one dependency, kept in two doubly linked lists at once:
-// the observer's list of sources (in read order) and the source's list of observers
+// Sources (signals, computeds, arrays, and stores) are read by observers (effects and computeds),
+// so a computed is both. Each dependency is a link, stored in two lists: the observer's sources,
+// in the order they were read, and the source's observers. The lists are doubly linked, so links
+// are cheap to add and remove.
+//
+// Tracking: when an observer runs, its reads are compared with the reads from its last run. If
+// they match, in the same order, every link is reused. A read that doesn't match gets a new link,
+// and links that weren't read this time are removed, so an observer only depends on what it read
+// last time.
+//
+// Push: when a source changes, nothing runs yet; observers are only marked. The source's own
+// observers are marked dirty: they need to run. Observers further down are marked check: a
+// computed in between may end up with the same value. Effects are queued when first marked, and
+// so are computeds with subscribers.
+//
+// Pull: queued effects run when the queue is flushed (after a write, or when the outermost batch
+// stops), and computeds update when they're read. A dirty observer runs right away. A check
+// observer first updates its computed sources, in order, and only runs if one of them changed.
+// So a computed that ends up with the same value stops the update there, and a computed that
+// nothing reads (or subscribes to) never runs.
+//
+// Cleanup: when an observer stops, or a source is deactivated, its links are removed.
 
 // #region Functions
 

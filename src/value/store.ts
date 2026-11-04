@@ -18,20 +18,20 @@ import {getReadonlySignal} from './readonly';
 // #region Instance
 
 function ReactiveStore(this: any, value: never, options?: ReactiveOptions<unknown>): void {
+	const target: PlainObject = {};
+
 	this[SYMBOL_STATE] = {
 		...getState(NAME_STORE, undefined, options),
+		target,
 		firstChild: undefined,
 		isArray: false,
 		lastChild: undefined,
 	};
 
-	this[SYMBOL_STATE].value = new Proxy(
-		{},
-		{
-			deleteProperty: (target, property) => deleteValueInProxy(this, target, property),
-			set: (target, property, value) => setValueInProxy(this, target, property, value),
-		},
-	);
+	this[SYMBOL_STATE].value = new Proxy(target, {
+		deleteProperty: (target, property) => deleteValueInProxy(this, target, property),
+		set: (target, property, value) => setValueInProxy(this, target, property, value),
+	});
 
 	setProxyValue.call(this, value);
 }

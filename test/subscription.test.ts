@@ -1,6 +1,21 @@
 import {expect, test} from 'vite-plus/test';
 import {array, computed, signal, startBatch, stopBatch, store} from '../src';
 
+test('arguments', () => {
+	const value = signal(1);
+
+	const calls: unknown[][] = [];
+
+	const subscription = value.subscribe((...args) => {
+		calls.push(args);
+	});
+
+	value.set(2);
+
+	expect(calls.map(([value]) => value)).toEqual([1, 2]);
+	expect(calls.every(([, argument]) => argument === subscription)).toBe(true);
+});
+
 test('basic', () => {
 	function onValue(value: number): void {
 		counts[1] += 1;

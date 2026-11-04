@@ -196,6 +196,18 @@ test('notify', () => {
 
 	expect(count).toBe(2);
 	expect(value).toBe(456);
+
+	const unkeyed = store({a: 1});
+
+	let notified = 0;
+
+	unkeyed.subscribe(() => {
+		notified += 1;
+	});
+
+	unkeyed.notify();
+
+	expect(notified).toBe(2);
 });
 
 test('peek', () => {
